@@ -1,0 +1,19 @@
+[project]
+name = "texpkg"
+version = "0.0.0dev0"
+description = "latex package management"
+authors = [
+    {name = "Ilja Orlovs",email = "IljaOrlovs@users.noreply.github.com"},
+]
+dependencies = []
+requires-python = ">=3.15"
+readme = "README.md"
+license = "MIT"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
