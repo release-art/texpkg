@@ -1,19 +1,78 @@
 [project]
 name = "texpkg"
-version = "0.0.0dev0"
-description = "latex package management"
-authors = [
-    {name = "Ilja Orlovs",email = "IljaOrlovs@users.noreply.github.com"},
-]
-dependencies = []
-requires-python = ">=3.15"
-readme = "README.md"
+dynamic = ["version"]
+description = "LaTeX package management."
+authors = [{name = "Ilja Orlovs", email = "ilja@release.art"}]
 license = "MIT"
+license-files = ["LICENSE"]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.15",
+    "Typing :: Typed",
+]
+requires-python = ">=3.15,<3.16"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/release-art/texpkg"
+Repository = "https://github.com/release-art/texpkg"
+
+[tool.ruff]
+target-version = "py315"
+lint.select = ["A", "B", "C", "E", "F", "I", "W", "N", "C4", "T20", "PTH"]
+lint.ignore = ["N802"]
+line-length = 120
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402"]
+
+[tool.ruff.lint.isort]
+order-by-type = true
+combine-as-imports = true
+force-wrap-aliases = true
+known-first-party = ["texpkg"]
+forced-separate = ["tests"]
+
+[tool.pyright]
+include = ["src", "tests"]
+strict = ["src"]
+pythonVersion = "3.15"
+
+[tool.pytest.ini_options]
+addopts = "-v -l --color=yes --cov=texpkg --cov-report term-missing --cov-fail-under=100 --no-cov-on-fail"
+pythonpath = ["src"]
+testpaths = ["tests"]
+timeout = 15
+
+[tool.pdm]
+distribution = true
+
+# The version is the git tag (v1.2.3); no tag falls back to 0.0.0.
+[tool.pdm.version]
+source = "scm"
+tag_regex = '^v(?P<version>\d+\.\d+\.\d+.*)$'
+fallback_version = "0.0.0"
+
+[tool.pdm.build]
+package-dir = "src"
+includes = ["src/texpkg"]
 
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
-
-[tool.pdm]
-distribution = true
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.16.0",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.17.1",
+    "pyright>=1.1.414",
+    "pip-audit>=2.7",
+    "hypothesis>=6",
+]
