@@ -157,3 +157,37 @@ Texmodel requests: none. (`Edit.fields` of texmodel's uncommitted hand-edit work
 
 Deferred: D9 (a hand edit's field path and typed `value`): `HandEdit.value` is `None` until texmodel's field-level edits are
 committed; migrations on `load` (5a); `now=` (4).
+
+## Phase 2b: the build (B1-B6, B8, V1)
+
+Built: `texpkg_build/hook.py` (`pdm_build_initialize`, `pdm_build_update_files`), `texpkg_build/_internal/checks.py`
+(`declaration_directory`, `assets_are_there`, `module_satisfies_the_protocols`); the author-project fixture
+`tests/consumers/acme-brand-tex/` (`pyproject.toml`, `pdm_build.py`) and `tests/projects.py` (copies it with the declaration
+into a temporary project and builds a wheel or sdist in this process with `pdm.backend`); `tests/test_build.py`.
+`pdm-backend` is a dev dependency and in the `build` extra.
+
+Gates: `ruff format --check`, `ruff check`, `pyright` (0 errors), `lint-imports`, `pytest` (100%): green. No TeX is written
+by the build beyond the `.sty` the compile tests already cover, and the compile tests (6) stay green.
+
+Proposed items adopted: B7's `pydantic>=2,<3`; B10 is phase 3.
+
+Decisions:
+- The wheel holds only the generated module (`files.clear()` for the wheel target), with the declaration package copied to
+  `<module>/_declaration/` whole (templates, assets, design data included); the sdist is left to the author's `includes`,
+  adds the hook file (pdm does) and builds the same wheel (tested byte for byte).
+- The wheel's dependencies are `pydantic>=2,<3` plus `texmodel==` and `texpkg==` the versions the build ran with. The last
+  two go in phase 3 when both are embedded.
+- The hook imports the declaration with `<project>/<package-dir>` on `sys.path` and forgets, afterwards, every module it
+  or the generated module imported, restoring any copy that was already loaded, so building in the author's test process
+  is hermetic. An editable build is refused (`TP-B008`): the module is generated, so authors test with `load_declaration`.
+- The hook writes into `.pdm-build/` without `ensure_build_dir()`: its `.gitignore` would be packed into the wheel.
+- The build also loads the generated module in memory and checks it against the protocols (`TP-B006`).
+- Codes: `TP-B004` declaration not a package, `TP-B005` missing asset, `TP-B006` protocol, `TP-B007` no pointer, `TP-B008`
+  editable build.
+- Contracts are the default `Contracts()` until 5b writes them from the versions file.
+
+Texmodel requests: `TemplateRef` reads through the file system, so a wheel cannot be imported from its zip
+(`docs/texmodel-requests.md`; `test_a_wheel_runs_from_its_zip` is a strict `xfail`). Installed wheels are unpacked, so this
+affects only zip imports.
+
+Deferred: embedding (3); contracts from the versions file (5b); the absolute self-import check (3, with the rewrite).

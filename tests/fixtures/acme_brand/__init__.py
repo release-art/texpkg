@@ -55,6 +55,10 @@ broken = dataclasses.replace(
     dist, assets=(*dist.assets, Asset("assets/gone.pdf", Role.GRAPHIC, "a file nobody shipped"))
 )
 
+clash = dataclasses.replace(dist, assets=(*dist.assets, Asset("other/lockup.pdf", Role.GRAPHIC, "another lock-up")))
+
+clash = dataclasses.replace(dist, assets=(*dist.assets, Asset("other/lockup.pdf", Role.GRAPHIC, "another lock-up")))
+
 __all__ = [
     "Accent",
     "Card",
@@ -69,6 +73,7 @@ __all__ = [
     "Title",
     "broken",
     "changed",
+    "clash",
     "dist",
     "expert_example",
     "flat",

@@ -15,7 +15,7 @@ requires-python = ">=3.15,<3.16"
 dependencies = ["texmodel>=0.3.3", "pydantic>=2.14.1"]
 
 [project.optional-dependencies]
-build = ["typer>=0.27.3"]  # the author's build (texpkg_build); a built wheel embeds only the run time (B7, B8)
+build = ["typer>=0.27.3", "pdm-backend>=2.4"]  # the author's build (texpkg_build); a built wheel embeds only the run time (B7, B8)
 
 [project.scripts]
 texpkg-build = "texpkg_build.cli:app"
@@ -121,4 +121,5 @@ dev = [
     "hypothesis>=6",
     "import-linter>=2.15",
     "jsonschema>=4.26.0",
+    "pdm-backend>=2.5.0",
 ]
