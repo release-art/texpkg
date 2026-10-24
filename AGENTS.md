@@ -11,7 +11,7 @@ dependent at build time (static linking), texmodel and texpkg's run time embedde
 the author's declaration at wheel build time (`texpkg-build`, a pdm build hook) and defines the API behind it: load a
 document directory, render it, save it with the files it needs, check it later.
 [docs/texpkg-plan.md](docs/texpkg-plan.md) is the target spec, the API reference (§4a), the phases (§8) and the
-decisions log (§9). texmodel owns components, document models and escaping.
+decisions log (§9); [docs/implementation-plan.md](docs/implementation-plan.md) is how and in which order it is built. texmodel owns components, document models and escaping.
 
 **Pre-1.0:** no backward compatibility for the Python API or the saved output: rename or remove directly. List every
 such change under `Changed` or `Removed` in `CHANGELOG.md`.
@@ -40,10 +40,12 @@ not settled: ask before building on it.
 pdm run ruff format --check src tests
 pdm run ruff check src tests
 pdm run pyright                 # strict on src, 0 errors
-pdm run pytest                  # coverage must stay at 100%
+pdm run lint-imports            # the package contracts (below)
+pdm run pytest                  # coverage over both packages must stay at 100%
+TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the library or the build changed
 ```
 
-- `bin/autoformat.sh` formats, fixes and runs pyright and pytest; `.githooks/pre-commit` runs the gates
+- `bin/autoformat.sh` formats, fixes and runs pyright, import-linter and pytest; `.githooks/pre-commit` runs the gates
   (`git config core.hooksPath .githooks`).
 - Judge each gate by its exit code. Run the files you touched first, the whole suite last.
 - Output that TeX must accept is proved by compiling, not by comparing text.
@@ -51,7 +53,22 @@ pdm run pytest                  # coverage must stay at 100%
   `# noqa: CODE` or `# pyright: ignore[rule]` carries its reason.
 - Every new code path needs a test; new behaviour needs one that fails without it. Say which gates you ran.
 
+## Package layout (pydantic pattern)
+
+- One distribution, two import packages. `src/texpkg` is the run time: it is what every built wheel embeds (B7), so it
+  imports only the standard library, texmodel and pydantic. `src/texpkg_build` is the author's build (hook, generation,
+  snapshots, embedding) and is never embedded; its dependencies sit in the `build` extra.
+- Public modules sit at the top level of each package; `_internal/` is what we deliberately hide. A new module goes in
+  `_internal` unless users should import it; then add it to `PUBLIC` in `tests/test_public_api.py` and document it.
+- `texpkg` never imports `texpkg_build`; nothing starts a process (tests do, through `tests/spawn.py`); only
+  `texpkg_build/cli.py` prints. `lint-imports` enforces these.
+- What texpkg needs from texmodel and texmodel lacks is written in one self-contained texpkg module and listed in
+  `docs/texmodel-requests.md` (N5, V9). Do not edit texmodel from here.
+
 ## Conventions
+
+- Errors carry a new, stable code `TP-<area><nnn>`: `A` assets, `D` document, `K` kinds, `M` migration, `B` build,
+  `C` contracts, `E` embedding. `grep -rhoE "TP-[A-Z][0-9]+" src | sort -u` for the next free one; a code is never reused.
 
 - Mark every `Enum`/`StrEnum` `@enum.unique`.
 - Values are frozen dataclasses; output is a pure function of its inputs: no clocks, hashes, set or dict order in what is
@@ -63,7 +80,13 @@ pdm run pytest                  # coverage must stay at 100%
 ## Working with the maintainer
 
 - Work from the plan's phases; for a design choice it leaves open, propose rather than pick silently.
-- Git is the maintainer's: read-only commands only (`status`, `diff`, `log`, `show`) unless explicitly asked. Releasing is
-  theirs; the version is the git tag.
+- Git is the maintainer's: read-only commands only (`status`, `diff`, `log`, `show`) unless explicitly asked (an
+  implementation brief may grant commits on one named branch). Releasing is theirs; the version is the git tag.
 - Uncommitted changes aren't yours: read `git status` and `git diff` first, build on them, never revert them.
 - Scratch files go in your scratchpad, never in the repo.
+
+## Development environment
+
+- `pdm install`; run tools as `pdm run ...`. Python is 3.15 only.
+- texmodel is installed editable from the sibling checkout (`../texmodel`, `[tool.pdm.dev-dependencies]`) until it is
+  released with what texpkg needs (its components as pydantic models); texpkg then depends on the released version.

@@ -1,6 +1,7 @@
 # texpkg — project plan
 
-The target spec and the decisions log. It describes what texpkg is meant to be; what is built is marked in §8. Status of
+The target spec and the decisions log. It describes what texpkg is meant to be; what is built is marked in §8, and how
+it is built is [implementation-plan.md](implementation-plan.md). Status of
 each decision: **decided**, **proposed** (drafted, not agreed) or **open** (a question). Requirement ids (`P1`, `A3`)
 are what tests and commits cite.
 
@@ -92,27 +93,27 @@ profiles' models) is neither's: it is the content being packaged, built with tex
 
 - B1 The author writes a declaration (a `Distribution`: texmodel package, kinds, assets, design data, its
   base) and points the build at it; texpkg's build step generates the module with the fixed surface (§4), renders
-  the `.sty`, copies the assets and writes them all into the wheel.
+  the `.sty`, copies the assets and writes them all into the wheel (**decided**).
 - B2 The hook is a pdm-backend build hook (`pdm_build.py`, `pdm_build_update_files`) that calls `texpkg-build` (B8)
   (**decided**); `texpkg-build`, the base (P14) and whatever the declaration imports are listed in `[build-system]
   requires`, because the build runs in an isolated environment.
-- B3 The declaration is named in configuration, `[tool.texpkg] distribution = "acme_tex_decl:dist"` (**proposed**): an
-  explicit pointer, as texmodel's `render module:attr` is.
-- B4 **The build refuses what would ship broken**: a missing asset, a conflicting TeX name or payload path across
-  dependencies, a dependency cycle, a stale or understated versions file (V12), an
-  incompatible base (V17), a module that does not satisfy the protocol. A defect
-  fails `pdm build`, not a consumer's import.
+- B3 The declaration is named in configuration, `[tool.texpkg] distribution = "acme_tex_decl:dist"`: an
+  explicit pointer, as texmodel's `render module:attr` is (**decided**).
+- B4 **The build refuses what would ship broken**: a missing asset, a conflicting TeX name or payload path along the
+  base chain (P11), a stale or understated versions file (V12), an incompatible base (V17), a module that does not
+  satisfy the protocol. A defect fails `pdm build`, not a consumer's import (**decided**).
 - B5 The generated module is deterministic: the same declaration builds byte-identical files (no clock, hash or set order),
-  so a wheel can be checked by rebuilding.
-- B6 A sdist carries the declaration and the sources, not the generated module, and builds the same wheel.
+  so a wheel can be checked by rebuilding (**decided**).
+- B6 A sdist carries the declaration and the sources, not the generated module, and builds the same wheel (**decided**).
 - B7 **The run time is embedded too** (**decided**): texmodel and texpkg's run time are copied into the wheel
   (`acme_tex._embedded.texmodel`, `._embedded.texpkg_runtime`) like a base (P13, P19). The same data then renders the same
   `.tex` whatever else the consumer has installed, so `output` (V10) depends on the wheel alone, and two packages built
   on different texmodel releases install side by side. Only what cannot be copied stays a dependency: pydantic (compiled),
   with a wide range (`>=2,<3`) (**proposed**, the range). The package's own versions keep the usual meaning (V13).
-- B8 **texpkg is two distributions** (**decided**): the run time (what B7 embeds and what consumers import, §4a) and the
-  build (`texpkg-build`: the hook, code generation, snapshots, classification, embedding), listed only in
-  `[build-system] requires`. Nothing of the build reaches a consumer, as with texmodel and texmodel_build.
+- B8 **texpkg's build never reaches a consumer** (**decided**): one distribution, `texpkg`, with two import packages:
+  `texpkg` (the run time, the only part a wheel embeds, B7) and `texpkg_build` (the hook, code generation, snapshots,
+  classification, embedding), whose dependencies sit in an extra (`texpkg[build]`) listed only in `[build-system]
+  requires`. `lint-imports` forbids `texpkg` importing `texpkg_build` (implementation plan §1.1).
 - B9 **fsspec is parked** (**decided**): not in v1; a document directory is a `pathlib.Path` (P27). If it returns, it comes
   as an optional extra (`acme-tex[fsspec]`).
 - B10 Embedded code must not ask the environment who it is (**proposed**): texmodel reads its own version with
@@ -134,9 +135,9 @@ texpkg package exposes the same surface, so a consumer (or a tool) uses any of t
 The surface is specified in §4a; the requirements behind it follow.
 
 - P6 The surface is defined once in texpkg as a `typing.Protocol`; the build generates the module to satisfy it and checks
-  it does (B4), and a consumer's pyright reads the generated module's types (**proposed**).
-- P7 Loading and rendering delegate to texmodel; texpkg adds no document logic, only the fixed surface and its contract.
-- P8 `Distribution` is declared explicitly by the package: no discovery by name or entry point.
+  it does (B4), and a consumer's pyright reads the generated module's types (**decided**).
+- P7 Loading and rendering delegate to texmodel; texpkg adds no document logic, only the fixed surface and its contract (**decided**).
+- P8 `Distribution` is declared explicitly by the package: no discovery by name or entry point (**decided**).
 - P22 **The declaration ships, privately** (**decided**): `load`, `render` and embedding (P18) need it, so the wheel
   carries it as a private module (`acme_tex._declaration`), not part of the public surface.
 - P23 **A document is a texmodel tree of a kind's classes; data is its serialisation** (**decided**). A consumer gets one
@@ -180,13 +181,15 @@ The surface is specified in §4a; the requirements behind it follow.
   level from what the document itself records, not only from the snapshots the newer wheel ships.
 - D2 **The last few saves are kept** (**decided**): each `save` keeps the previous pair of states as history; the last 3
   by default (a `save` argument or a `Distribution` setting, **proposed**).
-- D3 `create` writes both states; `save` rewrites them, moving the previous pair to history; `load` reads, migrates in
-  memory and writes nothing (**proposed**). A stored document changes only when the caller saves.
-- D4 What a migration reads (**proposed**): the user's state and the old template state from the directory, the new
-  template state from the installed wheel. A default migration (V22) compares the old template's default values with the new
-  ones and moves each marked value whose default changed (`follow`, `freeze`, `ask`, V23). A design change (a preset or
-  lock that differs) leaves the user's state alone and is reported per document ("title colour: slate → moss"), which is
-  the per-document form of an `output` change (V10).
+- D3 `create` writes both states; `save` rewrites them, moving the previous pair to history and dropping the oldest
+  beyond the kept number (D2); `load` reads, migrates in memory and writes nothing. A stored document changes only when the
+  caller saves (**decided**).
+- D4 What a migration reads: the user's state and the old template state from the directory, the new template state
+  from the installed wheel. A default migration (V22) compares the old template's default values with the new ones and
+  moves each marked value whose default changed, as the consumer's `DefaultChange` says (`FOLLOW`, `FREEZE`, `ASK`, V23).
+  A design change (a preset or lock that differs, or the `.sty`'s hash, D6) leaves the user's state alone and is reported
+  per document by `doc.template_changes()` ("title colour: slate → moss"), the per-document form of an `output` change
+  (V10) (**decided**).
 - D5 **Layout: one visible `_texpkg/` folder** (**decided**): not hidden, and named so that nothing TeX-side treats it as
   its own; the file names inside are **decided**:
 
@@ -225,12 +228,10 @@ The surface is specified in §4a; the requirements behind it follow.
 ### Dependencies between packages
 
 - P9 **A texpkg package can depend on others** (**decided**): a deck package builds on a brand package.
-- P10 `save`, `check` and `export` cover the package and everything embedded in it, each file once (**proposed**).
-- P11 Two embedded packages providing the same TeX name, or the same payload path with different bytes, are a build error
-  (B4). Two separately installed distributions saved into **one** directory can still clash (each embedding a
-  different release of one base): `save` refuses to overwrite another distribution's file with different bytes
-  (**proposed**).
-- P12 A dependency cycle is an error (texmodel's layering already refuses one between packages: `graphlib`).
+- P10 `save`, `check` and `export` cover the package and everything embedded in it, each file once (**decided**).
+- P11 Two packages along a base chain providing the same TeX name, or the same payload path with different bytes, are a
+  build error (B4) (**decided**).
+- P12 *(Removed: with one base per package and the base embedded at build time, no cycle can form, P20.)*
 - P13 **A dependency is embedded, not a Python dependency** (**decided**). The build generates the dependent
   distribution with its base inside it, as a linker links statically: the base's declaration, models, migrations,
   contract history and payload are copied into the dependent's wheel. At run time there is no resolver and no second
@@ -323,15 +324,15 @@ mode presets that a deck cannot set.
   a field default, a restriction a `Choice` or a bound, a lock the absence of a field plus a setting the kind writes. No
   narrowing feature in either library. A profile's models over its base are written the same way; texpkg only checks
   them (L3, L6).
-- K3 Data names its kind: the envelope is `{package, data, kind, ...}` (**proposed**). `<kind>.load` checks it and raises
+- K3 Data names its kind: the envelope is `{package, data, kind, ...}`. `<kind>.load` checks it and raises
   `KindMismatchError` on another kind (P26); only the optional generic `acme_tex.load` dispatches on it. Each kind gives
-  its own schema (`expert.schema(mode=)`, §4a).
+  its own schema (`expert.schema(mode=)`, §4a) (**decided**).
 - K4 A hand-written kind is already a real class (P23). Only kinds made from embedded data (the first consumer's series
   are listed in its tokens) need generating: the build enumerates them and writes their classes into the module
   (`acme_tex.kinds.expert.Deck`), so a consumer's pyright sees real classes rather than models made with `create_model`
-  at import time (**proposed**).
+  at import time; needed by the first consumer's port (phase 8) more than by phase 2 (**decided**).
 - K5 Kinds are part of the `data` contract: adding one is compatible, removing or renaming one is breaking and needs a
-  consumer to migrate its data (V6). A profile can offer a subset of its base's kinds, narrow them, or add its own (**proposed**).
+  consumer to migrate its data (V6). A profile can offer a subset of its base's kinds, narrow them, or add its own (**decided**).
 - K6 **A kind declares its variants; building them is the consumer's** (**decided**). A variant is a named set of settings
   applied to the same document (the first consumer's `full`, `fronts`, `backs`, preview and technical builds):
   `Kind(..., variants=[Variant("fronts", settings=[...]), ...])`, and `doc.render(variant="fronts")` returns that
@@ -339,9 +340,9 @@ mode presets that a deck cannot set.
   fronts page for page, stay with the consumer (N2); a kind may declare the pairing (`pairs=("fronts", "backs")`) so a
   checker knows what to assert (**proposed**). Declared variants are listed by the kind (`expert.variants()`), so a
   tool driving the package (a downstream MCP server, a build script) finds them without reading code.
-- K7 Details (**proposed**): `save` writes `deck.tex` and one `deck-<variant>.tex` per variant; the variant names are part
+- K7 Details: `save` writes `deck.tex` and one `deck-<variant>.tex` per variant; the variant names are part
   of the `interface` snapshot (V11), so removing or renaming one is breaking and adding one compatible; each variant's
-  rendered example joins the `output` fingerprint.
+  rendered example joins the `output` fingerprint (**decided**).
 
 ## 4a. API reference
 
@@ -387,6 +388,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | kind | `doc.kind: str` | decided | K3 |
 | defaults | `doc.defaults` (which values are still the package's defaults) | decided | V21 |
 | stack | `doc.stack: Stack` | decided | V18 |
+| template changes | `doc.template_changes() -> tuple[TemplateChange, ...]`: what a new release changes for this document (a preset, a lock, a default, the `.sty`); `TemplateChange(setting, old, new)` | decided (field names proposed) | D4, D6 |
 | new tree | `doc.replace(tree: T) -> Document[T]` | decided | P23 |
 
 ### TeX side: provenance
@@ -478,12 +480,12 @@ distribution = "acme_tex_decl:dist"
   `PROJECT(dir)` (`.sty` and graphics in `dir`, fonts at the root because luaotfload reads no document-side search path,
   `BY_PATH` at its own path). A TDS / `TEXMFHOME` layout waits for a consumer that needs it.
 - A3 Materialising refuses the whole payload if any file is missing, writes bytes (never a link or a path) and removes
-  nothing.
+  nothing (**decided**).
 - A4 `check` compares by content, never by mtime. Each file is `unchanged`, `changed`, `missing` or `extra` (`extra`: a
   file in a place materialising writes to that it did not write, such as a retired `.sty`). Generated files that hold a
-  time are compared by stamp.
+  time are compared by stamp (**decided**).
 - A5 Layouts also give the preamble lines a document needs (`\input@path` before `\usepackage`, `\graphicspath{{}{dir/}}`
-  after it) so the generated `.tex` and the layout cannot disagree (**proposed**).
+  after it) so the generated `.tex` and the layout cannot disagree (**decided**).
 - A6 **An asset may name the kinds that need it** (**decided**): `Asset(..., kinds=["expert"])`; an asset naming none is
   needed by every kind. `save` writes the `.sty` and the assets the document's kind needs; `check` compares that set;
   `export` still writes everything (E1). texpkg does not read TeX to find what a kind loads (N1), so the declaration is
@@ -737,15 +739,15 @@ components today (`spec`), so each kind's state model is one of those, extended.
 
 | # | Work | Status |
 |---|---|---|
-| 0 | This plan and `AGENTS.md` | in progress |
+| 0 | This plan and `AGENTS.md`; the package layout and its import contracts | built |
 | 1 | Assets and layouts: `Asset` (with `kinds=`), `Role`, `Layout` and placement as policy over texmodel's `bundle`; reading from `importlib.resources`; `check` on `bundle.stale` and `drift` (A1–A6, P10, P11) | |
 | 2 | The declaration and the module API: `Distribution`, `Kind`, `Variant`, `Design`; the protocol; kind modules (`load`, `create`, `schema`, `example`, `variants`, `changes`); `Document` (`render`, `save`, `check`); the errors (§4a, P6–P8, P22–P28, K1–K7, B11) | |
-| 2a | The document directory: the two states, history, `_texpkg/`, the payload written by `save` (P27, P29, D1–D5) | |
+| 2a | The document directory and its state: the two states, defaults written and marked, history, `_texpkg/`, plans and hand edits, the payload written by `save` (P27, P29, D1–D9, V21–V27) | |
 | 2b | The build: the `texpkg-build` hook generating the module, the version constant, rendering the `.sty`, copying assets, refusing a broken build (B1–B6, B8, V1) | |
 | 3 | Embedding, static linking: the base and the run time (texmodel, texpkg) copied privately into the module; one base per package; relative imports; conflicts; build-time compatibility (P13–P21, P30, B7, B10, V17) | |
 | 3a | Profiles: embedded data, the four ways to narrow, `expand` and the L3 law's tests (L1–L8) | |
 | 4 | Provenance: the command, the file, its texmodel component, the PDF metadata entry; compiled and checked with veraPDF (V2–V4, V34) | |
-| 5 | Stored state on pydantic: two schemas per kind, defaults written out and marked, given fields from `model_fields_set` (V21–V27; on texmodel's pydantic components, V25) | |
+| 5 | *(Folded into 2a: the state format is written once, in its final form; implementation plan §1.2.)* | |
 | 5a | Migrations: the per-model core in its own module (V9), the migration API, atomic adoption, unresolved items, default migrations (V5–V8, V14–V16, V28–V33) | |
 | 5b | Contract versions: snapshots, classification, the versions file, the freeze at release, the `output` fingerprint, the stack record (V10–V13, V17–V20, V35–V37) | |
 | 5c | Move the per-model core into texmodel once it is stable; texpkg imports it | |
@@ -772,13 +774,13 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | The base is a build requirement, named by object; the embedded copy is private to the dependent | proposed |
 | Base compatibility is checked at build time only | proposed |
 | The whole base is embedded; stacks flatten to one copy per package; one base per package (a chain); base kinds are exposed only when listed | decided |
-| The API surface is a `Protocol` plus a conformance check | proposed |
+| The API surface is a `Protocol` plus a conformance check | decided |
 | A package can carry data and narrow a base's API with defaults, locks and higher-level models; a dependent package can be a constraining proxy (profile) of its base | decided |
 | Narrowing is written by the author as default, lock, restrict or compose (no narrowing feature); a profile document expands to a base document (the L3 law) | decided |
 | A lock holds at the Python API only | proposed |
 | A package can offer several document kinds | decided |
 | A kind narrows its own package's API because its author writes it narrow; data names its kind | decided |
-| The build generates a typed model per kind | proposed |
+| The build generates a typed model per kind | decided |
 | The declaration ships as a private module | decided |
 | A document is a texmodel tree of a kind's classes; data is its serialisation | decided |
 | The module exports the fixed surface, kind classes and their value types; never low-level components | decided |
@@ -823,11 +825,11 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | texmodel's components are pydantic models, so every tree carries `model_fields_set` (done in texmodel, unreleased) | decided |
 | texpkg builds the module from the author's declaration at wheel build time | decided |
 | texmodel and texpkg's run time are embedded in each wheel; only pydantic stays a dependency | decided |
-| texpkg is two distributions: run time and build | decided |
+| texpkg is one distribution with two import packages: the run time (embedded) and the build (never reaching a consumer) | decided |
 | fsspec is parked: not in v1, a document directory is a `pathlib.Path` | decided |
 | The package's version keeps the usual major / minor / patch meaning | decided |
-| The build is a pdm-backend hook calling texpkg; the declaration is named in `[tool.texpkg]` | proposed |
-| The build refuses what would ship broken | proposed |
+| The build is a pdm-backend hook calling `texpkg-build`; the declaration is named in `[tool.texpkg]` | decided |
+| The build refuses what would ship broken | decided |
 | The `.sty` is rendered at build time and shipped | proposed |
 | Assets may live anywhere in the source tree; the build copies them in, the module reads them with `importlib.resources` | proposed |
 | Placement follows an explicit `Role`, not file suffixes | decided |

@@ -1,0 +1,2 @@
+lmroman10-regular.otf is Latin Modern, under the GUST Font License
+(https://www.gust.org.pl/projects/e-foundry/latin-modern). It stands in for a brand typeface in the synthetic acme package.

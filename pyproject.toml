@@ -12,7 +12,13 @@ classifiers = [
     "Typing :: Typed",
 ]
 requires-python = ">=3.15,<3.16"
-dependencies = ["texmodel>=0.3.3"]
+dependencies = ["texmodel>=0.3.3", "pydantic>=2.14.1"]
+
+[project.optional-dependencies]
+build = ["typer>=0.27.3"]  # the author's build (texpkg_build); a built wheel embeds only the run time (B7, B8)
+
+[project.scripts]
+texpkg-build = "texpkg_build.cli:app"
 
 [project.urls]
 Homepage = "https://github.com/release-art/texpkg"
@@ -43,10 +49,42 @@ strict = ["src"]
 pythonVersion = "3.15"
 
 [tool.pytest.ini_options]
-addopts = "-v -l --color=yes --cov=texpkg --cov-report term-missing --cov-fail-under=100 --no-cov-on-fail"
-pythonpath = ["src"]
+addopts = "-v -l --color=yes --cov=texpkg --cov=texpkg_build --cov-report term-missing --cov-fail-under=100 --no-cov-on-fail"
+pythonpath = ["src", "tests/fixtures"]
 testpaths = ["tests"]
 timeout = 15
+markers = [
+    "tex: needs the reference image with latexmk (skipped without it; TEXPKG_REQUIRE_TEX=1 makes that a failure)",
+]
+
+[tool.importlinter]
+root_packages = ["texpkg", "texpkg_build"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "the run time does not know the build"
+type = "forbidden"
+source_modules = ["texpkg"]
+forbidden_modules = ["texpkg_build"]
+
+[[tool.importlinter.contracts]]
+name = "the run time imports only the standard library, texmodel and pydantic"
+type = "forbidden"
+source_modules = ["texpkg"]
+forbidden_modules = ["typer", "pdm", "jsonschema", "hypothesis", "pytest", "texmodel_build"]
+
+[[tool.importlinter.contracts]]
+name = "only cli prints and formats"
+type = "forbidden"
+source_modules = ["texpkg", "texpkg_build.hook", "texpkg_build.testing", "texpkg_build._internal"]
+forbidden_modules = ["typer", "texpkg_build.cli"]
+
+[[tool.importlinter.contracts]]
+name = "nothing starts a process"
+type = "forbidden"
+source_modules = ["texpkg", "texpkg_build"]
+forbidden_modules = ["subprocess"]
+allow_indirect_imports = true  # texmodel_build starts the compiler; only its spawn module imports subprocess
 
 [tool.pdm]
 distribution = true
@@ -59,7 +97,12 @@ fallback_version = "0.0.0"
 
 [tool.pdm.build]
 package-dir = "src"
-includes = ["src/texpkg"]
+includes = ["src/texpkg", "src/texpkg_build"]
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "-e file:///${PROJECT_ROOT}/../texmodel#egg=texmodel",
+]
 
 [build-system]
 requires = ["pdm-backend"]
@@ -75,4 +118,6 @@ dev = [
     "pyright>=1.1.414",
     "pip-audit>=2.7",
     "hypothesis>=6",
+    "import-linter>=2.15",
+    "jsonschema>=4.26.0",
 ]
