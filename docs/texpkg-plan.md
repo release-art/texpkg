@@ -150,8 +150,8 @@ The surface is specified in §4a; the requirements behind it follow.
   package's low-level components, which would bypass the kinds' narrowing and make locks meaningless; not embedded
   packages (P15).
 - P25 **`Raw` is refused in a kind unless declared** (**decided**): a field typed `Raw`, or a `Passthrough`, is a hole in
-  the narrowing and in "safely generate" (P2). The build refuses one unless the kind names it (`allow_raw=["body"]`,
-  **proposed** spelling), so the hole is in the declaration and in the `data` snapshot.
+  the narrowing and in "safely generate" (P2). The build refuses one unless the kind names it (`allow_raw=["Card.body"]`: `Class.field`,
+  or `Class.Passthrough` for a grammar that accepts one; **proposed** spelling), so the hole is in the declaration and in the `data` snapshot.
 - P26 **Kinds are modules** (**decided**): each kind is `acme_tex.kinds.<name>`, with its classes (P24), `load`,
   `create` and `schema`. `acme_tex.kinds` lists them (`names()`, `modules()`: `list` and `all` would shadow builtins,
   which the lint refuses). The caller knows and cares which kind it loads: `<kind>.load` raises on a
@@ -441,12 +441,12 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 
 | Name | Signature | Status | Ref |
 |---|---|---|---|
-| distribution | `Distribution(name, module, package, design=None, assets=(), kinds=(), base=None, expose=(), …)` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
+| distribution | `Distribution(name, module, package, declared_in, design=None, assets=(), kinds=(), base=None, expose=(), layout=Flat())`; `declared_in=__name__` in the declaring package's `__init__.py` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
 | kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
 | asset | `Asset(path, role: Role, why: str, kinds=())`; `Role`: `PACKAGE`, `GRAPHIC`, `FONT`, `BY_PATH`, `NOTE` | decided (`kinds=` spelling proposed) | A1, A6 |
 | embedded data | `Design(model: type[BaseModel], path: str)` | decided | L1 |
 | default policy | `DefaultChange.FOLLOW`, `.FREEZE`, `.ASK`: an `@enum.unique` enum (a `StrEnum`, so one package's value equals another's), passed by the consumer to `load(default_changes=...)`; the `FOLLOW` default and the per-path mapping are proposed | decided | V23 |
-| `Raw` in a kind | refused unless named: `allow_raw=["body"]` | decided | P25 |
+| `Raw` in a kind | refused unless named: `allow_raw=["Card.body"]` | decided | P25 |
 
 ### Author side: the project and the build
 
@@ -741,7 +741,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 |---|---|---|
 | 0 | This plan and `AGENTS.md`; the package layout and its import contracts | built |
 | 1 | Assets and layouts: `Asset` (with `kinds=`), `Role`, `Layout` and placement as policy over texmodel's `bundle`; reading from `importlib.resources`; `check` on `bundle.stale` and `drift` (A1–A6, P10, P11) | built |
-| 2 | The declaration and the module API: `Distribution`, `Kind`, `Variant`, `Design`; the protocol; kind modules (`load`, `create`, `schema`, `example`, `variants`, `changes`); `Document` (`render`, `save`, `check`); the errors (§4a, P6–P8, P22–P28, K1–K7, B11) | |
+| 2 | *(built: the declaration, the generated module, `render`; `load`, `create`, `save` and `check` come with 2a, the declaration shipped in a wheel with 2b)* The declaration and the module API: `Distribution`, `Kind`, `Variant`, `Design`; the protocol; kind modules (`load`, `create`, `schema`, `example`, `variants`, `changes`); `Document` (`render`, `save`, `check`); the errors (§4a, P6–P8, P22–P28, K1–K7, B11) | partly built |
 | 2a | The document directory and its state: the two states, defaults written and marked, history, `_texpkg/`, plans and hand edits, the payload written by `save` (P27, P29, D1–D9, V21–V27) | |
 | 2b | The build: the `texpkg-build` hook generating the module, the version constant, rendering the `.sty`, copying assets, refusing a broken build (B1–B6, B8, V1) | |
 | 3 | Embedding, static linking: the base and the run time (texmodel, texpkg) copied privately into the module; one base per package; relative imports; conflicts; build-time compatibility (P13–P21, P30, B7, B10, V17) | |

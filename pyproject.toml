@@ -47,6 +47,7 @@ forced-separate = ["tests"]
 include = ["src", "tests"]
 strict = ["src"]
 pythonVersion = "3.15"
+extraPaths = ["src", "tests/fixtures"]
 
 [tool.pytest.ini_options]
 addopts = "-v -l --color=yes --cov=texpkg --cov=texpkg_build --cov-report term-missing --cov-fail-under=100 --no-cov-on-fail"

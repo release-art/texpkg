@@ -58,3 +58,47 @@ Decisions:
 Texmodel requests: none.
 
 Deferred: nothing.
+
+## Phase 2: the declaration and the module API, in memory (P6-P8, P23-P26, K1-K3, K6, B11)
+
+Built: `declaration.py` (`Distribution`, `Kind`, `Variant`, `Design`, `reachable`, `raw_holes`), `contracts.py` (`Triple`,
+`Pair`, `Contracts`, `Changes`), `migration.py` (`@migration`, `Migration`, `Migrated`, `Unresolved`, `DefaultChange`; the
+runner is 5a), `document.py` (`Document`: `tree`, `path`, `kind`, `render`, `replace`), `protocol.py` (`PackageModule`,
+`KindsModule`, `KindModule`), `_internal/release.py` (`Release`, `KindApi`), `_internal/state.py` (the two schemas),
+`texpkg_build/_internal/generate.py` (the module's source), `texpkg_build/testing.py` (`load_declaration`); the `acme_brand`
+fixture (two kinds, three variants, a font, a lock-up, a notice); `texpkg/__init__.py` re-exports the declaration types.
+
+Gates: `ruff format --check`, `ruff check`, `pyright` (0 errors), `lint-imports` (4 kept), `pytest` (100%) green; compile
+tests `TEXPKG_REQUIRE_TEX=1 pytest -m tex`: 6 passed (every kind and variant with only its payload beside it, `Flat` and
+`Project`, a missing lock-up is a compile error). A pyright run over the generated module checks the protocols and that wrong
+use is an error (`tests/test_typing.py`).
+
+Proposed items adopted: the field name `base=` and `expose=` (used by the checks only; embedding is phase 3); `Variant` and
+`variants=`; `Asset(kinds=)`; `allow_raw` spelt `Class.field` / `Class.Passthrough`.
+
+Decisions:
+- `load`, `create`, `save`, `check`, `export` are not in the surface or the protocols yet: the plan lists `load`/`create` in
+  phase 2 and in 2a, and they need a directory. A kind's tests get a document from `kind_module._api.document(tree, path)`.
+  The protocols and the generated module grow with 2a and 6.
+- `Distribution` gains `declared_in` (the declaring package's import name, `declared_in=__name__`) and `layout`
+  (default `Flat()`, D5's example is `Project(res/acme)`). `declared_in` gives the root the assets are read from and, because
+  it is evaluated where it runs, still names the declaration inside a wheel; the declaration must be a package.
+- The module file stem of a document is the root class's name lower-cased (`Deck` -> `deck.tex`), the plan's example.
+- The `.sty` is rendered by the build and shipped as `_sty/<name>.sty` (P4); the module reads it with `importlib.resources`
+  and never renders at run time, so a comment naming a declaration module cannot differ between build and wheel. The package's
+  version is set on a copy of the author's `Package` for the render (V1).
+- `load_declaration` writes the generated files to a temporary directory and imports them; the declaration is the module
+  already imported, aliased as `<module>._declaration`, so its classes are the ones the author's tests use.
+- Kind classes exported: the components its grammar reaches plus the value types (`Choice`, ...) their fields name, all
+  defined in the declaration package or a base's (`TP-B002` otherwise). Generated kind modules import them relatively.
+- Codes: `TP-K001` example, `TP-K002` duplicates, `TP-K003` raw holes, `TP-K004` unknown kind or variant, `TP-K005` names,
+  `TP-K006` distribution, `TP-K007` expose, `TP-K008` schema mode, `TP-M001` migration target, `TP-B001` kind/model mismatch,
+  `TP-B002` unexportable class, `TP-B003` pointer.
+- Protocol members are read-only properties, so a module's `Final` constants satisfy them.
+- A texmodel tree is not validated on construction; `render` raises texmodel's `ExceptionGroup` for a broken one, unchanged.
+
+Texmodel requests: none.
+
+Deferred: `load`, `create`, `save`, `check` (2a); shipping the declaration and the assets in a wheel (2b); a base's kinds and
+payload in a dependent (3; note: a base asset naming kinds is matched by name, which needs a decision when kinds expand to a
+base's, 3a); `changes()` returns an empty `Changes` until 5b.

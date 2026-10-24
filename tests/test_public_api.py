@@ -14,7 +14,17 @@ from . import spawn
 
 ROOT = pathlib.Path(__file__).parents[1]
 
-PUBLIC = {"assets", "declaration", "document", "errors", "layout", "migration", "provenance"}
+PUBLIC = {
+    "assets",
+    "contracts",
+    "declaration",
+    "document",
+    "errors",
+    "layout",
+    "migration",
+    "protocol",
+    "provenance",
+}
 PUBLIC_BUILD = {"cli", "hook", "testing"}
 
 
