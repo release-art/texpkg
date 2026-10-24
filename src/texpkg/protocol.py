@@ -1,10 +1,12 @@
 """The fixed surface of a built package (P6), as protocols: the build generates a module to satisfy them and checks it
 does, and a consumer's type checker reads the generated module's own types."""
 
+import pathlib
 from collections.abc import Mapping
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from .contracts import Changes, Contracts
+from .document import Document
 
 
 @runtime_checkable
@@ -13,6 +15,8 @@ class KindModule(Protocol):
 
     @property
     def NAME(self) -> str: ...  # noqa: N802
+    def load(self, path: pathlib.Path | str) -> Document[Any]: ...
+    def create(self, path: pathlib.Path | str, tree: Any) -> Document[Any]: ...  # noqa: ANN401  # the kind's root class
     def schema(self, mode: Literal["validation", "serialization"] = "validation") -> dict[str, Any]: ...
     def example(self) -> Any: ...  # noqa: ANN401  # the kind's root class
     def variants(self) -> tuple[str, ...]: ...
@@ -37,3 +41,4 @@ class PackageModule(Protocol):
     def CONTRACTS(self) -> Contracts: ...  # noqa: N802
     @property
     def kinds(self) -> KindsModule: ...
+    def load(self, path: pathlib.Path | str) -> Document[Any]: ...

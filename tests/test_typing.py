@@ -19,6 +19,8 @@ OK = """
 from acme_brand_tex import kinds
 from acme_brand_tex.kinds import expert, vocab
 import acme_brand_tex
+from typing import Any
+from texpkg.document import Document
 from texpkg.protocol import KindModule, PackageModule
 
 package: PackageModule = acme_brand_tex
@@ -27,6 +29,11 @@ tree: expert.Deck = expert.example()
 glossary: vocab.Glossary = vocab.example()
 card = expert.Card(expert.Title("x"), expert.Fact("y", accent=expert.Accent.MOSS))
 name: str = expert.NAME
+saved: Document[expert.Deck] = expert.load("deck")
+made: Document[expert.Deck] = expert.create("deck", tree)
+rendered: str = saved.render("compact")
+new: Document[expert.Deck] = saved.replace(tree)
+anything: Document[Any] = acme_brand_tex.load("deck")
 schema: dict[str, object] = expert.schema(mode="serialization")
 """
 
@@ -38,6 +45,8 @@ wrong_mode = expert.schema(mode="nonsense")
 wrong_arguments = expert.changes("one", 2)
 wrong_field = expert.Fact(1)
 no_such = expert.FactGap
+wrong_create = expert.create("deck", vocab.example())
+wrong_replace = expert.load("deck").replace(vocab.example())
 """
 
 
@@ -67,4 +76,4 @@ def test_the_generated_module_satisfies_the_protocols_and_its_types_are_read(whe
 
 def test_wrong_use_of_the_generated_module_is_an_error(wheel_like):
     errors = pyright(wheel_like, "use_bad.py", BAD)
-    assert len(errors) == 5, errors
+    assert len(errors) == 7, errors

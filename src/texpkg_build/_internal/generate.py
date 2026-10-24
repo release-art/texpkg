@@ -1,12 +1,13 @@
 """The generated module's source (P6, K4, V1): plain Python, deterministic (B5), importing the run time by its absolute
 name (`texpkg`), which the embedding step later points at the private copy (1.5).
 
-The module is `acme_tex/{__init__,_bound,_version,errors}.py` and `kinds/{__init__,<kind>}.py`; the declaration is
-imported from `acme_tex._declaration`, so its classes are real classes a type checker reads (K4).
+The module is `acme_tex/{__init__,_bound,_version,errors}.py`, `kinds/{__init__,<kind>}.py` and `_sty/<name>.sty`; the
+declaration is imported from `acme_tex._declaration`, so its classes are real classes a type checker reads (K4).
 """
 
 import copy
 import inspect
+import textwrap
 import typing
 from collections.abc import Iterator
 from typing import Annotated
@@ -74,129 +75,129 @@ def _import_from(dist: Distribution, cls: type) -> str:
     )
 
 
+def _module(body: str) -> str:
+    return _HEADER + "\n" + textwrap.dedent(body).strip() + "\n"
+
+
 def _kind_source(dist: Distribution, kind: Kind) -> str:
-    classes = exported(kind)
-    imports = sorted({_import_from(dist, cls) for cls in classes})
+    imports = "\n        ".join(sorted({_import_from(dist, cls) for cls in exported(kind)}))  # the template's indent
     root = kind.model.__name__
-    return "\n".join(
-        [
-            _HEADER,
-            "from typing import Any, Final, Literal",
-            "",
-            "from texpkg.contracts import Changes",
-            "",
-            "from .. import _bound",
-            *imports,
-            "",
-            f"NAME: Final = {kind.name!r}",
-            f"_api = _bound.RELEASE.kind(NAME, {root})",
-            "",
-            "",
-            'def schema(mode: Literal["validation", "serialization"] = "validation") -> dict[str, Any]:',
-            "    return _api.schema(mode)",
-            "",
-            "",
-            f"def example() -> {root}:",
-            "    return _api.example()",
-            "",
-            "",
-            "def variants() -> tuple[str, ...]:",
-            "    return _api.variants()",
-            "",
-            "",
-            "def changes(old: int, new: int) -> Changes:",
-            "    return _api.changes(old, new)",
-            "",
-        ]
-    )
+    return _module(f"""
+        from pathlib import Path
+        from typing import Any, Final, Literal
+
+        from texpkg.contracts import Changes
+        from texpkg.document import Document
+
+        from .. import _bound
+        {imports}
+
+        NAME: Final = {kind.name!r}
+        _api = _bound.RELEASE.kind(NAME, {root})
+
+
+        def load(path: Path | str) -> Document[{root}]:
+            return _api.load(path)
+
+
+        def create(path: Path | str, tree: {root}) -> Document[{root}]:
+            return _api.create(path, tree)
+
+
+        def schema(mode: Literal["validation", "serialization"] = "validation") -> dict[str, Any]:
+            return _api.schema(mode)
+
+
+        def example() -> {root}:
+            return _api.example()
+
+
+        def variants() -> tuple[str, ...]:
+            return _api.variants()
+
+
+        def changes(old: int, new: int) -> Changes:
+            return _api.changes(old, new)
+    """)
+
+
+def _tuple(items: list[str]) -> str:
+    return "(" + "".join(f"{item!r}, " for item in items).strip() + ")"
 
 
 def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Contracts) -> dict[str, str]:
     """The generated files by path inside the module, for `dist` released at `version`. `pointer_attr` is the name
     `[tool.texpkg] distribution` gives the declaration inside its package."""
     names = [k.name for k in dist.kinds]
-    c = contracts
     sty = render_sty(dist, version)
+    c = contracts
+    imports = f"from . import {', '.join(names)}" if names else ""
     return (
         {f"_sty/{name}": text for name, text in sty.items()}
         | {
-            "__init__.py": "\n".join(
-                [
-                    _HEADER,
-                    "from typing import Final",
-                    "",
-                    "from . import errors, kinds",
-                    "from ._version import CONTRACTS, VERSION",
-                    "",
-                    "__version__: Final = VERSION",
-                    '__all__ = ["CONTRACTS", "__version__", "errors", "kinds"]',
-                    "",
-                ]
+            "__init__.py": _module("""
+                from pathlib import Path
+                from typing import Any, Final
+
+                from texpkg.document import Document
+
+                from . import errors, kinds
+                from ._bound import RELEASE
+                from ._version import CONTRACTS, VERSION
+
+                __version__: Final = VERSION
+                __all__ = ["CONTRACTS", "__version__", "errors", "kinds", "load"]
+
+
+                def load(path: Path | str) -> Document[Any]:
+                    return RELEASE.load(path)
+            """),
+            "_version.py": _module(f"""
+                from typing import Final
+
+                from texpkg.contracts import Contracts, Pair, Triple
+
+                VERSION: Final = {version!r}
+                CONTRACTS: Final = Contracts(
+                    Triple({c.data.current}, {c.data.revision}, {c.data.age}),
+                    Triple({c.interface.current}, {c.interface.revision}, {c.interface.age}),
+                    Pair({c.output.current}, {c.output.revision}),
+                )
+            """),
+            "_bound.py": _module(f"""
+                from importlib.resources import files
+                from typing import Final
+
+                from texpkg._internal.release import Release
+
+                from ._declaration import {pointer_attr}
+                from ._version import CONTRACTS, VERSION
+
+                _NAMES: Final = {_tuple(list(sty))}
+                STY: Final = {{
+                    name: files(__package__).joinpath("_sty", name).read_text(encoding="utf-8")
+                    for name in _NAMES
+                }}
+                RELEASE: Final = Release({pointer_attr}, VERSION, CONTRACTS, STY)
+            """),
+            "errors.py": _module(
+                "from texpkg.errors import (\n" + "".join(f"    {name} as {name},\n" for name in error_names()) + ")\n"
             ),
-            "_version.py": "\n".join(
-                [
-                    _HEADER,
-                    "from typing import Final",
-                    "",
-                    "from texpkg.contracts import Contracts, Pair, Triple",
-                    "",
-                    f"VERSION: Final = {version!r}",
-                    "CONTRACTS: Final = Contracts(",
-                    f"    Triple({c.data.current}, {c.data.revision}, {c.data.age}),",
-                    f"    Triple({c.interface.current}, {c.interface.revision}, {c.interface.age}),",
-                    f"    Pair({c.output.current}, {c.output.revision}),",
-                    ")",
-                    "",
-                ]
-            ),
-            "_bound.py": "\n".join(
-                [
-                    _HEADER,
-                    "from importlib.resources import files",
-                    "from typing import Final",
-                    "",
-                    "from texpkg._internal.release import Release",
-                    "",
-                    f"from ._declaration import {pointer_attr}",
-                    "from ._version import CONTRACTS, VERSION",
-                    "",
-                    f"_NAMES: Final = ({''.join(f'{n!r}, ' for n in sty).strip()})",
-                    "STY: Final = {",
-                    '    name: files(__package__).joinpath("_sty", name).read_text(encoding="utf-8")',
-                    "    for name in _NAMES",
-                    "}",
-                    f"RELEASE: Final = Release({pointer_attr}, VERSION, CONTRACTS, STY)",
-                    "",
-                ]
-            ),
-            "errors.py": "\n".join(
-                [
-                    _HEADER,
-                    "from texpkg.errors import (",
-                    *(f"    {name} as {name}," for name in error_names()),
-                    ")",
-                    "",
-                ]
-            ),
-            "kinds/__init__.py": "\n".join(
-                [
-                    _HEADER,
-                    "from collections.abc import Mapping",
-                    "",
-                    "from texpkg.protocol import KindModule",
-                    "",
-                    f"from . import {', '.join(names)}" if names else "",
-                    "",
-                    "",
-                    "def names() -> tuple[str, ...]:",
-                    f"    return ({''.join(f'{n!r}, ' for n in names).strip()})" if names else "    return ()",
-                    "",
-                    "",
-                    "def modules() -> Mapping[str, KindModule]:",
-                    f"    return {{{', '.join(f'{n!r}: {n}' for n in names)}}}",
-                    "",
-                ]
-            ),
+            "kinds/__init__.py": _module(f"""
+                from collections.abc import Mapping
+
+                from texpkg.protocol import KindModule
+
+                {imports}
+
+
+                def names() -> tuple[str, ...]:
+                    return {_tuple(names)}
+
+
+                def modules() -> Mapping[str, KindModule]:
+                    return {{{", ".join(f"{n!r}: {n}" for n in names)}}}
+            """),
         }
         | {f"kinds/{kind.name}.py": _kind_source(dist, kind) for kind in dist.kinds}
     )

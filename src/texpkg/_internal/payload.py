@@ -36,7 +36,8 @@ class Payload:
     def absent(self) -> tuple[Placed, ...]:
         return tuple(p for p in self.assets if not p.source.is_file())
 
-    def _complete(self) -> None:
+    def complete(self) -> None:
+        """Raise `PayloadError` unless every source file is there (A3)."""
         if absent := self.absent():
             names = ", ".join(str(p.dest) for p in absent)
             raise PayloadError(
@@ -47,7 +48,7 @@ class Payload:
 
     def expected(self) -> dict[str, str | bytes]:
         """Every file of the payload by destination, as bytes or text (A4 compares content, never time)."""
-        self._complete()
+        self.complete()
         return {str(p.dest): p.source.read_bytes() for p in self.assets} | dict(self.generated)
 
     def check(self, root: pathlib.Path, owned: Sequence[str]) -> drift.Drift:
@@ -58,7 +59,7 @@ class Payload:
     def write(self, root: pathlib.Path) -> tuple[pathlib.Path, ...]:
         """The files `root` does not hold already, byte for byte. Refuses the whole payload if one source is absent
         (A3) and removes nothing."""
-        self._complete()
+        self.complete()
         with contextlib.ExitStack() as stack:
             items = [
                 bundle.Item(

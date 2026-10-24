@@ -1,10 +1,11 @@
 """The synthetic acme brand as a texpkg declaration: a base with two kinds and an asset for each role."""
 
+import dataclasses
 import pathlib
 
 from texmodel.types import CMYK, Length
 
-from texpkg import Asset, Distribution, Kind, Project, Role, Variant
+from texpkg import Asset, Distribution, Flat, Kind, Project, Role, Variant
 
 from .model import Accent, Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Mark, Term, Title, pkg
 
@@ -44,4 +45,32 @@ dist = Distribution(
     layout=Project(pathlib.PurePosixPath("res/acme")),
 )
 
-__all__ = ["Accent", "Card", "Compact", "Deck", "Fact", "FactGap", "Glossary", "Ink", "Mark", "Term", "Title", "dist"]
+# The same declaration, changed as a later release would: for the tests that load a document with another one.
+flat = dataclasses.replace(dist, layout=Flat())
+changed = dataclasses.replace(
+    dist,
+    kinds=(dataclasses.replace(dist.kinds[0], presets=(FactGap(Length("4mm")),)), dist.kinds[1]),
+)
+broken = dataclasses.replace(
+    dist, assets=(*dist.assets, Asset("assets/gone.pdf", Role.GRAPHIC, "a file nobody shipped"))
+)
+
+__all__ = [
+    "Accent",
+    "Card",
+    "Compact",
+    "Deck",
+    "Fact",
+    "FactGap",
+    "Glossary",
+    "Ink",
+    "Mark",
+    "Term",
+    "Title",
+    "broken",
+    "changed",
+    "dist",
+    "expert_example",
+    "flat",
+    "vocab_example",
+]

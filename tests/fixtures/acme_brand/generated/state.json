@@ -1,0 +1,52 @@
+{
+  "package": "acme-brand-tex",
+  "kind": "expert",
+  "data": 1,
+  "tree": {
+    "type": "Deck",
+    "content": [
+      {
+        "type": "Mark"
+      },
+      {
+        "type": "Card",
+        "content": [
+          {
+            "type": "Title",
+            "text": "Fox"
+          },
+          {
+            "type": "Fact",
+            "text": "Sly & quick",
+            "accent": "SLATE",
+            "$defaults": [
+              "accent"
+            ]
+          },
+          {
+            "type": "Fact",
+            "text": "50% of $5",
+            "accent": "MOSS"
+          }
+        ]
+      },
+      {
+        "type": "Card",
+        "content": [
+          {
+            "type": "Title",
+            "text": "Owl"
+          },
+          {
+            "type": "Fact",
+            "text": "Sees in the dark",
+            "accent": "SLATE",
+            "$defaults": [
+              "accent"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

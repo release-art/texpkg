@@ -81,7 +81,7 @@ CASES = [("expert", None, "deck"), ("expert", "compact", "deck-compact"), ("expe
 @pytest.mark.parametrize(("kind", "variant", "name"), CASES)
 def test_a_kind_renders_to_its_golden(acme_brand_tex, tmp_path, kind, variant, name):
     module = acme_brand_tex.kinds.modules()[kind]
-    document = module._api.document(module.example(), tmp_path)
+    document = module.create(tmp_path, module.example())
     assert document.kind == kind and document.path == tmp_path
     golden(GENERATED / f"{name}.tex", document.render(variant))
 
@@ -92,13 +92,14 @@ def test_the_sty_files_are_golden(acme_brand_tex):
 
 
 def test_a_document_renders_with_the_variants_settings_after_the_presets(acme_brand_tex, tmp_path, expert):
-    plain, wide = (expert._api.document(expert.example(), tmp_path).render(v) for v in (None, "wide"))
+    document = expert.create(tmp_path, expert.example())
+    plain, wide = (document.render(v) for v in (None, "wide"))
     assert "\\setlength{\\abFactGap}{3mm}\n" in plain and "{6mm}" not in plain
     assert plain.index("{3mm}") < wide.index("{6mm}") and "\\setlength{\\abFactGap}{3mm}\n" in wide
 
 
 def test_a_document_refuses_an_unknown_variant_and_reports_every_violation_at_once(acme_brand_tex, tmp_path, expert):
-    document = expert._api.document(expert.example(), tmp_path)
+    document = expert.create(tmp_path, expert.example())
     with pytest.raises(DeclarationError) as raised:
         document.render("nope")
     assert raised.value.code == "TP-K004"
@@ -109,7 +110,7 @@ def test_a_document_refuses_an_unknown_variant_and_reports_every_violation_at_on
 
 
 def test_replace_gives_another_document_in_the_same_directory(acme_brand_tex, tmp_path, expert):
-    document = expert._api.document(expert.example(), tmp_path)
+    document = expert.create(tmp_path, expert.example())
     other = document.replace(expert.Deck(expert.Mark(), expert.Card(expert.Title("Owl"), expert.Fact("x"))))
     assert other.path == document.path and other.tree is not document.tree and "Owl" in other.render()
 

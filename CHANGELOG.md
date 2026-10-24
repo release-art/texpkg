@@ -17,3 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surface (`kinds.names()`, `kinds.modules()`, a kind's `NAME`, classes, `schema()`, `example()`, `variants()`,
   `changes()`, `__version__`, `CONTRACTS`, `errors`) with its protocols; `Document.render` and `replace`; the two schemas of
   a kind; `texpkg_build.testing.load_declaration` (phase 2).
+- The document directory: a kind's `create`, `load` and the package's generic `load`; `Document.save`, `check`,
+  `hand_edits`, `template_changes`, `defaults` and `stack`; the state (every value written, defaults marked per node), the
+  template state, the last three saves as history, the plan of each `.tex` and the hand-edit check (phase 2a).

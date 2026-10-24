@@ -102,3 +102,58 @@ Texmodel requests: none.
 Deferred: `load`, `create`, `save`, `check` (2a); shipping the declaration and the assets in a wheel (2b); a base's kinds and
 payload in a dependent (3; note: a base asset naming kinds is matched by name, which needs a decision when kinds expand to a
 base's, 3a); `changes()` returns an empty `Changes` until 5b.
+
+## Phase 2a: the document directory and its state (P27, P29, D1-D9, V21-V27; folds in spec phase 5)
+
+Built: `_internal/state.py` (`tree_state`, `given`, `tree_from_state`, `default_paths`, `defaults_table`, `sty_hashes`),
+`_internal/envelope.py`, `_internal/directory.py` (`_texpkg/`, `differing`, `write`, `rotate_history`),
+`_internal/handedits.py` (`data_path`, `edits`), `Release.template/states/rendered/read/load`, `KindApi.create/load`,
+`Document.save/check/hand_edits/template_changes/defaults/stack`, `Check`, `FileState`, `HandEdit`, `HandEditKind`,
+`TemplateChange`, `Stack`, `StackEntry`; the errors `NotADocumentError`, `DocumentExistsError`, `KindMismatchError`,
+`NewerDataError`, `MigrationError`, `HandEditError`; the generated `load` and `create`; the protocols grew with them.
+
+Gates: `ruff format --check`, `ruff check`, `pyright` (0 errors), `lint-imports`, `pytest` (100%): green. Compile tests
+`TEXPKG_REQUIRE_TEX=1 pytest -m tex`: green; they now build a directory with `create(...).save()` and compile its `.tex`
+with nothing else on the search path (all kinds and variants, `Flat`, a deleted lock-up fails).
+
+Proposed items adopted: D7's file names (`_texpkg/plan.json`, `plan-<variant>.json`); D9 is not used yet (see deferred);
+`HandEdit` (`file, path, expected, found, kind, value`) and `TemplateChange(setting, old, new)` as in the plan; V24 (the
+`$defaults` list per node), V26 (two schemas), V27 in this form: `save` is `model_dump(mode="json")` plus the
+marks computed from `model_fields_set`; `load` drops the marked fields before validating, so the model fills the current
+defaults and `model_fields_set` is what the author set.
+
+Decisions:
+- `state.json` is `{package, kind, data, tree}`; `tree` is the node state. A node's `$defaults` is written only when
+  non-empty. The stored schema (`schema("serialization")`) makes every property required and limits `$defaults` to the
+  node's defaulted fields; the tests validate a saved state against it with `jsonschema` (a dev dependency; the run time
+  has none, validation on read is the model's).
+- A marked field is dropped on load, so a default that changed in the release follows (the `FOLLOW` behaviour); `FREEZE`
+  and `ASK` come with 5a.
+- `template.json`: `package`, `release`, `contracts`, `settings` (per `.tex` file: value class name to the setting line,
+  presets then the variant's), `defaults` (`Class.field` to its default), `sty` (file to sha256), `stack`.
+  `template_changes()` compares settings, defaults and `.sty` hashes (not the release or contracts) and names each as
+  `setting <file> <Value>`, `default <Class.field>`, `sty <file>`.
+- History: a pair is moved to `history/1` when either state file differs from what `save` would write, and only the files
+  that differ are rewritten. P29's "no history entry when the states are unchanged, so a save after a package upgrade only
+  refreshes the payload" holds for an upgrade that changes neither state; an upgrade changes the template state's release,
+  so it adds an entry (the old template state is what `template_changes()` of the older document needs).
+- `save` renders everything and checks the payload is whole before it writes a file; the states are written last. The
+  payload is written before the `.tex` so a missing source stops the save with nothing changed.
+- `check` compares the whole expected directory (states, `.tex`, plans, payload) by content with `texmodel.drift`. A file
+  `EXTRA` under the layout's owned globs is reported, and does not make a document not current (a save removes nothing).
+  A hand-edited `.tex` shows as `CHANGED` and in `edits`.
+- A line no node wrote (`header`, `document`, `preamble.*`, `settings[i]`) keeps its plan path in `HandEdit.path`; a node's
+  path becomes its data path (`Deck[0]/Card[1]/Title[0]` is `/content/1/content/0`).
+- `Stack` is a tuple of `StackEntry(package, release, output)`; it is read from the saved template state, or the
+  release's own when none is saved.
+- `save(*, force=False)` has no `now=` yet: it arrives with the provenance file (phase 4). `load(path)` has no `migrations=`
+  or `default_changes=` yet (5a): a parameter that does nothing would be a lie.
+- `bundle.stale` is not called: `texmodel.drift.check_drift` compares bytes for `check`, and `Payload.write` skips what is
+  already identical; the plan named `bundle.stale`, the effect is the same.
+- Codes: `TP-D001` not a document, `TP-D002` document exists, `TP-D003` kind mismatch, `TP-D004` newer data, `TP-D005` hand
+  edit, `TP-M002` older data (replaced by the migration runner in 5a).
+
+Texmodel requests: none. (`Edit.fields` of texmodel's uncommitted hand-edit work is not read; see D9 below.)
+
+Deferred: D9 (a hand edit's field path and typed `value`): `HandEdit.value` is `None` until texmodel's field-level edits are
+committed; migrations on `load` (5a); `now=` (4).

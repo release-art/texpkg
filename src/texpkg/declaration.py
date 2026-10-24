@@ -144,6 +144,15 @@ class Kind:
                 f"kind {self.name}: {what} {twice!r} is declared twice", code="TP-K002", path=self.name
             )
 
+    @property
+    def stem(self) -> str:
+        """The name of the kind's `.tex` files: the root class's, lower-cased (`Deck` is `deck.tex`)."""
+        return self.model.__name__.lower()
+
+    def documents(self) -> tuple[tuple[str | None, str], ...]:
+        """The `.tex` a save writes, as `(variant, file name)`: the kind's own, then one per variant (K7)."""
+        return ((None, f"{self.stem}.tex"), *((v.name, f"{self.stem}-{v.name}.tex") for v in self.variants))
+
     def settings(self, variant: str | None = None) -> tuple[AnyValue, ...]:
         """What a document of the kind is written with (L8): the presets, then the settings of `variant`, if named."""
         if variant is None:
