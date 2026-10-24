@@ -740,7 +740,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | # | Work | Status |
 |---|---|---|
 | 0 | This plan and `AGENTS.md`; the package layout and its import contracts | built |
-| 1 | Assets and layouts: `Asset` (with `kinds=`), `Role`, `Layout` and placement as policy over texmodel's `bundle`; reading from `importlib.resources`; `check` on `bundle.stale` and `drift` (A1–A6, P10, P11) | |
+| 1 | Assets and layouts: `Asset` (with `kinds=`), `Role`, `Layout` and placement as policy over texmodel's `bundle`; reading from `importlib.resources`; `check` on `bundle.stale` and `drift` (A1–A6, P10, P11) | built |
 | 2 | The declaration and the module API: `Distribution`, `Kind`, `Variant`, `Design`; the protocol; kind modules (`load`, `create`, `schema`, `example`, `variants`, `changes`); `Document` (`render`, `save`, `check`); the errors (§4a, P6–P8, P22–P28, K1–K7, B11) | |
 | 2a | The document directory and its state: the two states, defaults written and marked, history, `_texpkg/`, plans and hand edits, the payload written by `save` (P27, P29, D1–D9, V21–V27) | |
 | 2b | The build: the `texpkg-build` hook generating the module, the version constant, rendering the `.sty`, copying assets, refusing a broken build (B1–B6, B8, V1) | |
