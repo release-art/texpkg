@@ -463,3 +463,32 @@ Decisions: none beyond the export of the migration types above.
 Texmodel requests: none.
 
 Deferred: nothing.
+
+## Closing entry
+
+Phases done: 0, 1, 2, 2a, 2b, 3, 3a, 4, 5a, 5b, 6, 6a, 7 (spec phase 5 folded into 2a). Not done, by the brief: 5c (moving the
+per-model core into texmodel) and 8 (porting the first consumer).
+
+Commits on `impl/texpkg-v1` (6a and 7 share one commit, since their log and changelog entries share files):
+`git log --oneline impl/texpkg-v1`: Phase 0, 1, 2, 2a, 2b, 3, 3a, 4, 5a, 5b, 6, then "Phases 6a and 7".
+
+Proposed items adopted (all in the phase entries above): `base=`, `Variant`/`variants=`, `Asset(kinds=)`, `allow_raw` as
+`Class.field`, `declared_in`/`layout` on `Distribution`, D7's plan file names, `HandEdit`/`TemplateChange` fields, V24/V26/V27,
+P14/P15/P17/P19/P20, B7's pydantic range, B10, 1.5, L1/L2/L4/L5, V2/V34 names, V14/V16/V23/V29/V30, V11/V12/V13/V17/V18/V37/P30,
+E1's templates and README, A7. Also added to the spec's API (not in the plan): `stamp=` on `save`, `check` and `export`.
+
+Texmodel requests (`docs/texmodel-requests.md`): `generator_version()` reads installed metadata (patched in the embedded copy);
+`TemplateRef` reads through the file system (a wheel cannot be imported from a zip; a strict `xfail` marks it); the embedded-font
+check (built in `texpkg_build/_internal/fonts.py` for texmodel_build). Candidates to move in 5c: `_internal/history.py`,
+`_internal/classify.py`, `_internal/provenance_tex.py`, `_internal/fonts.py`.
+
+Left: 5c and 8; known limitations in `docs/known-limitations.md`; open questions 2 (the migration split, a first guess that held
+up: nothing in this build needed it moved) and 6 (the names, adopted as proposed) and 7 (a template project: not built).
+Open design points a maintainer may want to revisit: the module file stem is the root class lower-cased; `$unresolved` in the
+state as the way later migrations see earlier leftovers; the output fingerprint renders `.sty` at a fixed version; a freeze
+leaves `next` one release behind until `texpkg-build contracts` is run again.
+
+How to check: `pdm install`, then the gates (`ruff format --check src tests`, `ruff check src tests`, `pyright`, `lint-imports`,
+`pytest`: 250 passed, 1 xfailed, 100% coverage), then `TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov` (17 compile tests,
+needs the `texmodel-test` image or `TEXPKG_TEST_IMAGE`; the PDF/X check needs `gs` and `verapdf` on the host). Phase 7's
+clean-environment test is `tests/test_end_to_end.py`; the embedding one is `tests/test_embed.py`.
