@@ -39,3 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `data` boundary crossed, applies the consumer's `DefaultChange` policy (`FOLLOW`, `FREEZE`, `ASK`, per document or per
   field) to values still marked as defaults, validates the result whole, and raises `MigrationError` listing every
   unresolved item, writing nothing (phase 5a).
+- Contract versions: `texpkg-build contracts` writes `contracts/next` (both schemas of every kind, the interface, each
+  example's data and rendered `.tex`, the output fingerprint, the versions file with the proposed `current:revision:age`
+  triples and release number) against the newest frozen release, `--freeze` keeps it as `contracts/<release>`; the build
+  refuses a stale snapshot, an unclassified output change, a release without its frozen snapshot, a number that understates
+  the contracts and a base that no longer supports the interface relied on; a wheel carries `CONTRACTS` and every frozen
+  snapshot, and `changes(old, new)` explains two `data` versions; the base's migrations run at the matching boundary of an
+  exposed kind (phase 5b).

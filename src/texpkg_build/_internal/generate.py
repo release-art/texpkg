@@ -152,7 +152,7 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
     base = dist.base
     base_import = f"from ._embedded.{base.module} import _bound as _base" if base else ""
     base_sty = "**_base.STY, " if base else ""
-    base_release = ", (_base.RELEASE,)" if base else ""
+    base_release = "(_base.RELEASE,), " if base else "(), "
     return (
         {f"_sty/{name}": text for name, text in sty.items()}
         | {
@@ -191,6 +191,7 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
                     Triple({c.data.current}, {c.data.revision}, {c.data.age}),
                     Triple({c.interface.current}, {c.interface.revision}, {c.interface.age}),
                     Pair({c.output.current}, {c.output.revision}),
+                    {c.base_data!r},
                 )
             """),
             "_bound.py": _module(f"""
@@ -204,11 +205,12 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
                 {base_import}
 
                 _NAMES: Final = {_tuple(list(sty))}
+                _SNAPSHOTS: Final = files(__package__).joinpath("_contracts")
                 _OWN: Final = {{
                     name: files(__package__).joinpath("_sty", name).read_text(encoding="utf-8") for name in _NAMES
                 }}
                 STY: Final = {{{base_sty}**_OWN}}
-                RELEASE: Final = Release({pointer_attr}, VERSION, CONTRACTS, STY{base_release})
+                RELEASE: Final = Release({pointer_attr}, VERSION, CONTRACTS, STY, {base_release}_SNAPSHOTS)
             """),
             "errors.py": _module(
                 "from texpkg.errors import (\n" + "".join(f"    {name} as {name},\n" for name in error_names()) + ")\n"

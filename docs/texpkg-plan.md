@@ -749,7 +749,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | 4 | Provenance: the command, the file, its texmodel component, the PDF metadata entry; compiled and checked with veraPDF (V2–V4, V34) | built |
 | 5 | *(Folded into 2a: the state format is written once, in its final form; implementation plan §1.2.)* | built in 2a |
 | 5a | Migrations: the per-model core in its own module (V9), the migration API, atomic adoption, unresolved items, default migrations (V5–V8, V14–V16, V28–V33) | built (the build's derived renames and the `changes` report come with 5b) |
-| 5b | Contract versions: snapshots, classification, the versions file, the freeze at release, the `output` fingerprint, the stack record (V10–V13, V17–V20, V35–V37) | |
+| 5b | Contract versions: snapshots, classification, the versions file, the freeze at release, the `output` fingerprint, the stack record (V10–V13, V17–V20, V35–V37) | built (the build's derived renames and default migrations are not: see the log) |
 | 5c | Move the per-model core into texmodel once it is stable; texpkg imports it | |
 | 6 | `export`: the payload, the per-kind templates, the README (E1) | |
 | 6a | The per-kind payload proved by compiling, with the embedded-font check moved into texmodel_build (A7, A8) | |

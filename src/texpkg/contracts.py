@@ -31,6 +31,7 @@ class Contracts:
     data: Triple = Triple(1)
     interface: Triple = Triple(1)
     output: Pair = Pair(1)
+    base_data: tuple[tuple[int, int], ...] = ()  # this package's `data` version -> the base's it corresponds to (P30)
 
 
 @dataclasses.dataclass(frozen=True)

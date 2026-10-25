@@ -346,3 +346,51 @@ Decisions:
 Texmodel requests: none (the per-model core in `history.py` is the candidate for 5c).
 
 Deferred: the build's derived renames and default migrations from snapshots, `changes(old, new)`, the version maps (5b).
+
+## Phase 5b: contract versions (V10-V13, V17-V20, V33, V35-V37, P30)
+
+Built: run time: `_internal/classify.py` (Avro-style rules over schemas, names and signatures over the interface, libtool
+bumps, the release number the contracts need), `_internal/versions.py` (the versions file), `_internal/snapshots.py`
+(`changes(old, new)` from the shipped snapshots), `Contracts.base_data`, `Release.snapshots`, the base kind's migrations at
+the dependent's matching boundary (`adopt._kind_migrations`); build: `_internal/snapshot.py` (the snapshot, the proposal, the
+output fingerprint, freezing), `checks.contract_gate`, `_internal/isolate.py` (the hook's isolation, shared with the command),
+`cli.py` (`texpkg-build contracts [--root] [--freeze] [--first]`); the wheel ships `_contracts/<release>/`; `tests/test_contracts.py`.
+
+Gates: all five green (`pytest` 100%); compile tests `-m tex` green. The snapshot needs no TeX.
+
+Proposed items adopted: V11 (the snapshot's contents), V12 (computed, then recorded), V13's patch rule and "the build refuses a
+tag that understates", V17 (stacks checked at build time), V18 (the stack record, from 3), V37 (freezing), P30 (the version
+map). V36 as decided: `versions.toml` inside each snapshot.
+
+Decisions:
+- `contracts/` absent means no contracts: a package has the first versions (`1:0:0`, `1:0:0`, `1:0`) and ships no snapshots.
+  Present, a development build (a version with a `.dev` or local part) must match `contracts/next` byte for byte
+  (`TP-C001`) and have its output change classified (`TP-C005`); a release build (`X.Y.Z`) needs `contracts/X.Y.Z` as the newest
+  frozen directory (`TP-C003`) and a number the contracts do not understate (`TP-C004`).
+- Right after a freeze `next` describes the release just made; `texpkg-build contracts` is run again to start the next one,
+  and a build in between is refused as stale. That is V12's "refuses a stale versions file".
+- The `output` fingerprint hashes this package's `.sty` rendered at a fixed version, so the release number is not an output
+  change (it would make every release one, and the number is what the changes decide); the base's `.sty` are hashed as the
+  base shipped them, so a base release shows (P16). Editing an example is not a change: the previous release's example data is
+  rendered with this package and compared with the previous `.tex` (V35); data that no longer loads is reported as not compared.
+- The interface compares names, control sequences and signatures (argument names, kind of body and the `Choice` class, not its
+  members, which are the data contract's), the kinds and their variants. Trailing optional arguments are a compatible addition.
+- The versions file is plain TOML written by hand (`Versions.to_text`), with the author's statements kept across proposals: the
+  `output` classification `change = "current" | "revision"`, the notes by `data` version, and `[base] interface`.
+- `classify.py` and `versions.py` live in the run time because `changes()` reads and diffs two shipped snapshots; they import
+  nothing of texpkg but the triples, so they can move to texmodel with the per-model core (5c).
+- The base's `data` and `interface` `current` are read from the installed base module (`CONTRACTS`); a dependent records
+  `[base.data]` (its `data` version to the base's) and `[base] interface`.
+- Not built, and why: **the build's derived renames and default migrations from two snapshots** (V28). A rename is already read
+  by texmodel's `field(renamed_from=)` before validation, and a changed default is applied from the document's own saved
+  template state (5a), which holds exactly the old defaults, so no snapshot is needed. **A hand-written derived `changes`
+  note** is the author's line in `[notes]`.
+- A hook running in the author's process restores the real `texpkg` package's namespace after the base's private copy is
+  linked to it: importing `<base>._embedded.texpkg.migration` bound `migration` on `texpkg` over the exported function.
+- Codes: `TP-C001` next stale or missing, `TP-C002` a frozen snapshot is never rewritten, `TP-C003` no frozen snapshot for the
+  release, `TP-C004` a number that understates, `TP-C005` an unclassified output change, `TP-C006` the base no longer supports
+  the interface relied on.
+
+Texmodel requests: none.
+
+Deferred: nothing; derived renames and default migrations are decided against above.

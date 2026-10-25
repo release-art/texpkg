@@ -9,6 +9,7 @@ import zipfile
 
 import pytest
 
+import texpkg
 from texpkg.errors import DeclarationError
 from texpkg_build._internal import embed
 
@@ -156,6 +157,7 @@ def deck(tmp_path: pathlib.Path, name: str = "deck") -> pathlib.Path:
 
 def test_a_wheel_embeds_texmodel_texpkg_and_one_copy_of_each_base(brand_site, tmp_path):
     built = projects.wheel(deck(tmp_path), tmp_path / "dist")
+    assert callable(texpkg.migration)  # the build's linking left the real package as it was
     inside = projects.names(built)
     embedded = {n.split("/")[2] for n in inside if "/_embedded/" in n}
     assert embedded == {"__init__.py", "texmodel", "texpkg", "acme_brand_tex"}

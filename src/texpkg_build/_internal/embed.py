@@ -9,7 +9,7 @@ import ast
 import pathlib
 import shutil
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 
 from texpkg.declaration import Distribution
 from texpkg.errors import DeclarationError
@@ -193,7 +193,13 @@ def _package_dir(name: str) -> pathlib.Path:
     return pathlib.Path(next(iter(module.__path__)))
 
 
-def embed(out: pathlib.Path, dist: Distribution, declaration: pathlib.Path, generated: dict[str, str]) -> None:
+def embed(
+    out: pathlib.Path,
+    dist: Distribution,
+    declaration: pathlib.Path,
+    generated: dict[str, str],
+    frozen: Sequence[pathlib.Path] = (),
+) -> None:
     """Write the module of `dist` into `out` (`<build dir>/<module>`): the generated files, the declaration copied to
     `_declaration`, and under `_embedded` one copy each of texmodel, texpkg's run time and the base chain (P19), all
     with their imports of one another rewritten (1.5)."""
@@ -207,6 +213,8 @@ def embed(out: pathlib.Path, dist: Distribution, declaration: pathlib.Path, gene
         return f"{module}._embedded.{name}" if name.split(".")[0] in embedded else None
 
     copy_tree(declaration, out / "_declaration")
+    for snapshot in frozen:
+        copy_tree(snapshot, out / "_contracts" / snapshot.name)
     for path in sorted((out / "_declaration").rglob("*.py")):
         scan_declaration(path.read_text(encoding="utf-8"), str(path.relative_to(out)), own, embedded)
     for rel, text in generated.items():

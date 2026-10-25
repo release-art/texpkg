@@ -5,6 +5,7 @@ layout's preamble lines.
 """
 
 import dataclasses
+import importlib.resources.abc
 import json
 import pathlib
 from collections.abc import Mapping, Sequence
@@ -26,7 +27,7 @@ from ..errors import (
     NotADocumentError,
 )
 from ..migration import DefaultChange, Migration
-from . import directory, payload, state
+from . import directory, payload, snapshots, state
 from .adopt import adopt
 from .envelope import Envelope, dumps
 
@@ -41,6 +42,7 @@ class Release:
     contracts: Contracts
     sty: Mapping[str, str]
     bases: tuple["Release", ...] = ()
+    snapshots: importlib.resources.abc.Traversable | None = None  # `_contracts`: the frozen snapshots a wheel carries
 
     def releases(self) -> tuple["Release", ...]:
         """This release and the ones embedded in it, this one first."""
@@ -215,6 +217,7 @@ class KindApi[T: Command | Environment]:
             consumer=migrations,
             policy=default_changes,
             saved_defaults=template.get("defaults"),
+            base_data=dict(self.release.contracts.base_data) if self.kind.name in self.release.dist.expose else None,
         )
         return Document(cast("T", tree), path, self.release, self.kind)
 
@@ -228,4 +231,4 @@ class KindApi[T: Command | Environment]:
         return tuple(v.name for v in self.kind.variants)
 
     def changes(self, old: int, new: int) -> Changes:
-        return Changes()
+        return snapshots.changes(self.release.snapshots, self.kind.name, old, new)

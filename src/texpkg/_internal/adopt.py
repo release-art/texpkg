@@ -66,6 +66,15 @@ def default_changes(
     return asked
 
 
+def _kind_migrations(kind: Kind, boundary: int, base_data: Mapping[int, int] | None) -> list[Migration]:
+    """The kind's own migrations for `boundary`. An exposed base kind's are numbered by the base: the ones for the base
+    versions that this package's `boundary` stands for run at it (P30)."""
+    if base_data is None:
+        return [m for m in kind.migrations if m.to == boundary]
+    low, high = base_data.get(boundary - 1, 0), base_data.get(boundary, 0)
+    return [m for m in kind.migrations if low < m.to <= high]
+
+
 def adopt(
     *,
     kind: Kind,
@@ -75,6 +84,7 @@ def adopt(
     consumer: Sequence[Migration],
     policy: DefaultChange | Mapping[str, DefaultChange],
     saved_defaults: Mapping[str, Any] | None,
+    base_data: Mapping[int, int] | None = None,
 ) -> Node:
     """The tree of `kind` that `envelope` describes at `data` version `current`, or a `MigrationError` naming everything
     that no migration placed. Nothing is written."""
@@ -85,7 +95,7 @@ def adopt(
     if envelope.data < current - age:
         for boundary in range(envelope.data + 1, current + 1):
             label = f"{boundary - 1} -> {boundary}"
-            for migration in (m for m in (*kind.migrations, *consumer) if m.to == boundary):
+            for migration in (*_kind_migrations(kind, boundary, base_data), *(m for m in consumer if m.to == boundary)):
                 tree[UNRESOLVED] = left
                 result = migration(tree)
                 tree = result.state

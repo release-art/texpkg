@@ -55,7 +55,9 @@ src/texpkg/                      the run time: embedded into every built wheel (
         payload.py               assembling items for texmodel.bundle from importlib.resources (A3, A6, P10)
         handedits.py             saved plan vs file, node path to data path (D7–D9)
         envelope.py              {package, data, kind, ...} (K3)
-        history.py               the per-model migration core kept for texmodel (V9): renames, classification
+        history.py               the per-model migration core kept for texmodel (V9): problems of a state
+        classify.py              diffing two snapshots into bumps (V12, V13); run time: `changes()` diffs shipped snapshots
+        versions.py, snapshots.py  the versions file and the shipped snapshots, read at run time (V33, V36)
 
 src/texpkg_build/                build only: never embedded
     __init__.py
@@ -66,7 +68,6 @@ src/texpkg_build/                build only: never embedded
         generate.py              the generated module's source (P6, K4, V1)
         embed.py                 copying and import rewriting (P13–P19, B7, B10, 1.5)
         snapshot.py              contract snapshots, the versions file, freezing (V11, V35–V37)
-        classify.py              diffing two snapshots into bumps (V12, V13)
         checks.py                what the build refuses (B4)
 ```
 
