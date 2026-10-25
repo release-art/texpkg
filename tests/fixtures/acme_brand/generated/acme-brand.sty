@@ -75,3 +75,14 @@
 }{%
 \endgroup
 }
+
+% from library texpkg-provenance (source: inline)
+\makeatletter
+\def\abProvenanceStamp{}
+\def\abProvenanceTime{}
+\newcommand{\abProvenanceInfo}{%
+  acme-brand 1.2.0%
+  \ifx\abProvenanceStamp\@empty\else, stamp \abProvenanceStamp\fi
+  \ifx\abProvenanceTime\@empty\else, materialised \abProvenanceTime\fi}
+\InputIfFileExists{acme-brand-provenance.sty}{}{}
+\makeatother

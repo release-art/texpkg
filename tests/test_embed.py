@@ -219,7 +219,9 @@ def test_a_wheel_installs_into_a_fresh_environment_that_has_only_pydantic(brand_
         "lmroman10-regular.otf",
         "res/acme/DECK.txt",
         "res/acme/NOTICE.txt",
+        "res/acme/acme-brand-provenance.sty",
         "res/acme/acme-brand.sty",
+        "res/acme/acme-deck-provenance.sty",
         "res/acme/acme-deck.sty",
         "slide.tex",
     ]

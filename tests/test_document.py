@@ -42,6 +42,7 @@ EXPERT_FILES = [
     "deck.tex",
     "lmroman10-regular.otf",
     "res/acme/NOTICE.txt",
+    "res/acme/acme-brand-provenance.sty",
     "res/acme/acme-brand.sty",
     "res/acme/lockup.pdf",
 ]
@@ -204,6 +205,7 @@ def test_save_writes_the_states_every_tex_with_its_plan_and_the_payload_of_the_k
         "glossary.tex",
         "lmroman10-regular.otf",
         "res/acme/NOTICE.txt",
+        "res/acme/acme-brand-provenance.sty",
         "res/acme/acme-brand.sty",
     ]
     assert (doc.path / "deck.tex").read_text() == doc.render()

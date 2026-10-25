@@ -31,3 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Profiles: `Kind(..., expand=, over=)` for a kind that expands to a kind of the base, written with the base kind's
   presets and its own locks (`render`, `save`, the payload of both kinds); `Design.load`, validated at build; the law
   `texpkg_build.testing.check_expansion` (phase 3a). `docs/known-limitations.md` lists what is not done.
+- Provenance: every package declares `\<prefix>ProvenanceInfo`, `save` writes `<package>-provenance.sty` for each
+  package of the stack with a stamp (`save(stamp=)`, default the release's version) and a time (`now=`, default the clock),
+  keeps the time while nothing is materialised again, and adds the text to the PDF's Info dictionary as `/<Prefix>Provenance`
+  when PDF management is active; `check(stamp=)` compares the file by stamp (phase 4).

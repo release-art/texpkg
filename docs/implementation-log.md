@@ -274,3 +274,42 @@ Decisions:
 Texmodel requests: none.
 
 Deferred: nothing; see `docs/known-limitations.md` for the profile hand-edit paths and values.
+
+## Phase 4: provenance (V2-V4, V34)
+
+Built: `_internal/provenance_tex.py` (the TeX, no texpkg imports: for texmodel, N5), `provenance.py` (`stamp_of`, `time_of`,
+`files`, `saved`), the block added to every package's `.sty` by `render_sty`, `Release.releases/layout_path`,
+`Payload.pending`, `Document.save(now=, stamp=)` and `Document.check(stamp=)`; `tests/test_provenance.py` and the compile and
+verifier tests in `tests/test_compile.py`. `pikepdf` and `proof-pdf` are dev dependencies.
+
+Gates: all five green (`pytest` 100%); compile tests `-m tex`: green: the log of a compiled document carries
+`PROVENANCE: acme-brand 1.2.0, stamp 1.2.0-3f9c2ab, materialised 2026-10-25T12:30:05Z`, the same text is
+`/AbProvenance` in the PDF's Info dictionary (read back with pikepdf), and without the file the command prints the package
+and version only and no entry is written. texmodel_build's `proof-pdf` verifier (veraPDF and Ghostscript on the host):
+a minimal document with `pdfstandard=A-2b` and the entry has no finding; with `{A-2b,X-4}` the only findings are the missing
+TrimBox and the missing PDF/X output intent of the minimal page, nothing about the entry. The XMP fallback (V34) was not
+needed.
+
+Proposed items adopted: V2's names (`\<prefix>ProvenanceInfo`, `...Stamp`, `...Time`, `<package>-provenance.sty`), V34's
+`/<Prefix>Provenance` (the prefix capitalised, `/AbProvenance`), the entry living in the provenance file.
+
+Decisions:
+- `save` and `check` gain `stamp=` (V4: texpkg takes the stamp as an argument). The default stamp is the release's version, so
+  `check()` reports a directory written by another release even where the `.sty` happens to be equal. A consumer that stamps
+  passes the same stamp to `check`.
+- The time is kept (the file is not rewritten) while the stamp is the same and nothing else of the payload is written again,
+  so a second `save` writes nothing (P29); it is renewed when the stamp changes or any payload file is written. `check`
+  takes the time from the file, so the time is never a difference (A4).
+- The clock is read only in `provenance.time_of` when `now` is not given (N4's one exception). A time is UTC, `YYYY-MM-DDTHH:MM:SSZ`.
+- A stamp is `[A-Za-z0-9.+:/@ -]*` (`TP-D006`): the same text in TeX, on the page and in a PDF string. `_` is left out
+  because it is a TeX error in text.
+- The macros are declared with `\def`, not `\newcommand` (a `\long` macro is never `\ifx`-equal to `\@empty`, the trap the
+  first consumer recorded); the file is read with `\InputIfFileExists`, which also follows `\input@path`.
+- Every package of the stack gets a file (the base's too), all with the dependent's stamp and time. A package without a prefix
+  cannot declare the command (`TP-B011`).
+- The block is added to a deep copy of the author's `Package` at build time, so the declaration and its own `render()` are
+  unchanged.
+
+Texmodel requests: none.
+
+Deferred: `export` writes the file too (phase 6).

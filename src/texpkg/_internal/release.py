@@ -13,6 +13,7 @@ from texmodel.components import AnyValue, Command, Environment, Node
 from texmodel.package import setting_line
 from texmodel.plan import Plan
 
+from ..assets import Role
 from ..contracts import Changes, Contracts
 from ..declaration import Distribution, Kind
 from ..document import Document
@@ -39,16 +40,20 @@ class Release:
     sty: Mapping[str, str]
     bases: tuple["Release", ...] = ()
 
+    def releases(self) -> tuple["Release", ...]:
+        """This release and the ones embedded in it, this one first."""
+        return (self, *(r for base in self.bases for r in base.releases()))
+
     def stack(self) -> list[dict[str, Any]]:
         """The packages a document is rendered through, this one first (V18)."""
-        out = [
-            {
-                "package": self.dist.name,
-                "release": self.version,
-                "output": list(dataclasses.astuple(self.contracts.output)),
-            }
+        return [
+            {"package": r.dist.name, "release": r.version, "output": list(dataclasses.astuple(r.contracts.output))}
+            for r in self.releases()
         ]
-        return out + [entry for base in self.bases for entry in base.stack()]
+
+    def layout_path(self, name: str) -> str:
+        """Where the layout puts the package file `name` in a document directory."""
+        return str(self.dist.layout.place(Role.PACKAGE, pathlib.PurePosixPath(name)))
 
     def settings(self, kind: Kind, variant: str | None) -> tuple[AnyValue, ...]:
         """What a document of `kind` is written with (L8): for a profile kind, the base kind's presets first, then
@@ -64,9 +69,11 @@ class Release:
         package = self.dist.owner(kind.name).package
         return package.plan(body, settings=self.settings(kind, variant), preamble=self.dist.layout.preamble())
 
-    def payload(self, kind: Kind) -> payload.Payload:
+    def payload(self, kind: Kind, provenance: Mapping[str, str] | None = None) -> payload.Payload:
+        """The payload of a document of `kind`: the `.sty` files, the provenance files if given, the assets."""
         kinds = (kind.name, *([kind.over] if kind.over else []))
-        return payload.build(self.sty, tuple(self.dist.resolved_assets()), self.dist.layout, kinds)
+        files = {**self.sty, **(provenance or {})}
+        return payload.build(files, tuple(self.dist.resolved_assets()), self.dist.layout, kinds)
 
     def rendered(self, kind: Kind, tree: Node) -> dict[str, str]:
         """Every `.tex` of the kind with the plan of it that `save` keeps (D7), by path in the directory."""

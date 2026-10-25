@@ -51,6 +51,15 @@ class Payload:
         self.complete()
         return {str(p.dest): p.source.read_bytes() for p in self.assets} | dict(self.generated)
 
+    def pending(self, root: pathlib.Path) -> tuple[str, ...]:
+        """The files `root` does not hold, byte for byte."""
+        return tuple(
+            dest
+            for dest, content in self.expected().items()
+            if not (root / dest).is_file()
+            or (root / dest).read_bytes() != (content if isinstance(content, bytes) else content.encode("utf-8"))
+        )
+
     def check(self, root: pathlib.Path, owned: Sequence[str]) -> drift.Drift:
         """What `root` holds against the payload: `stale`, `missing`, and `orphaned` (files under `owned` globs that no
         payload file explains)."""

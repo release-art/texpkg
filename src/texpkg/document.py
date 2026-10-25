@@ -1,6 +1,7 @@
 """`Document[T]`: a kind's tree and the directory it lives in (P27, P28)."""
 
 import dataclasses
+import datetime
 import enum
 import json
 import pathlib
@@ -10,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 from texmodel import drift
 from texmodel.components import Command, Environment
 
+from . import provenance
 from ._internal import directory, handedits, state
 from .contracts import Pair
 from .declaration import Kind
@@ -120,9 +122,10 @@ class Document[T: Command | Environment]:
         """The same document, in the same directory, with another tree."""
         return Document(tree, self.path, self._release, self._kind)
 
-    def _expected(self) -> dict[str, str | bytes]:
+    def _expected(self, stamp: str, time: str) -> dict[str, str | bytes]:
         """Every file a save writes, by path in the directory."""
-        payload = self._release.payload(self._kind)
+        files = provenance.files(self._release, stamp, time)
+        payload = self._release.payload(self._kind, files)
         return (
             payload.expected()
             | self._release.rendered(self._kind, self.tree)
@@ -147,14 +150,22 @@ class Document[T: Command | Environment]:
             for name, edit in handedits.edits(self.path, self._kind.documents())
         )
 
-    def save(self, *, force: bool = False) -> None:
+    def save(self, *, now: datetime.datetime | None = None, stamp: str | None = None, force: bool = False) -> None:
         """Write the states, the `.tex` of every variant with its plan, and the payload of the kind: only what changed,
         and a history entry only when the states did (P29). Raises `HandEditError`, writing nothing, when a `.tex` was
-        edited by hand, unless `force`. Nothing is written if the tree or the payload is not whole."""
+        edited by hand, unless `force`. Nothing is written if the tree or the payload is not whole.
+
+        The provenance files carry `stamp` (default: the release's version, V4) and the time of `now` (default: the
+        clock, N4). Their time is kept while the stamp and the rest of the payload are as they were."""
         rendered = self._release.rendered(self._kind, self.tree)
         states = self._release.states(self._kind, self.tree)
-        payload = self._release.payload(self._kind)
-        payload.complete()
+        wanted = provenance.stamp_of(stamp, self._release)
+        bare = self._release.payload(self._kind)
+        bare.complete()
+        saved = provenance.saved(self.path, self._release)
+        unchanged = saved is not None and saved.stamp == wanted and not bare.pending(self.path)
+        time = saved.time if unchanged and saved else provenance.time_of(now)
+        payload = self._release.payload(self._kind, provenance.files(self._release, wanted, time))
         if not force and (edits := self.hand_edits()):
             files = ", ".join(sorted({e.file.name for e in edits}))
             raise HandEditError(
@@ -168,11 +179,16 @@ class Document[T: Command | Environment]:
             directory.rotate_history(self.path)
             directory.write(self.path, changed)
 
-    def check(self) -> Check:
-        """What a save would change; writes nothing. A hand-edited `.tex` is reported as changed and in `edits`."""
-        report = drift.check_drift(self._expected(), self.path, self._release.dist.layout.owned())
+    def check(self, *, stamp: str | None = None) -> Check:
+        """What a save would change; writes nothing. A hand-edited `.tex` is reported as changed and in `edits`. The
+        provenance files are compared by stamp (A4): `stamp` is the one the document was saved with (default: the
+        release's version), and the time they hold is not a difference."""
+        wanted = provenance.stamp_of(stamp, self._release)
+        saved = provenance.saved(self.path, self._release)
+        expected = self._expected(wanted, saved.time if saved else provenance.time_of(None))
+        report = drift.check_drift(expected, self.path, self._release.dist.layout.owned())
         files: dict[pathlib.Path, FileState] = {}
-        for rel in self._expected():
+        for rel in expected:
             files[self.path / rel] = (
                 FileState.MISSING
                 if rel in report.missing

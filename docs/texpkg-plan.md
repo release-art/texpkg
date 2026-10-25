@@ -381,8 +381,8 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 |---|---|---|---|
 | tree | `doc.tree: T` (frozen texmodel tree) | decided | P23, P28 |
 | render | `doc.render(variant: str \| None = None) -> str` (pure: returns the `.tex`, writes nothing) | decided: a method, no module-level `render`; `variant=` decided (K6) | P28, K6 |
-| save | `doc.save(*, now: datetime \| None = None, force: bool = False) -> None` (`now=` arrives with the provenance file, phase 4) (writes both states, history, the `.tex`, its plan and the payload; only what changed; `now` pins the provenance time, N4; raises `HandEditError` on a hand-edited `.tex` unless `force`) | decided | P29, D1–D3, D7, D8, N4 |
-| check | `doc.check() -> Check` (never writes; reports hand edits too) | decided | P29, A4, D8 |
+| save | `doc.save(*, now: datetime \| None = None, stamp: str \| None = None, force: bool = False) -> None` (writes both states, history, the `.tex`, its plan and the payload; only what changed; `now` pins the provenance time, N4; raises `HandEditError` on a hand-edited `.tex` unless `force`) | decided | P29, D1–D3, D7, D8, N4 |
+| check | `doc.check(*, stamp: str \| None = None) -> Check` (never writes; reports hand edits too) | decided | P29, A4, D8 |
 | hand edits | `doc.hand_edits() -> tuple[HandEdit, ...]`; `HandEdit(file, path, expected, found, kind, value=None)`, `kind`: `ADDED`, `REMOVED`, `CHANGED`; `path` is a field's data path when texmodel attributes the edit to one, else the node's; `value` is the typed value when texmodel can read it (D9) | decided (behaviour); field names and `value` proposed | D8, D9 |
 | path | `doc.path: Path` | decided | P27 |
 | kind | `doc.kind: str` | decided | K3 |
@@ -746,7 +746,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | 2b | The build: the `texpkg-build` hook generating the module, the version constant, rendering the `.sty`, copying assets, refusing a broken build (B1–B6, B8, V1) | built |
 | 3 | Embedding, static linking: the base and the run time (texmodel, texpkg) copied privately into the module; one base per package; relative imports; conflicts; build-time compatibility (P13–P21, P30, B7, B10, V17) | built (P30 and V17 with 5b) |
 | 3a | Profiles: embedded data, the four ways to narrow, `expand` and the L3 law's tests (L1–L8) | built |
-| 4 | Provenance: the command, the file, its texmodel component, the PDF metadata entry; compiled and checked with veraPDF (V2–V4, V34) | |
+| 4 | Provenance: the command, the file, its texmodel component, the PDF metadata entry; compiled and checked with veraPDF (V2–V4, V34) | built |
 | 5 | *(Folded into 2a: the state format is written once, in its final form; implementation plan §1.2.)* | built in 2a |
 | 5a | Migrations: the per-model core in its own module (V9), the migration API, atomic adoption, unresolved items, default migrations (V5–V8, V14–V16, V28–V33) | |
 | 5b | Contract versions: snapshots, classification, the versions file, the freeze at release, the `output` fingerprint, the stack record (V10–V13, V17–V20, V35–V37) | |

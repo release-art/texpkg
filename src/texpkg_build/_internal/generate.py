@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from typing import Annotated
 
 from texpkg import errors
+from texpkg._internal import provenance_tex
 from texpkg.contracts import Contracts
 from texpkg.declaration import Distribution, Kind, reachable
 from texpkg.errors import DeclarationError
@@ -24,8 +25,16 @@ _FOREIGN = ("builtins", "typing", "types", "collections", "texmodel", "enum", "p
 def render_sty(dist: Distribution, version: str) -> dict[str, str]:
     """The `.sty` of the distribution's own package, rendered at `version` (P4, V1). The author's object is left as it
     is. A base's was rendered when the base was built."""
-    package = copy.copy(dist.package)
+    package = copy.deepcopy(dist.package)  # a copy that shares no list with the author's: the block is added to it
+    if not package.prefix:
+        raise DeclarationError(
+            f"package {package.name} has no prefix, so it cannot declare its provenance command",
+            code="TP-B011",
+            path=package.name,
+            hint='give the Package a prefix: Package("acme", prefix="ac")',
+        )
     package.version = version
+    package.library("texpkg-provenance", provenance_tex.declarations(package.prefix, package.name, version))
     return {f"{package.name}.sty": package.render()}
 
 
