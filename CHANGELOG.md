@@ -46,3 +46,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the contracts and a base that no longer supports the interface relied on; a wheel carries `CONTRACTS` and every frozen
   snapshot, and `changes(old, new)` explains two `data` versions; the base's migrations run at the matching boundary of an
   exposed kind (phase 5b).
+- `export(dest, *, now=, stamp=)`: the whole payload flat, the provenance files, and for each kind a template (its example
+  rendered with the kind's settings) and a README generated from its classes; refused whole if a file is missing (phase 6).

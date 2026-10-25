@@ -356,7 +356,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 |---|---|---|---|
 | kinds listed | `acme_tex.kinds.names() -> tuple[str, ...]` | decided | P26 |
 | kinds by name | `acme_tex.kinds.modules() -> Mapping[str, KindModule]` | decided | P26 |
-| plain-LaTeX export | `acme_tex.export(dest: Path \| str, *, now: datetime \| None = None) -> tuple[Path, ...]` | decided: writes the package's `.sty`, those it embeds and every asset (`FLAT` layout), refused whole if a file is missing; one template `.tex` per kind and a README: proposed | E1, A3 |
+| plain-LaTeX export | `acme_tex.export(dest: Path \| str, *, now: datetime \| None = None, stamp: str \| None = None) -> tuple[Path, ...]` | decided: writes the package's `.sty`, those it embeds and every asset (`FLAT` layout), refused whole if a file is missing; one template `.tex` per kind and a README: proposed | E1, A3 |
 | any kind | `acme_tex.load(path: Path \| str, *, migrations: Sequence[Migration] = (), default_changes: DefaultChange \| Mapping[str, DefaultChange] = DefaultChange.FOLLOW) -> Document[Any]` | decided as a nice-to-have | P26, V23 |
 | release version | `acme_tex.__version__: str` | decided | V1 |
 | contract versions | `acme_tex.CONTRACTS: Contracts` (`.data`, `.interface`: `Triple(current, revision, age)`; `.output`: `Pair(current, revision)`) | decided | V10 |
@@ -751,7 +751,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | 5a | Migrations: the per-model core in its own module (V9), the migration API, atomic adoption, unresolved items, default migrations (V5–V8, V14–V16, V28–V33) | built (the build's derived renames and the `changes` report come with 5b) |
 | 5b | Contract versions: snapshots, classification, the versions file, the freeze at release, the `output` fingerprint, the stack record (V10–V13, V17–V20, V35–V37) | built (the build's derived renames and default migrations are not: see the log) |
 | 5c | Move the per-model core into texmodel once it is stable; texpkg imports it | |
-| 6 | `export`: the payload, the per-kind templates, the README (E1) | |
+| 6 | `export`: the payload, the per-kind templates, the README (E1) | built |
 | 6a | The per-kind payload proved by compiling, with the embedded-font check moved into texmodel_build (A7, A8) | |
 | 7 | Two synthetic wheels in the tests (`acme-brand-tex`, and `acme-deck-tex` built on it), built and installed into a clean venv: load, render, save and compile with nothing else present | |
 | 8 | The first consumer's `pack` ported onto texpkg with no change to its output: the acceptance gate | |

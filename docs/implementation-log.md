@@ -394,3 +394,26 @@ Decisions:
 Texmodel requests: none.
 
 Deferred: nothing; derived renames and default migrations are decided against above.
+
+## Phase 6: export (E1)
+
+Built: `Release.export`, `_internal/export.py` (`readme`, the file names), the generated `export` function and its protocol
+entry, `Release.plan(layout=)`; `tests/test_export.py` and the compile test in `tests/test_compile.py`.
+
+Gates: all five green (`pytest` 100%); compile tests `-m tex` green: the template of every kind of an export compiles with
+LuaLaTeX from the export directory alone, no search path set.
+
+Proposed items adopted: E1's templates and README.
+
+Decisions:
+- `export(dest, *, now=None, stamp=None)` takes the stamp as `save` does (V4). It returns every file of the export, not only the
+  ones it wrote, and writes only what differs.
+- A template is `<kind>-template.tex`, the kind's example rendered in the `Flat` layout (no `\input@path`, no `\graphicspath`)
+  with the kind's presets, so a lock reaches a plain-LaTeX user (L8); `README-<kind>.md` lists the files, what the template is
+  written with and the commands of the kind's classes (for a profile kind, of the base kind it expands to) with their
+  TeX shape. Variants are not exported as files; the README says so.
+- Every kind the module offers, an exposed base kind included, has a template and a README.
+
+Texmodel requests: none.
+
+Deferred: nothing.

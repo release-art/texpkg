@@ -157,6 +157,7 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
         {f"_sty/{name}": text for name, text in sty.items()}
         | {
             "__init__.py": _module("""
+                import datetime
                 from collections.abc import Mapping, Sequence
                 from pathlib import Path
                 from typing import Any, Final
@@ -170,7 +171,13 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
 
                 __version__: Final = VERSION
                 dist: Final = RELEASE.dist  # for a package built on this one (P14)
-                __all__ = ["CONTRACTS", "__version__", "dist", "errors", "kinds", "load"]
+                __all__ = ["CONTRACTS", "__version__", "dist", "errors", "export", "kinds", "load"]
+
+
+                def export(
+                    dest: Path | str, *, now: datetime.datetime | None = None, stamp: str | None = None
+                ) -> tuple[Path, ...]:
+                    return RELEASE.export(dest, now, stamp)
 
 
                 def load(

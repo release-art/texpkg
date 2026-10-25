@@ -161,3 +161,9 @@ def test_the_info_entry_passes_pdfa_and_adds_nothing_to_pdfx(compiler, tmp_path,
     with pikepdf.open(result.pdf) as pdf:
         assert str(pdf.docinfo["/AcProvenance"]) == "acme 1.2.0, stamp 1.2.0-abc, materialised 2026-10-25T12:30:05Z"
     assert {f.check for f in verifier.verify(result.pdf, options)} == findings
+
+
+def test_every_template_of_an_export_compiles_with_the_search_environment_unset(acme_brand_tex, compiler, tmp_path):
+    acme_brand_tex.export(tmp_path / "export", now=None)
+    for kind in acme_brand_tex.kinds.names():
+        compiler.compile(tmp_path / "export" / f"{kind}-template.tex", tmp_path / "out" / kind).raise_for_status()

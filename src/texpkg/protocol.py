@@ -1,6 +1,7 @@
 """The fixed surface of a built package (P6), as protocols: the build generates a module to satisfy them and checks it
 does, and a consumer's type checker reads the generated module's own types."""
 
+import datetime
 import pathlib
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal, Protocol, runtime_checkable
@@ -48,6 +49,9 @@ class PackageModule(Protocol):
     def CONTRACTS(self) -> Contracts: ...  # noqa: N802
     @property
     def kinds(self) -> KindsModule: ...
+    def export(
+        self, dest: pathlib.Path | str, *, now: datetime.datetime | None = None, stamp: str | None = None
+    ) -> tuple[pathlib.Path, ...]: ...
     def load(
         self,
         path: pathlib.Path | str,
