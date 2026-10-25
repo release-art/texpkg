@@ -1,8 +1,8 @@
 % The brand's setup: its typeface, found by path in the document's own directory (luaotfload reads no search path), and
-% its colours.
+% its colours, which come from the design data.
 \RequirePackage{fontspec}
 \RequirePackage{graphicx}
 \RequirePackage{xcolor}
 \setmainfont{lmroman10-regular.otf}[Path=./]
-\definecolor{ab-slate}{HTML}{2F3E46}
-\definecolor{ab-moss}{HTML}{52796F}
+\definecolor{ab-slate}{HTML}{<<palette.slate>>}
+\definecolor{ab-moss}{HTML}{<<palette.moss>>}

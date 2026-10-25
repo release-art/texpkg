@@ -9,7 +9,7 @@ import pathlib
 from collections.abc import Mapping
 from typing import Any, cast
 
-from texmodel.components import Command, Environment, Node
+from texmodel.components import AnyValue, Command, Environment, Node
 from texmodel.package import setting_line
 from texmodel.plan import Plan
 
@@ -50,15 +50,23 @@ class Release:
         ]
         return out + [entry for base in self.bases for entry in base.stack()]
 
+    def settings(self, kind: Kind, variant: str | None) -> tuple[AnyValue, ...]:
+        """What a document of `kind` is written with (L8): for a profile kind, the base kind's presets first, then
+        its own locks, then the variant's."""
+        base = self.dist.base_kind(kind)
+        return (*(base.presets if base else ()), *kind.settings(variant))
+
     def plan(self, kind: Kind, tree: Node, variant: str | None) -> Plan:
         """The `.tex` of `tree` as lines with provenance: the kind's presets, then the variant's settings (L8).
 
         An exposed base kind is written by the base's package; the directory's layout is this distribution's."""
+        body = tree if kind.expand is None else kind.expand(tree)
         package = self.dist.owner(kind.name).package
-        return package.plan(tree, settings=kind.settings(variant), preamble=self.dist.layout.preamble())
+        return package.plan(body, settings=self.settings(kind, variant), preamble=self.dist.layout.preamble())
 
     def payload(self, kind: Kind) -> payload.Payload:
-        return payload.build(self.sty, tuple(self.dist.resolved_assets()), self.dist.layout, kind.name)
+        kinds = (kind.name, *([kind.over] if kind.over else []))
+        return payload.build(self.sty, tuple(self.dist.resolved_assets()), self.dist.layout, kinds)
 
     def rendered(self, kind: Kind, tree: Node) -> dict[str, str]:
         """Every `.tex` of the kind with the plan of it that `save` keeps (D7), by path in the directory."""
@@ -81,7 +89,7 @@ class Release:
                 "output": [c.output.current, c.output.revision],
             },
             "settings": {
-                name: {type(v).__name__: setting_line(v) for v in kind.settings(variant)}
+                name: {type(v).__name__: setting_line(v) for v in self.settings(kind, variant)}
                 for variant, name in kind.documents()
             },
             "defaults": state.defaults_table(kind.model),

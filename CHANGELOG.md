@@ -28,3 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   constant, and needs only pydantic. A distribution can name a `base`, expose its kinds, and the build refuses a name or
   payload path used twice along the chain, an absolute import of the package itself, a read of the distribution's metadata
   and an import the wheel does not carry (phase 3).
+- Profiles: `Kind(..., expand=, over=)` for a kind that expands to a kind of the base, written with the base kind's
+  presets and its own locks (`render`, `save`, the payload of both kinds); `Design.load`, validated at build; the law
+  `texpkg_build.testing.check_expansion` (phase 3a). `docs/known-limitations.md` lists what is not done.

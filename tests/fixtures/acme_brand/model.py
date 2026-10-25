@@ -1,14 +1,33 @@
 """The synthetic acme brand: a `.sty` with two document kinds on it (`expert` and `vocab`)."""
 
 import enum
+import importlib.resources
 
+import pydantic
 from texmodel.body import TemplateRef
 from texmodel.components import Command, Environment, Value
 from texmodel.package import Package
-from texmodel.types import CMYK, Choice, Colour, Length, Text
+from texmodel.types import CMYK, Choice, Colour, Length, Raw, Text
+
+from texpkg import Design
+
+
+class Palette(pydantic.BaseModel):
+    slate: Raw
+    moss: Raw
+
+
+class Tokens(pydantic.BaseModel):
+    """The brand's design data."""
+
+    palette: Palette
+
+
+design = Design(Tokens, "tokens.json")
+tokens = design.load(importlib.resources.files(__package__ or "acme_brand"))  # the .sty is filled from it (L1)
 
 pkg = Package("acme-brand", prefix="ab", version="1.0.0", date="2026/10/21", description="The acme brand")
-pkg.library("acme", TemplateRef("acme.tex"))
+pkg.library("acme", TemplateRef("acme.tex"), fill=tokens)
 
 
 @pkg.value

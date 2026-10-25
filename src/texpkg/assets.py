@@ -4,6 +4,7 @@ import dataclasses
 import enum
 import importlib.resources.abc
 import pathlib
+from collections.abc import Collection
 from typing import NamedTuple
 
 from .errors import DeclarationError
@@ -42,9 +43,10 @@ class Asset:
             )
         object.__setattr__(self, "kinds", tuple(self.kinds))
 
-    def needed_by(self, kind: str | None) -> bool:
-        """Whether a document of `kind` needs this asset; `None` is every kind (an export, E1)."""
-        return kind is None or not self.kinds or kind in self.kinds
+    def needed_by(self, kinds: Collection[str] | None) -> bool:
+        """Whether a document that is one of `kinds` (a profile kind and the base kind it expands to) needs this asset;
+        `None` is every kind (an export, E1)."""
+        return kinds is None or not self.kinds or bool(set(self.kinds) & set(kinds))
 
 
 class Resolved(NamedTuple):

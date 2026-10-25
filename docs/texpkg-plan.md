@@ -745,7 +745,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | 2a | The document directory and its state: the two states, defaults written and marked, history, `_texpkg/`, plans and hand edits, the payload written by `save` (P27, P29, D1–D9, V21–V27) | built (`load` reads the current `data` version only until 5a) |
 | 2b | The build: the `texpkg-build` hook generating the module, the version constant, rendering the `.sty`, copying assets, refusing a broken build (B1–B6, B8, V1) | built |
 | 3 | Embedding, static linking: the base and the run time (texmodel, texpkg) copied privately into the module; one base per package; relative imports; conflicts; build-time compatibility (P13–P21, P30, B7, B10, V17) | built (P30 and V17 with 5b) |
-| 3a | Profiles: embedded data, the four ways to narrow, `expand` and the L3 law's tests (L1–L8) | |
+| 3a | Profiles: embedded data, the four ways to narrow, `expand` and the L3 law's tests (L1–L8) | built |
 | 4 | Provenance: the command, the file, its texmodel component, the PDF metadata entry; compiled and checked with veraPDF (V2–V4, V34) | |
 | 5 | *(Folded into 2a: the state format is written once, in its final form; implementation plan §1.2.)* | built in 2a |
 | 5a | Migrations: the per-model core in its own module (V9), the migration API, atomic adoption, unresolved items, default migrations (V5–V8, V14–V16, V28–V33) | |

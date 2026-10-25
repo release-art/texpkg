@@ -8,7 +8,10 @@ import pathlib
 import pkgutil
 import sys
 import tempfile
+from collections.abc import Iterable
 from types import ModuleType
+
+from texmodel.components import Node
 
 from texpkg.contracts import Contracts
 from texpkg.declaration import Distribution
@@ -119,3 +122,23 @@ def _write(dist: Distribution, attr: str, version: str, contracts: Contracts, ro
             contracts,
             root / "_embedded" / dist.base.module,
         )
+
+
+def check_expansion(dist: Distribution, kind: str, examples: Iterable[Node] = ()) -> None:
+    """The law of a profile kind (L3): every valid document of it expands to a valid document of the kind it expands to.
+    Checked on the kind's own example and on `examples`: run it over trees a hypothesis strategy builds (L6, L7), where
+    a profile that widens its base (a default or a value the base's type does not take) fails."""
+    profile = dist.kind(kind)
+    base = dist.base_kind(profile)
+    if profile.expand is None or base is None:
+        raise DeclarationError(f"kind {kind} is not a profile kind", code="TP-K009", path=kind)
+    for tree in (profile.example(), *examples):
+        if problems := tree.violations():
+            raise DeclarationError(f"kind {kind}: {problems[0].message}", code="TP-K010", path=kind)
+        if problem := dist.expansion_problem(profile, tree):
+            raise DeclarationError(
+                f"kind {kind}: {tree!r} expands to a tree that {problem}",
+                code="TP-K010",
+                path=kind,
+                hint="a profile narrows its base and never widens it (L6)",
+            )

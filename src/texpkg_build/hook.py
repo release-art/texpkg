@@ -131,6 +131,7 @@ def pdm_build_update_files(context: Context, files: dict[str, pathlib.Path]) -> 
         declaration = checks.declaration_directory(dist)
         checks.assets_are_there(dist)
         checks.tex_names_are_unique(dist)
+        checks.design_is_valid(dist)
         version = str(context.config.metadata["version"])
         checks.module_satisfies_the_protocols(load_declaration(f"{module}:{attr}", version=version))
         generated = generate.sources(dist, attr, version, Contracts())

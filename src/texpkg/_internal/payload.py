@@ -9,7 +9,7 @@ import dataclasses
 import importlib.resources
 import importlib.resources.abc
 import pathlib
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 
 from texmodel import bundle, drift
 
@@ -75,13 +75,16 @@ class Payload:
             return bundle.write(bundle.stale(items, root), root, changed)
 
 
-def build(sty: Mapping[str, str], assets: Sequence[Resolved], layout: Layout, kind: str | None = None) -> Payload:
-    """The payload of `kind` (`None`: every kind, for an export) in `layout`. An asset naming other kinds is left out
+def build(
+    sty: Mapping[str, str], assets: Sequence[Resolved], layout: Layout, kinds: Collection[str] | None = None
+) -> Payload:
+    """The payload of a document of `kinds` (a kind and the base kind a profile kind expands to; `None`: every kind, for
+    an export) in `layout`. An asset naming other kinds is left out
     (A6). The same file twice is one (P10); two different files on one path are an error (P11)."""
     placed: dict[pathlib.PurePosixPath, Placed] = {}
     for resolved in assets:
         asset = resolved.asset
-        if not asset.needed_by(kind):
+        if not asset.needed_by(kinds):
             continue
         dest = layout.place(asset.role, pathlib.PurePosixPath(asset.path))
         earlier = placed.get(dest)

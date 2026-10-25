@@ -67,17 +67,16 @@ def test_a_project_directory_stays_inside_the_document(bad):
 
 def test_an_asset_names_the_kinds_that_need_it():
     everywhere, only = Asset("a", Role.NOTE, "x"), Asset("b", Role.NOTE, "x", ("expert",))
-    assert [a.needed_by(k) for a in (everywhere, only) for k in ("expert", "other", None)] == [
-        True, True, True, True, False, True,
-    ]  # fmt: skip
+    kinds = [("expert",), ("other",), ("other", "expert"), None]
+    assert [a.needed_by(k) for a in (everywhere, only) for k in kinds] == [True] * 4 + [True, False, True, True]
 
 
 def test_a_payload_leaves_out_the_assets_of_other_kinds():
     assets = [resolved("lockup.pdf", Role.GRAPHIC, ("expert",)), resolved("NOTICE.txt", Role.NOTE)]
     names = lambda kind: sorted(str(p.dest) for p in payload.build({}, assets, PROJECT, kind).assets)  # noqa: E731
-    assert names("expert") == ["res/acme/NOTICE.txt", "res/acme/lockup.pdf"]
-    assert names("vocab") == ["res/acme/NOTICE.txt"]
-    assert names(None) == names("expert")
+    assert names(("expert",)) == ["res/acme/NOTICE.txt", "res/acme/lockup.pdf"]
+    assert names(("vocab",)) == ["res/acme/NOTICE.txt"]
+    assert names(None) == names(("expert",))
 
 
 def test_the_same_file_twice_is_one_and_two_different_files_on_one_path_are_refused(tmp_path):

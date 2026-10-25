@@ -7,7 +7,7 @@ from texmodel.types import CMYK, Length
 
 from texpkg import Asset, Distribution, Flat, Kind, Project, Role, Variant
 
-from .model import Accent, Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Mark, Term, Title, pkg
+from .model import Accent, Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Mark, Term, Title, design, pkg
 
 
 def expert_example() -> Deck:
@@ -27,6 +27,7 @@ dist = Distribution(
     module="acme_brand_tex",
     package=pkg,
     declared_in=__name__,
+    design=design,
     assets=(
         Asset("assets/lmroman10-regular.otf", Role.FONT, "the brand typeface"),
         Asset("assets/lockup.pdf", Role.GRAPHIC, "the brand lock-up", kinds=("expert",)),

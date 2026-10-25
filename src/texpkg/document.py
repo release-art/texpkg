@@ -129,12 +129,17 @@ class Document[T: Command | Environment]:
             | self._release.states(self._kind, self.tree)
         )
 
+    def _data_path(self, plan_path: str) -> str:
+        """A profile's tree is expanded before it is written, so a plan path names a node of the base's tree and not a
+        path in this document's data: it is given as it is."""
+        return plan_path if self._kind.expand else handedits.data_path(plan_path)
+
     def hand_edits(self) -> tuple[HandEdit, ...]:
         """The lines of the `.tex` files that differ from the plan `save` kept of them (D8)."""
         return tuple(
             HandEdit(
                 self.path / name,
-                handedits.data_path(edit.path),
+                self._data_path(edit.path),
                 edit.expected,
                 edit.found,
                 HandEditKind(edit.kind.value),

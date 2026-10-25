@@ -2,6 +2,7 @@
 
 import ast
 import pathlib
+import shutil
 import sys
 import textwrap
 import zipfile
@@ -210,7 +211,7 @@ def test_a_wheel_installs_into_a_fresh_environment_that_has_only_pydantic(brand_
     python = venvs.clean_venv(tmp_path / "venv")
     venvs.install(python, built)
     report = json.loads(venvs.run(python, SCRIPT, tmp_path / "out", cwd=tmp_path))
-    assert report["names"] == ["slide", "vocab"] and report["version"] == "0.1.0"
+    assert report["names"] == ["slide", "brief", "vocab"] and report["version"] == "0.1.0"
     assert report["slide"] == [
         "_texpkg/plan.json",
         "_texpkg/state.json",
@@ -302,7 +303,7 @@ def test_the_dev_loop_builds_a_dependent_in_memory(tmp_path, acme_brand_tex):
     try:
         slide = module.kinds.modules()["slide"]
         vocab = module.kinds.modules()["vocab"]
-        assert module.kinds.names() == ("slide", "vocab") and vocab.NAME == "vocab"
+        assert module.kinds.names() == ("slide", "brief", "vocab") and vocab.NAME == "vocab"
         doc = vocab.create(tmp_path / "v", vocab.example())
         doc.save()
         assert (tmp_path / "v/res/acme/acme-brand.sty").is_file() and "abGlossary" in doc.render()
@@ -321,16 +322,71 @@ def test_a_chain_of_three_flattens_to_one_copy_of_each(brand_site, tmp_path, mon
     zipfile.ZipFile(middle).extractall(site)
     monkeypatch.syspath_prepend(str(site))
     poster = deck(tmp_path, "poster")
+    shutil.rmtree(poster / "src/acme_deck")
+    package = poster / "src/acme_poster"
+    package.mkdir()
+    (package / "model.py").write_text(
+        textwrap.dedent(
+            '''
+            import acme_deck_tex
+            from acme_deck_tex.kinds import vocab
+            from texmodel.body import Hole
+            from texmodel.components import Command, Environment
+            from texmodel.package import Package
+            from texmodel.types import Text
+
+            pkg = Package("acme-poster", prefix="ap", version="1.0.0", date="2026/10/22", description="Posters")
+            pkg.require(acme_deck_tex.dist.package)
+
+
+            @pkg.command
+            class Line(Command):
+                """A line of a poster, set as a term of the brand."""
+
+                text: Text
+
+                def body(self):
+                    return vocab.Term.call(Hole("text"), "line")
+
+
+            @pkg.environment
+            class Slide(Environment):
+                """A poster."""
+
+                begin = r"\\begingroup"
+                end = r"\\endgroup"
+                children = [Line.times.at_least_one()]
+            '''
+        )
+    )
+    (package / "__init__.py").write_text(
+        textwrap.dedent(
+            """
+            import acme_deck_tex
+
+            from texpkg import Distribution, Kind
+
+            from .model import Line, Slide, pkg
+
+            dist = Distribution(
+                name="acme-poster-tex",
+                module="acme_poster_tex",
+                package=pkg,
+                declared_in=__name__,
+                kinds=(Kind("slide", Slide, (), lambda: Slide(Line("a"))),),
+                base=acme_deck_tex.dist,
+                expose=("vocab",),
+            )
+            """
+        )
+    )
+    pyproject = poster / "pyproject.toml"
     for old, new in (
-        ("acme_brand_tex", "@BASE@"),
         ("acme_deck", "acme_poster"),
         ("acme-deck", "acme-poster"),
-        ("@BASE@", "acme_deck_tex"),
         ("acme-brand-tex==1.2.0", "acme-deck-tex==0.1.0"),
-        ('prefix="ad"', 'prefix="ap"'),
     ):
-        retarget(poster, old, new)
-    (poster / "src/acme_deck").rename(poster / "src/acme_poster")
+        pyproject.write_text(pyproject.read_text().replace(old, new))
     built = projects.wheel(poster, tmp_path / "dist")
     inside = projects.names(built)
     assert {n.split("/")[2] for n in inside if "/_embedded/" in n} == {
@@ -355,4 +411,4 @@ def test_a_chain_of_three_flattens_to_one_copy_of_each(brand_site, tmp_path, mon
         "acme-deck-tex",
         "acme-brand-tex",
     ]
-    assert (tmp_path / "doc/res/acme/acme-brand.sty").is_file() and (tmp_path / "doc/res/acme/acme-deck.sty").is_file()
+    assert (tmp_path / "doc/acme-brand.sty").is_file() and (tmp_path / "doc/acme-deck.sty").is_file()

@@ -74,3 +74,18 @@ def tex_names_are_unique(dist: Distribution) -> None:
                     path=name,
                     hint="a package built on another must not reuse its names: choose another prefix or name",
                 )
+
+
+def design_is_valid(dist: Distribution) -> None:
+    """The embedded data validates against its model (L1)."""
+    if dist.design is None:
+        return
+    try:
+        dist.design.load(dist.root)
+    except (OSError, ValueError) as exc:  # a missing file, bad JSON and pydantic's ValidationError are all of these
+        raise DeclarationError(
+            f"{dist.name}: the design data {dist.design.path} is not a valid {dist.design.model.__name__}: {exc}",
+            code="TP-B010",
+            path=dist.design.path,
+            hint="fix the file, or the model it is validated against",
+        ) from exc

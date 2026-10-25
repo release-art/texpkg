@@ -9,6 +9,7 @@ import importlib.resources.abc
 import keyword
 import re
 from collections.abc import Callable, Iterator
+from typing import Any
 
 import pydantic
 from texmodel.components import AnyValue, Command, Environment, Node, Passthrough
@@ -52,6 +53,11 @@ class Design:
 
     model: type[pydantic.BaseModel]
     path: str
+
+    def load(self, root: importlib.resources.abc.Traversable) -> pydantic.BaseModel:
+        """The data, read from `root` (the declaring package) and validated: JSON for the model."""
+        text = root.joinpath(*self.path.split("/")).read_text(encoding="utf-8")
+        return self.model.model_validate_json(text)
 
 
 def _raw(body: Body) -> bool:
@@ -97,6 +103,8 @@ class Kind:
     migrations: tuple[Migration, ...] = ()
     allow_raw: tuple[str, ...] = ()
     variants: tuple[Variant, ...] = ()
+    expand: Callable[[Any], Node] | None = None
+    over: str | None = None
 
     def __post_init__(self) -> None:
         for field in ("presets", "migrations", "allow_raw", "variants"):
@@ -109,6 +117,13 @@ class Kind:
                 hint="a kind is a module: acme_tex.kinds.<name>",
             )
         self._unique("variant", [v.name for v in self.variants])
+        if (self.expand is None) != (self.over is None):
+            raise DeclarationError(
+                f"kind {self.name}: expand and over go together",
+                code="TP-K009",
+                path=self.name,
+                hint="a profile kind names the base kind it expands to (over=) and the function that does it (expand=)",
+            )
         holes = raw_holes(self.model)
         if unknown := [a for a in self.allow_raw if a not in holes]:
             raise DeclarationError(
@@ -220,6 +235,8 @@ class Distribution:
                 code="TP-K007",
                 path=self.name,
             )
+        for kind in self.kinds:
+            self._check_profile(kind)
         if unknown := next((k for a in self.assets for k in a.kinds if k not in (*names, *self.expose)), None):
             raise DeclarationError(
                 f"an asset names kind {unknown!r}, which {self.name} does not offer",
@@ -227,6 +244,47 @@ class Distribution:
                 path=self.name,
                 hint=f"the kinds are {[*names, *self.expose]}",
             )
+
+    def _check_profile(self, kind: Kind) -> None:
+        """A profile kind expands to a kind of the base, and its example does so to a valid tree of it (L3, L7)."""
+        if kind.over is None or kind.expand is None:
+            return
+        offered = {k.name: k for k in (self.base.kinds_offered() if self.base else ())}
+        if kind.over not in offered:
+            raise DeclarationError(
+                f"kind {kind.name} expands to {kind.over!r}, which the base does not offer",
+                code="TP-K009",
+                path=kind.name,
+                hint=f"the base offers {list(offered) or 'no kinds'}",
+            )
+        if problem := self.expansion_problem(kind, kind.example()):
+            raise self._bad_expansion(kind, problem)
+
+    def expansion_problem(self, kind: Kind, tree: Node) -> str | None:
+        """Why `tree` of a profile kind does not expand to a valid tree of the base kind (L3); `None` if it does."""
+        base = self.base_kind(kind)
+        if base is None or kind.expand is None:
+            return "is not a profile kind"
+        try:
+            expanded = kind.expand(tree)
+        except (LookupError, ValueError, TypeError, AttributeError) as exc:
+            return f"cannot be expanded: {exc!r}"
+        if not isinstance(expanded, base.model):
+            return "is not a tree of the base kind"
+        problems = expanded.violations()
+        return problems[0].message if problems else None
+
+    def _bad_expansion(self, kind: Kind, what: str) -> DeclarationError:
+        return DeclarationError(
+            f"kind {kind.name}: its example expands to a tree that {what}",
+            code="TP-K010",
+            path=kind.name,
+            hint="every valid document of a profile must expand to a valid base document (L3)",
+        )
+
+    def base_kind(self, kind: Kind) -> Kind | None:
+        """The base kind a profile kind expands to; `None` for any other."""
+        return self.base.kind(kind.over) if self.base and kind.over else None
 
     @property
     def root(self) -> importlib.resources.abc.Traversable:

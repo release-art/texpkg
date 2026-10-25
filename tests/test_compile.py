@@ -64,3 +64,10 @@ def test_documents_saved_by_an_installed_dependent_compile_with_nothing_else(bra
     venvs.run(python, SAVE, tmp_path / "docs", cwd=tmp_path)
     for name in ("slide/slide.tex", "vocab/glossary.tex"):
         compiler.compile(tmp_path / "docs" / name, tmp_path / "out" / name.split("/")[0]).raise_for_status()
+
+
+def test_a_profile_document_compiles_as_the_base_kind_it_expands_to(acme_brand_tex, compiler, tmp_path):
+    module = load_declaration("acme_deck:dist", version="2.0.0")
+    brief = module.kinds.modules()["brief"]
+    brief.create(tmp_path / "doc", brief.example()).save()
+    compiler.compile(tmp_path / "doc" / "brief.tex", tmp_path / "out").raise_for_status()

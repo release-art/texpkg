@@ -241,3 +241,36 @@ Texmodel requests: `generator_version()` (patched in the copy; `docs/texmodel-re
 Deferred: P30 (rebuilding against a newer base, version maps) and V17 (the base's `interface` check) to 5b; profile kinds
 and assets of a base kind used by a profile kind to 3a; the embedded texmodel's `cli.py` is left out because typer is not
 a dependency of a wheel.
+
+## Phase 3a: profiles (L1-L8)
+
+Built: `Design.load`, `checks.design_is_valid` (`TP-B010`); `Kind.expand`/`over`, `Distribution.base_kind` and
+`expansion_problem`, the check of a profile kind at declaration (`TP-K009` kind declared whole, `TP-K010` its example does
+not expand to a valid base tree); `Release.settings/plan/payload` for profile kinds; `texpkg_build.testing.check_expansion`;
+fixtures: the brand's `.sty` is filled from `tokens.json` (`library(fill=)`), the deck has a `brief` kind over the brand's
+`expert` (restrict: `Tint`; default: `Point.tint`; lock: no size field plus the `FactGap` preset; compose: headline and
+points to a card); `tests/test_profile.py`; `docs/known-limitations.md`.
+
+Gates: `ruff format --check`, `ruff check`, `pyright` (0 errors), `lint-imports`, `pytest` (100%): green; compile tests
+`-m tex`: green, including a profile document compiled as the base kind it expands to.
+
+Proposed items adopted: L1 (embedded data validated at build, read with `importlib.resources`, the `.sty` filled from it),
+L2 (the four ways, written by the author), L4 (a profile has its own `.sty` that requires the base's), L5 (a lock holds at the
+Python API), as written.
+
+Decisions:
+- A profile kind is `Kind(name, model, presets, example, expand=fn, over="<base kind>")`; both or neither (`TP-K009`). `render`
+  is the profile package's `plan` of `expand(tree)`, so the `.tex` loads the profile's `.sty`, which requires the base's.
+- Settings written: the base kind's presets, then the profile's locks (its `presets`), then the variant's (L8). The template
+  state records exactly those per file.
+- A profile document's payload is the assets of its kind and of the kind it expands to (`over`).
+- The L3 law is `check_expansion(dist, kind, examples)`: the kind's example and any trees given, each valid and expanding to a
+  valid base tree; an `expand` that raises `LookupError`, `ValueError`, `TypeError` or `AttributeError` for a valid tree is a
+  failure of the law. The test runs it over trees a hypothesis strategy builds. Widening is caught by the law (a profile whose
+  expansion breaks the base grammar for some valid tree), not proved.
+- Design data is JSON validated by a pydantic model; the author loads it in the declaration (`Design.load`) and uses it, so
+  the build can only check it still validates.
+
+Texmodel requests: none.
+
+Deferred: nothing; see `docs/known-limitations.md` for the profile hand-edit paths and values.
