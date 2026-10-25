@@ -5,8 +5,9 @@ layout's preamble lines.
 """
 
 import dataclasses
+import json
 import pathlib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from texmodel.components import AnyValue, Command, Environment, Node
@@ -21,11 +22,12 @@ from ..errors import (
     DeclarationError,
     DocumentExistsError,
     KindMismatchError,
-    MigrationError,
     NewerDataError,
     NotADocumentError,
 )
+from ..migration import DefaultChange, Migration
 from . import directory, payload, state
+from .adopt import adopt
 from .envelope import Envelope, dumps
 
 
@@ -135,18 +137,17 @@ class Release:
                 path=str(path),
                 hint="install the release that wrote it, or a newer one",
             )
-        if envelope.data < current:
-            raise MigrationError(
-                f"{path} was written for `data` version {envelope.data}, this release reads {current}",
-                code="TP-M002",
-                hint="migrating older data is not built yet",
-            )
         return envelope
 
-    def load(self, path: pathlib.Path | str) -> "Document[Any]":
+    def load(
+        self,
+        path: pathlib.Path | str,
+        migrations: Sequence[Migration] = (),
+        default_changes: DefaultChange | Mapping[str, DefaultChange] = DefaultChange.FOLLOW,
+    ) -> "Document[Any]":
         """The document in `path`, whatever its kind (the generic `load`, P26)."""
         envelope = self.read(pathlib.Path(path))
-        return self.kind_of(envelope).load(path)
+        return self.kind_of(envelope).load(path, migrations, default_changes)
 
     def kind_of(self, envelope: Envelope) -> "KindApi[Any]":
         kind = self.dist.kind(envelope.kind)
@@ -185,8 +186,16 @@ class KindApi[T: Command | Environment]:
         directory.write(path, self.release.states(self.kind, tree))
         return Document(tree, path, self.release, self.kind)
 
-    def load(self, path: pathlib.Path | str) -> Document[T]:
-        """The document in `path`; writes nothing (D3). Refuses another kind's."""
+    def load(
+        self,
+        path: pathlib.Path | str,
+        migrations: Sequence[Migration] = (),
+        default_changes: DefaultChange | Mapping[str, DefaultChange] = DefaultChange.FOLLOW,
+    ) -> Document[T]:
+        """The document in `path`, adopted whole or not at all; writes nothing (D3). Refuses another kind's.
+
+        Older data runs through the kind's migrations and the consumer's `migrations` (V32); `default_changes` says what
+        happens to a value still marked as a default whose default this release changed (V23)."""
         path = pathlib.Path(path)
         envelope = self.release.read(path)
         if envelope.kind != self.kind.name:
@@ -196,7 +205,17 @@ class KindApi[T: Command | Environment]:
                 expected=self.kind.name,
                 path=str(path),
             )
-        tree = state.tree_from_state(self.kind.model, envelope.tree)
+        saved = directory.read(path, directory.TEMPLATE)
+        template: dict[str, Any] = json.loads(saved) if saved else {}
+        tree = adopt(
+            kind=self.kind,
+            envelope=envelope,
+            current=self.release.contracts.data.current,
+            age=self.release.contracts.data.age,
+            consumer=migrations,
+            policy=default_changes,
+            saved_defaults=template.get("defaults"),
+        )
         return Document(cast("T", tree), path, self.release, self.kind)
 
     def schema(self, mode: state.Mode) -> dict[str, Any]:

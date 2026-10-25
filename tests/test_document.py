@@ -21,7 +21,6 @@ from texpkg.errors import (
     DocumentExistsError,
     HandEditError,
     KindMismatchError,
-    MigrationError,
     NewerDataError,
     NotADocumentError,
     PayloadError,
@@ -172,15 +171,11 @@ def test_load_refuses_another_kind_and_another_package(expert, vocab, doc):
     assert raised.value.found == "other-tex:expert" and raised.value.expected == "acme-brand-tex"
 
 
-def test_load_refuses_data_of_another_version(expert, doc):
+def test_load_refuses_data_written_for_a_newer_release(expert, doc):
     write_state(doc.path, data=2)
     with pytest.raises(NewerDataError) as raised:
         expert.load(doc.path)
     assert raised.value.code == "TP-D004"
-    write_state(doc.path, data=0)
-    with pytest.raises(MigrationError) as raised:
-        expert.load(doc.path)
-    assert raised.value.code == "TP-M002" and raised.value.unresolved == ()
 
 
 def test_the_generic_load_finds_the_kind_in_the_state(acme_brand_tex, expert, doc):

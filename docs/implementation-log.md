@@ -313,3 +313,36 @@ Decisions:
 Texmodel requests: none.
 
 Deferred: `export` writes the file too (phase 6).
+
+## Phase 5a: migrations (V5-V9, V14-V16, V22, V23, V28-V33 except the build's derived steps)
+
+Built: `_internal/history.py` (data paths from pydantic locations, the schema of a field, `problems`: validation errors and
+grammar violations as plain items; no texpkg imports: for texmodel, N5, V9), `_internal/adopt.py` (the runner and the default
+policies), `load(path, *, migrations=, default_changes=)` on every kind and on the package, the protocols and generated
+code; `tests/test_migration.py` with the datasheet fixture `tests/fixtures/acme_sheet` (the table of standards of release 4
+becomes a tick list in release 5).
+
+Gates: all five green (`pytest` 100%). No TeX is written in this phase.
+
+Proposed items adopted: V14 (age window), V16/V30 (only what breaks is reported: pydantic's errors and the grammar's
+violations become unresolved items with the constraint), V23's default (`FOLLOW`) and the mapping (a data path or
+`Class.field`, the path first), V24/V27 as in 2a, V29 (default changes are applied on every load, whatever the age).
+
+Decisions:
+- What earlier migrations left unresolved reaches later ones in the state, as `state["$unresolved"]`, a list of
+  `{path, reason, value, boundary}`. A migration may remove an entry it places; what it returns in `Migrated.unresolved` is
+  added. Plain data in and out (V28), so the one signature `(state) -> Migrated` serves the build's, the kind's and the
+  consumer's, and nothing is dropped unless a migration drops it.
+- Order: the default policy first (it compares the saved template state's defaults with the installed ones, so it needs no
+  snapshot), then for each `data` boundary crossed the kind's migrations and the consumer's, in the order given. Boundaries are
+  crossed only when the document's `data` is older than `current - age` (V14); inside the window it is validated as it is.
+  A migration whose `to` is not crossed is not run.
+- `FREEZE` keeps the stored value, which is the old default, and removes the mark; `ASK` adds an unresolved item per
+  marked value whose default changed; `FOLLOW` is the model filling the current default for a field the load leaves out.
+- Every load validates, current data included: a state that no longer fits the model is a `MigrationError` (`TP-M003`) with its
+  items, no longer an `ExceptionGroup`. `TP-M002` of 2a is gone.
+- An item's `schema` is the schema of the field the error names; `boundary` is `4 -> 5`, `defaults` or `validation`.
+
+Texmodel requests: none (the per-model core in `history.py` is the candidate for 5c).
+
+Deferred: the build's derived renames and default migrations from snapshots, `changes(old, new)`, the version maps (5b).

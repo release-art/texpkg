@@ -35,3 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   package of the stack with a stamp (`save(stamp=)`, default the release's version) and a time (`now=`, default the clock),
   keeps the time while nothing is materialised again, and adds the text to the PDF's Info dictionary as `/<Prefix>Provenance`
   when PDF management is active; `check(stamp=)` compares the file by stamp (phase 4).
+- Migrations on `load`: `load(path, *, migrations=, default_changes=)` runs the kind's and the consumer's migrations for each
+  `data` boundary crossed, applies the consumer's `DefaultChange` policy (`FOLLOW`, `FREEZE`, `ASK`, per document or per
+  field) to values still marked as defaults, validates the result whole, and raises `MigrationError` listing every
+  unresolved item, writing nothing (phase 5a).

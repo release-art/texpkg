@@ -416,7 +416,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | Name | Signature | Status | Ref |
 |---|---|---|---|
 | decorator | `@migration(to: int)`: from `data` version `to - 1` to `to` | decided | V32 |
-| function | `(state: dict[str, Any]) -> Migrated`, plain data in, run before validation | decided | V28 |
+| function | `(state: dict[str, Any]) -> Migrated`, plain data in, run before validation; the items earlier migrations left are in `state["$unresolved"]` (a list of `{path, reason, value, boundary}`), which a migration may edit | decided; the `$unresolved` key proposed | V28, V32 |
 | result | `Migrated(state: dict[str, Any], unresolved: Sequence[Unresolved] = ())` | decided | V32 |
 | unresolved item | `Unresolved(path: str, reason: str, value: object)`; texpkg fills `.schema` (the new schema at that path) and `.boundary` | decided | V15, V32 |
 | on a kind | `Kind(..., migrations=[...])` | decided | V32 |
@@ -748,7 +748,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | 3a | Profiles: embedded data, the four ways to narrow, `expand` and the L3 law's tests (L1–L8) | built |
 | 4 | Provenance: the command, the file, its texmodel component, the PDF metadata entry; compiled and checked with veraPDF (V2–V4, V34) | built |
 | 5 | *(Folded into 2a: the state format is written once, in its final form; implementation plan §1.2.)* | built in 2a |
-| 5a | Migrations: the per-model core in its own module (V9), the migration API, atomic adoption, unresolved items, default migrations (V5–V8, V14–V16, V28–V33) | |
+| 5a | Migrations: the per-model core in its own module (V9), the migration API, atomic adoption, unresolved items, default migrations (V5–V8, V14–V16, V28–V33) | built (the build's derived renames and the `changes` report come with 5b) |
 | 5b | Contract versions: snapshots, classification, the versions file, the freeze at release, the `output` fingerprint, the stack record (V10–V13, V17–V20, V35–V37) | |
 | 5c | Move the per-model core into texmodel once it is stable; texpkg imports it | |
 | 6 | `export`: the payload, the per-kind templates, the README (E1) | |

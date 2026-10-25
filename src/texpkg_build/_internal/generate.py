@@ -92,11 +92,13 @@ def _kind_source(dist: Distribution, kind: Kind) -> str:
     imports = "\n        ".join(sorted({_import_from(dist, cls) for cls in exported(kind)}))  # the template's indent
     root = kind.model.__name__
     return _module(f"""
+        from collections.abc import Mapping, Sequence
         from pathlib import Path
         from typing import Any, Final, Literal
 
         from texpkg.contracts import Changes
         from texpkg.document import Document
+        from texpkg.migration import DefaultChange, Migration
 
         from .. import _bound
         {imports}
@@ -105,8 +107,13 @@ def _kind_source(dist: Distribution, kind: Kind) -> str:
         _api = _bound.RELEASE.kind(NAME, {root})
 
 
-        def load(path: Path | str) -> Document[{root}]:
-            return _api.load(path)
+        def load(
+            path: Path | str,
+            *,
+            migrations: Sequence[Migration] = (),
+            default_changes: DefaultChange | Mapping[str, DefaultChange] = DefaultChange.FOLLOW,
+        ) -> Document[{root}]:
+            return _api.load(path, migrations, default_changes)
 
 
         def create(path: Path | str, tree: {root}) -> Document[{root}]:
@@ -150,10 +157,12 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
         {f"_sty/{name}": text for name, text in sty.items()}
         | {
             "__init__.py": _module("""
+                from collections.abc import Mapping, Sequence
                 from pathlib import Path
                 from typing import Any, Final
 
                 from texpkg.document import Document
+                from texpkg.migration import DefaultChange, Migration
 
                 from . import errors, kinds
                 from ._bound import RELEASE
@@ -164,8 +173,13 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
                 __all__ = ["CONTRACTS", "__version__", "dist", "errors", "kinds", "load"]
 
 
-                def load(path: Path | str) -> Document[Any]:
-                    return RELEASE.load(path)
+                def load(
+                    path: Path | str,
+                    *,
+                    migrations: Sequence[Migration] = (),
+                    default_changes: DefaultChange | Mapping[str, DefaultChange] = DefaultChange.FOLLOW,
+                ) -> Document[Any]:
+                    return RELEASE.load(path, migrations, default_changes)
             """),
             "_version.py": _module(f"""
                 from typing import Final

@@ -2,11 +2,12 @@
 does, and a consumer's type checker reads the generated module's own types."""
 
 import pathlib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from .contracts import Changes, Contracts
 from .document import Document
+from .migration import DefaultChange, Migration
 
 
 @runtime_checkable
@@ -15,7 +16,13 @@ class KindModule(Protocol):
 
     @property
     def NAME(self) -> str: ...  # noqa: N802
-    def load(self, path: pathlib.Path | str) -> Document[Any]: ...
+    def load(
+        self,
+        path: pathlib.Path | str,
+        *,
+        migrations: Sequence[Migration] = (),
+        default_changes: DefaultChange | Mapping[str, DefaultChange] = DefaultChange.FOLLOW,
+    ) -> Document[Any]: ...
     def create(self, path: pathlib.Path | str, tree: Any) -> Document[Any]: ...  # noqa: ANN401  # the kind's root class
     def schema(self, mode: Literal["validation", "serialization"] = "validation") -> dict[str, Any]: ...
     def example(self) -> Any: ...  # noqa: ANN401  # the kind's root class
@@ -41,4 +48,10 @@ class PackageModule(Protocol):
     def CONTRACTS(self) -> Contracts: ...  # noqa: N802
     @property
     def kinds(self) -> KindsModule: ...
-    def load(self, path: pathlib.Path | str) -> Document[Any]: ...
+    def load(
+        self,
+        path: pathlib.Path | str,
+        *,
+        migrations: Sequence[Migration] = (),
+        default_changes: DefaultChange | Mapping[str, DefaultChange] = DefaultChange.FOLLOW,
+    ) -> Document[Any]: ...
