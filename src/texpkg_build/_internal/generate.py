@@ -163,7 +163,7 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
                 from typing import Any, Final
 
                 from texpkg.document import Document
-                from texpkg.migration import DefaultChange, Migration
+                from texpkg.migration import DefaultChange, Migrated, Migration, Unresolved, migration
 
                 from . import errors, kinds
                 from ._bound import RELEASE
@@ -171,7 +171,19 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
 
                 __version__: Final = VERSION
                 dist: Final = RELEASE.dist  # for a package built on this one (P14)
-                __all__ = ["CONTRACTS", "__version__", "dist", "errors", "export", "kinds", "load"]
+                __all__ = [
+                    "CONTRACTS",
+                    "DefaultChange",
+                    "Migrated",
+                    "Unresolved",
+                    "__version__",
+                    "dist",
+                    "errors",
+                    "export",
+                    "kinds",
+                    "load",
+                    "migration",
+                ]
 
 
                 def export(

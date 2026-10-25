@@ -56,6 +56,15 @@ broken = dataclasses.replace(
     dist, assets=(*dist.assets, Asset("assets/gone.pdf", Role.GRAPHIC, "a file nobody shipped"))
 )
 
+# The lock-up is declared for the wrong kind: `expert` documents are saved without it.
+misdeclared = dataclasses.replace(
+    dist,
+    assets=(
+        dist.assets[0],
+        Asset("assets/lockup.pdf", Role.GRAPHIC, "the brand lock-up", kinds=("vocab",)),
+        dist.assets[2],
+    ),
+)
 clash = dataclasses.replace(dist, assets=(*dist.assets, Asset("other/lockup.pdf", Role.GRAPHIC, "another lock-up")))
 
 clash = dataclasses.replace(dist, assets=(*dist.assets, Asset("other/lockup.pdf", Role.GRAPHIC, "another lock-up")))
@@ -76,6 +85,7 @@ __all__ = [
     "changed",
     "clash",
     "dist",
+    "misdeclared",
     "expert_example",
     "flat",
     "vocab_example",

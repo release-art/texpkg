@@ -12,12 +12,13 @@ from collections.abc import Iterable
 from types import ModuleType
 
 from texmodel.components import Node
+from texmodel_build.compiler import Compiler
 
 from texpkg.contracts import Contracts
 from texpkg.declaration import Distribution
 from texpkg.errors import DeclarationError
 
-from ._internal import generate
+from ._internal import fonts, generate
 
 
 def _is_under(name: str, root: str) -> bool:
@@ -142,3 +143,31 @@ def check_expansion(dist: Distribution, kind: str, examples: Iterable[Node] = ()
                 path=kind,
                 hint="a profile narrows its base and never widens it (L6)",
             )
+
+
+def check_isolated(module: ModuleType, compiler: Compiler, workdir: pathlib.Path) -> None:
+    """Each kind's example, in each of its variants, saved into a fresh directory that holds only that kind's payload
+    and compiled with no search path (no `TEXINPUTS`, no font directory): it fails on a file the payload lacks, and on a
+    font embedded from outside the document directory (A7). It proves what the example uses, so an example uses the
+    whole kind."""
+    problems: list[str] = []
+    for kind in module._bound.RELEASE.dist.kinds_offered():  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownVariableType]
+        kind_module = module.kinds.modules()[kind.name]
+        root = workdir / kind.name
+        kind_module.create(root, kind_module.example()).save()
+        for _, name in kind.documents():
+            result = compiler.compile(root / name, workdir / "out" / kind.name / name.removesuffix(".tex"))
+            problems += [f"{kind.name}/{name}: {e.code} {e.message}" for e in result.errors]
+            if result.log is not None:
+                problems += [
+                    f"{kind.name}/{name}: font read from outside the document directory: {path}"
+                    for path in fonts.outside(
+                        result.log.read_text(encoding="utf-8", errors="replace"), ["/work/src", str(root.resolve())]
+                    )
+                ]
+    if problems:
+        raise DeclarationError(
+            "a kind's payload is not whole:\n  " + "\n  ".join(problems),
+            code="TP-K011",
+            hint="an asset names every kind that needs it (Asset(kinds=)); fonts are assets, not system fonts",
+        )

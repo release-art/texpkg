@@ -48,3 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exposed kind (phase 5b).
 - `export(dest, *, now=, stamp=)`: the whole payload flat, the provenance files, and for each kind a template (its example
   rendered with the kind's settings) and a README generated from its classes; refused whole if a file is missing (phase 6).
+- `texpkg_build.testing.check_isolated`: each kind's example in each variant saved with only its kind's payload and
+  compiled with no search path; it fails on a missing file and on a font embedded from outside the directory (phase 6a).
+- A built module exports `migration`, `Migrated`, `Unresolved` and `DefaultChange` (its own copies), so a consumer that has
+  only the wheel can write a migration for `load`.
+- Two synthetic wheels (`acme-brand-tex` and `acme-deck-tex` on it) built, installed in environments that have only
+  pydantic, saved, compiled, and a new release adopted by the documents the old one saved (phase 7).

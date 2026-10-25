@@ -433,6 +433,7 @@ def test_a_removed_kind_breaks_the_data_contract_and_an_added_one_extends_it(bra
     line = '        Kind("vocab", Glossary, presets=(Ink(CMYK(0, 0, 0, 0.8)),), example=vocab_example),\n'
     edit(brand, path, line, "")
     edit(brand, path, ", dist.kinds[1]),", ",),")  # the fixture's other declarations name the kind too
+    edit(brand, path, 'kinds=("vocab",)', 'kinds=("expert",)')
     gone = contracts(brand)
     assert "data: breaking: kind vocab: removed" in gone.output and versions(brand).data == Triple(2, 0, 0)
     release(brand)

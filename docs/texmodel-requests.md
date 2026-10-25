@@ -26,3 +26,14 @@ texpkg module and listed here: what, why (requirement id), where it lives in tex
   (`tests/test_payload.py`).
 - **Test:** `tests/test_build.py::test_a_wheel_runs_from_its_zip` is an `xfail(strict=True)`: it starts failing the build
   when texmodel reads templates through `importlib.resources`, which is the signal to drop the mark.
+
+## The embedded-font check (A8)
+
+- **What:** reading each embedded font's file out of a LuaTeX log and flagging any outside the allowed directories (the first
+  consumer's `fonts.py`, generalised from "from `sources/fonts/`" to "from these directories"). It belongs in
+  `texmodel_build`, next to the compiler that produces the log and sets `max_print_line`.
+- **Why:** A7, A8: luaotfload can substitute a system font for a missing one without an error; the check proves a document
+  directory is self-contained. It does not see fonts inside an included PDF.
+- **Where in texpkg:** `texpkg_build/_internal/fonts.py` (`embedded`, `outside`), no imports from texpkg; used by
+  `texpkg_build.testing.check_isolated`.
+- **Test:** `tests/test_isolated.py` (the log reader on synthetic logs; a real compile that substitutes a system font).

@@ -417,3 +417,49 @@ Decisions:
 Texmodel requests: none.
 
 Deferred: nothing.
+
+## Phase 6a: per-kind payloads proved, the font check (A7, A8)
+
+Built: `texpkg_build/_internal/fonts.py` (`embedded`, `outside`), `texpkg_build.testing.check_isolated(module, compiler,
+workdir)`, the fixture `acme_brand.misdeclared` (the lock-up declared for the wrong kind); `tests/test_isolated.py`.
+
+Gates: all five green; compile tests `-m tex`: green, including a whole package passing, a lock-up declared for the wrong kind
+failing (`expert/deck.tex` does not compile without it) and a substituted system font being found.
+
+Proposed items adopted: A7 as written.
+
+Decisions:
+- A8 is built aside: `fonts.py` is self-contained (no texpkg imports), listed in `docs/texmodel-requests.md` for
+  texmodel_build. It reads the `<path>` of each embedded font from the log; a relative path is the document's own, an
+  absolute one must be under the directory the compiler saw (`/work/src` in the image, or the document directory).
+- `check_isolated` takes the author's `Compiler` (image, fonts cache) and raises `DeclarationError` `TP-K011` listing every
+  problem at once; a kind's example proves only what it uses (A7).
+
+Texmodel requests: the embedded-font check (`docs/texmodel-requests.md`).
+
+Deferred: nothing.
+
+## Phase 7: two synthetic wheels end to end
+
+Built: `tests/test_end_to_end.py` over the projects `tests/consumers/acme-brand-tex` and `acme-deck-tex` (with the declarations
+`tests/fixtures/acme_brand` and `acme_deck`); the generated module now exports `migration`, `Migrated`, `Unresolved` and
+`DefaultChange` (found by the test: a consumer with only the wheel could not otherwise write a migration).
+
+What the test does: builds the brand (contracts frozen as 0.1.0), builds the deck on it, installs both into an environment that
+has only pydantic, makes and saves a document of every kind of both packages (the brand's `expert` with variants and `vocab`,
+the deck's `slide`, `brief` and the brand's `vocab` exposed through it), compiles all seven `.tex` files; hand-edits one; makes a
+new brand release that changes a default and drops a palette colour (contracts frozen as 0.2.0, output classified), installs it in
+a second environment, and loads the documents the first release saved: the dropped colour is reported with its path, a
+consumer migration maps it, the marked default follows the new one, `template_changes()` names the default and the `.sty`,
+the hand edit is found by data path and refuses `save`, `save(force=True)` adopts the release (`data` 2, history keeps `data` 1),
+and the saved document compiles.
+
+Gates: all five green (`pytest` 100%); compile tests `-m tex` green, this one included.
+
+Proposed items adopted: none new.
+
+Decisions: none beyond the export of the migration types above.
+
+Texmodel requests: none.
+
+Deferred: nothing.

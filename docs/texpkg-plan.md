@@ -752,8 +752,8 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | 5b | Contract versions: snapshots, classification, the versions file, the freeze at release, the `output` fingerprint, the stack record (V10–V13, V17–V20, V35–V37) | built (the build's derived renames and default migrations are not: see the log) |
 | 5c | Move the per-model core into texmodel once it is stable; texpkg imports it | |
 | 6 | `export`: the payload, the per-kind templates, the README (E1) | built |
-| 6a | The per-kind payload proved by compiling, with the embedded-font check moved into texmodel_build (A7, A8) | |
-| 7 | Two synthetic wheels in the tests (`acme-brand-tex`, and `acme-deck-tex` built on it), built and installed into a clean venv: load, render, save and compile with nothing else present | |
+| 6a | The per-kind payload proved by compiling, with the embedded-font check moved into texmodel_build (A7, A8) | built (the font check is built aside in texpkg, `docs/texmodel-requests.md`) |
+| 7 | Two synthetic wheels in the tests (`acme-brand-tex`, and `acme-deck-tex` built on it), built and installed into a clean venv: load, render, save and compile with nothing else present | built |
 | 8 | The first consumer's `pack` ported onto texpkg with no change to its output: the acceptance gate | |
 
 ## 9. Decisions log
