@@ -191,3 +191,53 @@ Texmodel requests: `TemplateRef` reads through the file system, so a wheel canno
 affects only zip imports.
 
 Deferred: embedding (3); contracts from the versions file (5b); the absolute self-import check (3, with the rewrite).
+
+## Phase 3: embedding (P13-P21, B7, B10, 1.5; P30 and V17 wait for 5b)
+
+Built: `texpkg_build/_internal/embed.py` (`rewrite`, `rewrite_tree`, `scan_declaration`, `patch_generator_version`, `embed`);
+the hook embeds and `LinkRunTime` makes the build see one texmodel; `Distribution.kinds_offered/owner/kind` (exposed base
+kinds), `Release.bases/stack`, generated `_bound.py` with the base's `STY` and `RELEASE`, generated kind modules for exposed
+kinds, a `dist` attribute on the generated module; `checks.tex_names_are_unique`; `load_declaration` for chains; fixtures
+`tests/fixtures/acme_deck` (a kind of its own, the brand's `vocab` exposed) and `tests/consumers/acme-deck-tex`;
+`tests/venvs.py`, `tests/test_embed.py`.
+
+Gates: `ruff format --check`, `ruff check`, `pyright` (0 errors), `lint-imports`, `pytest` (100%): green. Compile tests
+`TEXPKG_REQUIRE_TEX=1 pytest -m tex`: green, including documents saved by an installed deck wheel, in an environment that
+has only pydantic, compiled with nothing else on the search path. The clean-environment tests: the deck wheel
+installed with `pip install --no-deps` into a new venv in which texmodel, texpkg and the brand are not importable (pydantic
+is linked in, so no index is needed): imports, renders, saves, `texmodel.package.generator_version()` is the constant; two
+dependents embedding brand 1.2.0 and 1.3.0 import side by side; a chain of three holds one copy of each.
+
+Proposed items adopted: P14 (the base is a build requirement named by object: `base=acme_brand_tex.dist`; the fixture pins it
+with `==`), P15 (private copy under `_embedded`), P17 (the whole base payload, notices included, is embedded), P19's mechanism
+(relative imports, absolute self-imports refused), P20's `base=`, B7's pydantic range, 1.5, B10.
+
+Decisions:
+- Imports are rewritten with `ast` positions and spliced into the source; a rewritten statement becomes one `from ... import`
+  line (comments inside a multi-line import are lost). `import a.b` without `as` for an embedded name is refused (`TP-E001`).
+- The rewrite works on absolute names: a relative import is resolved against its file's old package, mapped, and written
+  relative to the new one, and left alone when unchanged. That is how a base moves from its own wheel into a dependent's
+  (`<base>._embedded.X` becomes `<dependent>._embedded.X`; `from .._embedded import X` follows) and how a base's own bases
+  are lifted beside it (P19).
+- The dependent has one texmodel and one texpkg: the base's own copies are dropped and its code is pointed at the dependent's.
+  The base's shipped `.sty` stays as the base rendered it.
+- While the declaration is imported at build time, `<base>._embedded.texmodel` and `.texpkg` are aliased to the modules the
+  build runs on (a meta path finder), so the author's classes and the base's are of one texmodel. Without it the base's
+  private texmodel and the author's mix types at build time (found by the first dependent test).
+- The generated module has `dist` (the declaration, for `base=`), independent of the pointer's attribute name.
+- Exposed base kinds are written by the base's package (`Distribution.owner`) with the dependent's layout; an asset naming
+  a base kind applies when that kind is exposed under the same name. Profile kinds that expand to a base kind are 3a.
+- `Release.stack()` lists the packages of the chain, the document's own first; the template state records it.
+- The author's code is refused if it imports a name outside the standard library, pydantic and the embedded packages
+  (`TP-E004`), reads `importlib.metadata` (`TP-E003`), imports its own package absolutely (`TP-E002`), or imports an embedded
+  or own name dynamically with a literal (`TP-E005`). A computed `import_module(name)` cannot be seen.
+- In memory (`load_declaration`) a base is generated beside its dependent from its declaration, nested, and a finder makes the
+  flat names of a wheel resolve to the nested modules.
+- Codes: `TP-E001`..`TP-E005`, `TP-B009` (a control sequence defined by two packages of the chain). A payload path clash is
+  `TP-A002`.
+
+Texmodel requests: `generator_version()` (patched in the copy; `docs/texmodel-requests.md`).
+
+Deferred: P30 (rebuilding against a newer base, version maps) and V17 (the base's `interface` check) to 5b; profile kinds
+and assets of a base kind used by a profile kind to 3a; the embedded texmodel's `cli.py` is left out because typer is not
+a dependency of a wheel.

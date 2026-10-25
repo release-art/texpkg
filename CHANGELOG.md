@@ -23,3 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The build: `texpkg_build.hook` (`pdm_build_initialize`, `pdm_build_update_files`) generates the wheel's module from the
   declaration named in `[tool.texpkg] distribution`, renders the `.sty`, copies the declaration into it, and refuses a
   missing asset, a payload clash, a declaration that is not a package and a module that breaks the protocol (phase 2b).
+- Embedding: a wheel carries one private copy each of texmodel, texpkg's run time and the base chain under `_embedded`,
+  with every import of them rewritten as a relative import (found with `ast`), texmodel's `generator_version()` fixed to a
+  constant, and needs only pydantic. A distribution can name a `base`, expose its kinds, and the build refuses a name or
+  payload path used twice along the chain, an absolute import of the package itself, a read of the distribution's metadata
+  and an import the wheel does not carry (phase 3).

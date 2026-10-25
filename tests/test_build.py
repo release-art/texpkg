@@ -53,17 +53,18 @@ def test_a_wheel_holds_the_generated_module_and_the_declaration_not_the_sources(
     built = projects.wheel(project, tmp_path / "dist")
     assert built.name == "acme_brand_tex-1.2.0-py3-none-any.whl"
     inside = projects.names(built)
-    assert [n for n in inside if ".dist-info/" not in n] == sorted(f"acme_brand_tex/{n}" for n in MODULE)
+    own = [n for n in inside if ".dist-info/" not in n and "/_embedded/" not in n]
+    assert own == sorted(f"acme_brand_tex/{n}" for n in MODULE)
+    assert {n.split("/")[2] for n in inside if "/_embedded/" in n} == {"texmodel", "texpkg", "__init__.py"}
     assert not any(n.startswith("acme_brand/") for n in inside)
 
 
-def test_the_wheel_names_what_it_needs(project, tmp_path):
+def test_the_wheel_needs_only_pydantic(project, tmp_path):
     built = projects.wheel(project, tmp_path / "dist")
     with zipfile.ZipFile(built) as z:
         metadata = z.read("acme_brand_tex-1.2.0.dist-info/METADATA").decode()
     requires = sorted(line for line in metadata.splitlines() if line.startswith("Requires-Dist"))
-    assert requires[0] == "Requires-Dist: pydantic<3,>=2" and len(requires) == 3
-    assert requires[1].startswith("Requires-Dist: texmodel==") and requires[2].startswith("Requires-Dist: texpkg==")
+    assert requires == ["Requires-Dist: pydantic<3,>=2"]
 
 
 def test_the_sty_in_the_wheel_is_the_sty_the_module_loaded_in_memory_holds(project, tmp_path):

@@ -12,6 +12,8 @@ from texmodel_build.compiler import Compiler
 
 from texpkg_build.testing import load_declaration
 
+from . import projects, venvs
+
 pytestmark = [pytest.mark.tex, pytest.mark.timeout(300)]
 
 CASES = [("expert", "deck.tex"), ("expert", "deck-compact.tex"), ("expert", "deck-wide.tex"), ("vocab", "glossary.tex")]
@@ -43,3 +45,22 @@ def test_a_missing_lockup_is_a_compile_error_not_a_silent_fallback(acme_brand_te
     root = saved(acme_brand_tex, "expert", tmp_path / "doc")
     (root / "res" / "acme" / "lockup.pdf").unlink()
     assert not compiler.compile(root / "deck.tex", tmp_path / "out").ok
+
+
+SAVE = """
+import sys
+from acme_deck_tex.kinds import slide, vocab
+for kind, name in ((slide, "slide"), (vocab, "vocab")):
+    kind.create(f"{sys.argv[1]}/{name}", kind.example()).save()
+"""
+
+
+def test_documents_saved_by_an_installed_dependent_compile_with_nothing_else(brand_site, compiler, tmp_path):
+    built = projects.wheel(
+        projects.author_project(tmp_path / "deck", declaration="acme_deck", project="acme-deck-tex"), tmp_path / "dist"
+    )
+    python = venvs.clean_venv(tmp_path / "venv")
+    venvs.install(python, built)
+    venvs.run(python, SAVE, tmp_path / "docs", cwd=tmp_path)
+    for name in ("slide/slide.tex", "vocab/glossary.tex"):
+        compiler.compile(tmp_path / "docs" / name, tmp_path / "out" / name.split("/")[0]).raise_for_status()

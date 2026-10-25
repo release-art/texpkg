@@ -3,6 +3,9 @@
 import pathlib
 from types import ModuleType
 
+from texmodel.components import control_name
+from texmodel.errors import DeclarationError as TexmodelDeclarationError
+
 from texpkg._internal import payload
 from texpkg.declaration import Distribution
 from texpkg.errors import DeclarationError
@@ -53,3 +56,21 @@ def module_satisfies_the_protocols(module: ModuleType) -> None:
             path=name,
             hint="this is a texpkg defect: texpkg.protocol lists the surface",
         )
+
+
+def tex_names_are_unique(dist: Distribution) -> None:
+    """No two packages of the chain define one control sequence (P11): the later `.sty` would redefine the earlier."""
+    seen: dict[str, str] = {}
+    for member in reversed(dist.chain()):
+        for cls in member.package.registered:
+            try:
+                name = control_name(cls)
+            except TexmodelDeclarationError:
+                continue  # a colour has no control sequence
+            if seen.setdefault(name, member.name) != member.name:
+                raise DeclarationError(
+                    f"\\{name} is defined by {seen[name]} and by {member.name}",
+                    code="TP-B009",
+                    path=name,
+                    hint="a package built on another must not reuse its names: choose another prefix or name",
+                )

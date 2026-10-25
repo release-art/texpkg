@@ -31,16 +31,31 @@ from .envelope import Envelope, dumps
 @dataclasses.dataclass(frozen=True)
 class Release:
     """A distribution at the release it was built as. `sty` holds the `.sty` of every package in the chain, as the build
-    rendered them (P4): what is shipped is what `save` writes."""
+    rendered them (P4): what is shipped is what `save` writes. `bases` are the releases embedded in it (P13)."""
 
     dist: Distribution
     version: str
     contracts: Contracts
     sty: Mapping[str, str]
+    bases: tuple["Release", ...] = ()
+
+    def stack(self) -> list[dict[str, Any]]:
+        """The packages a document is rendered through, this one first (V18)."""
+        out = [
+            {
+                "package": self.dist.name,
+                "release": self.version,
+                "output": list(dataclasses.astuple(self.contracts.output)),
+            }
+        ]
+        return out + [entry for base in self.bases for entry in base.stack()]
 
     def plan(self, kind: Kind, tree: Node, variant: str | None) -> Plan:
-        """The `.tex` of `tree` as lines with provenance: the kind's presets, then the variant's settings (L8)."""
-        return self.dist.package.plan(tree, settings=kind.settings(variant), preamble=self.dist.layout.preamble())
+        """The `.tex` of `tree` as lines with provenance: the kind's presets, then the variant's settings (L8).
+
+        An exposed base kind is written by the base's package; the directory's layout is this distribution's."""
+        package = self.dist.owner(kind.name).package
+        return package.plan(tree, settings=kind.settings(variant), preamble=self.dist.layout.preamble())
 
     def payload(self, kind: Kind) -> payload.Payload:
         return payload.build(self.sty, tuple(self.dist.resolved_assets()), self.dist.layout, kind.name)
@@ -71,9 +86,7 @@ class Release:
             },
             "defaults": state.defaults_table(kind.model),
             "sty": state.sty_hashes(self.sty),
-            "stack": [
-                {"package": self.dist.name, "release": self.version, "output": [c.output.current, c.output.revision]}
-            ],
+            "stack": self.stack(),
         }
 
     def states(self, kind: Kind, tree: Node) -> dict[str, str]:

@@ -1,0 +1,19 @@
+# An author's project: a texpkg package built from the synthetic acme brand (the declaration is copied in by the tests).
+[project]
+name = "acme-deck-tex"
+version = "0.1.0"
+description = "Slides on the synthetic acme brand"
+requires-python = ">=3.15"
+dynamic = ["dependencies"]  # the build writes the wheel's dependencies (B7)
+
+[tool.texpkg]
+distribution = "acme_deck:dist"
+
+[tool.pdm.build]
+package-dir = "src"
+includes = ["src/acme_deck"]
+custom-hook = "pdm_build.py"
+
+[build-system]
+requires = ["pdm-backend", "texpkg[build]", "acme-brand-tex==1.2.0"]
+build-backend = "pdm.backend"

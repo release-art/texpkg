@@ -206,24 +206,26 @@ class Distribution:
         names = [k.name for k in self.kinds]
         if twice := next((n for n in names if names.count(n) > 1), None):
             raise DeclarationError(f"kind {twice!r} is declared twice", code="TP-K002", path=self.name)
-        if unknown := next((k for a in self.assets for k in a.kinds if k not in names), None):
-            raise DeclarationError(
-                f"an asset names kind {unknown!r}, which {self.name} does not declare",
-                code="TP-K002",
-                path=self.name,
-                hint=f"the kinds are {names}",
-            )
-        offered = [k.name for k in self.base.kinds] if self.base else []
-        if bad := next((n for n in self.expose if n not in offered), None):
+        base_offers = [k.name for k in self.base.kinds_offered()] if self.base else []
+        if bad := next((n for n in self.expose if n not in base_offers), None):
             raise DeclarationError(
                 f"expose names {bad!r}, which is no kind of the base",
                 code="TP-K007",
                 path=self.name,
-                hint=f"the base offers {offered}" if self.base else "a distribution without a base exposes nothing",
+                hint=f"the base offers {base_offers}" if self.base else "a distribution without a base exposes nothing",
             )
-        if clash := next((n for n in self.expose if n in names), None):
+        if clash := next((n for n in self.expose if n in names or self.expose.count(n) > 1), None):
             raise DeclarationError(
-                f"kind {clash!r} is both declared and exposed from the base", code="TP-K007", path=self.name
+                f"kind {clash!r} is both declared and exposed from the base, or exposed twice",
+                code="TP-K007",
+                path=self.name,
+            )
+        if unknown := next((k for a in self.assets for k in a.kinds if k not in (*names, *self.expose)), None):
+            raise DeclarationError(
+                f"an asset names kind {unknown!r}, which {self.name} does not offer",
+                code="TP-K002",
+                path=self.name,
+                hint=f"the kinds are {[*names, *self.expose]}",
             )
 
     @property
@@ -235,14 +237,25 @@ class Distribution:
         """This distribution, then its base, then the base's base (P19, P20)."""
         return (self, *(self.base.chain() if self.base else ()))
 
+    def kinds_offered(self) -> tuple[Kind, ...]:
+        """The kinds of this distribution's module: its own, then the base's that it exposes (P21)."""
+        exposed = tuple(k for k in (self.base.kinds_offered() if self.base else ()) if k.name in self.expose)
+        return (*self.kinds, *exposed)
+
+    def owner(self, kind: str) -> "Distribution":
+        """The distribution whose package renders `kind`: this one, or the base that declares an exposed kind."""
+        if any(k.name == kind for k in self.kinds) or self.base is None:
+            return self
+        return self.base.owner(kind)
+
     def kind(self, name: str) -> Kind:
-        found = next((k for k in self.kinds if k.name == name), None)
+        found = next((k for k in self.kinds_offered() if k.name == name), None)
         if found is None:
             raise DeclarationError(
                 f"{self.name} has no kind {name!r}",
                 code="TP-K004",
                 path=name,
-                hint=f"its kinds are {[k.name for k in self.kinds]}",
+                hint=f"its kinds are {[k.name for k in self.kinds_offered()]}",
             )
         return found
 
@@ -251,7 +264,3 @@ class Distribution:
         for dist in self.chain():
             for asset in dist.assets:
                 yield Resolved(asset, dist.root.joinpath(*asset.path.split("/")))
-
-    def sty(self) -> dict[str, str]:
-        """The rendered `.sty` of every package in the chain, by file name (P4)."""
-        return {f"{d.package.name}.sty": d.package.render() for d in reversed(self.chain())}

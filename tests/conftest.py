@@ -2,6 +2,7 @@ import importlib
 import os
 import pathlib
 import sys
+import zipfile
 from collections.abc import Iterator
 from types import ModuleType
 
@@ -10,6 +11,8 @@ from texmodel_build.compiler import Compiler
 from texmodel_build.errors import ToolchainError
 
 from texpkg_build.testing import load_declaration
+
+from . import projects
 
 
 @pytest.fixture
@@ -47,3 +50,16 @@ def expert(acme_brand_tex: ModuleType) -> ModuleType:
 @pytest.fixture
 def vocab(acme_brand_tex: ModuleType) -> ModuleType:
     return importlib.import_module("acme_brand_tex.kinds.vocab")
+
+
+@pytest.fixture
+def brand_site(tmp_path, monkeypatch):
+    """The brand's wheel built and installed where the deck's build finds it, as `[build-system] requires` does."""
+    built = projects.wheel(projects.author_project(tmp_path / "brand"), tmp_path / "brand-dist")
+    site = tmp_path / "brand-site"
+    zipfile.ZipFile(built).extractall(site)
+    monkeypatch.syspath_prepend(str(site))
+    yield built
+    for name in [n for n in sys.modules if n.split(".")[0] == "acme_brand_tex"]:
+        del sys.modules[name]
+    importlib.invalidate_caches()

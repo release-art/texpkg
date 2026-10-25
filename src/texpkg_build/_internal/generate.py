@@ -128,10 +128,15 @@ def _tuple(items: list[str]) -> str:
 def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Contracts) -> dict[str, str]:
     """The generated files by path inside the module, for `dist` released at `version`. `pointer_attr` is the name
     `[tool.texpkg] distribution` gives the declaration inside its package."""
-    names = [k.name for k in dist.kinds]
+    offered = dist.kinds_offered()
+    names = [k.name for k in offered]
     sty = render_sty(dist, version)
     c = contracts
     imports = f"from . import {', '.join(names)}" if names else ""
+    base = dist.base
+    base_import = f"from ._embedded.{base.module} import _bound as _base" if base else ""
+    base_sty = "**_base.STY, " if base else ""
+    base_release = ", (_base.RELEASE,)" if base else ""
     return (
         {f"_sty/{name}": text for name, text in sty.items()}
         | {
@@ -146,7 +151,8 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
                 from ._version import CONTRACTS, VERSION
 
                 __version__: Final = VERSION
-                __all__ = ["CONTRACTS", "__version__", "errors", "kinds", "load"]
+                dist: Final = RELEASE.dist  # for a package built on this one (P14)
+                __all__ = ["CONTRACTS", "__version__", "dist", "errors", "kinds", "load"]
 
 
                 def load(path: Path | str) -> Document[Any]:
@@ -172,13 +178,14 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
 
                 from ._declaration import {pointer_attr}
                 from ._version import CONTRACTS, VERSION
+                {base_import}
 
                 _NAMES: Final = {_tuple(list(sty))}
-                STY: Final = {{
-                    name: files(__package__).joinpath("_sty", name).read_text(encoding="utf-8")
-                    for name in _NAMES
+                _OWN: Final = {{
+                    name: files(__package__).joinpath("_sty", name).read_text(encoding="utf-8") for name in _NAMES
                 }}
-                RELEASE: Final = Release({pointer_attr}, VERSION, CONTRACTS, STY)
+                STY: Final = {{{base_sty}**_OWN}}
+                RELEASE: Final = Release({pointer_attr}, VERSION, CONTRACTS, STY{base_release})
             """),
             "errors.py": _module(
                 "from texpkg.errors import (\n" + "".join(f"    {name} as {name},\n" for name in error_names()) + ")\n"
@@ -199,5 +206,5 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
                     return {{{", ".join(f"{n!r}: {n}" for n in names)}}}
             """),
         }
-        | {f"kinds/{kind.name}.py": _kind_source(dist, kind) for kind in dist.kinds}
+        | {f"kinds/{kind.name}.py": _kind_source(dist, kind) for kind in offered}
     )

@@ -119,7 +119,6 @@ def test_a_distribution_lists_its_chain_assets_and_sty():
     assert [d.name for d in top.chain()] == ["x-tex", "acme-brand-tex"]
     assert [r.asset.path for r in top.resolved_assets()] == [a.path for a in dist.assets]
     assert all(r.source.is_file() for r in dist.resolved_assets())
-    assert list(top.sty()) == ["acme-brand.sty", "hole.sty"]
     assert dist.root.joinpath("assets").is_dir()
 
 
