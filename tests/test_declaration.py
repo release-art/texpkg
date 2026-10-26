@@ -6,10 +6,11 @@ import sys
 import zipfile
 
 import pytest
-from acme_brand import Card, Compact, Deck, Fact, FactGap, Glossary, Mark, Term, Title, dist, expert_example
-from texmodel.components import Command, Environment, Passthrough
+from acme_brand import Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Mark, Term, Title, dist, expert_example
+from texmodel.components import Command, Environment, Passthrough, Value
 from texmodel.package import Package
-from texmodel.types import Raw, Text
+from texmodel.preamble import PdfInfo
+from texmodel.types import Length, Raw, Text
 
 from texpkg import Asset, DefaultChange, Distribution, Kind, Migrated, Role, Variant, migration
 from texpkg.declaration import raw_holes, reachable
@@ -208,3 +209,35 @@ def test_a_distribution_declared_in_a_zipped_package_checks_its_root_through_the
         assert zpkg.dist.root == "data" and zpkg.dist.files.joinpath("note.txt").read_text() == "x"
     finally:
         sys.modules.pop("zpkg", None)
+
+
+# -- what a kind lets a document carry (D10) -------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("changes", "code"),
+    [
+        ({"options": ("a4paper", "a4paper")}, "TP-K002"),
+        ({"settable": (Ink, Ink)}, "TP-K002"),
+        ({"preamble": (PdfInfo, PdfInfo)}, "TP-K002"),
+        ({"options": ("two words",)}, "TP-K016"),
+        ({"options": ("!",)}, "TP-K016"),
+        ({"settable": (FactGap,)}, "TP-K017"),  # a preset of the kind
+        ({"settable": (Compact,)}, "TP-K017"),  # a variant's setting
+    ],
+)
+def test_what_a_kind_lets_a_document_carry_is_checked(changes, code):
+    assert code_of(dataclasses.replace, dist.kind("expert"), **changes) == code
+
+
+def test_a_settable_value_is_registered_by_the_package_that_reads_it_back():
+    other = Package("other", prefix="ot", version="1.0.0", date="2026/10/22", description="Another")
+
+    @other.value
+    class Gap(Value[Length]):
+        """A gap."""
+
+        default = Length("1mm")
+
+    kind = dataclasses.replace(dist.kind("expert"), settable=(Gap,))
+    assert code_of(dataclasses.replace, dist, kinds=(kind, *dist.kinds[1:])) == "TP-K018"

@@ -16,6 +16,7 @@ from texmodel.components import AnyValue, Command, Environment, Node
 from texmodel.document import Document as TexDocument
 from texmodel.package import setting_line
 from texmodel.plan import Plan
+from texmodel.preamble import PreambleSlots
 
 from .. import provenance
 from ..assets import Role
@@ -28,11 +29,13 @@ from ..errors import (
     KindMismatchError,
     NewerDataError,
     NotADocumentError,
+    NotAllowedError,
 )
 from ..migration import DefaultChange, Migration
 from . import directory, export, payload, snapshots, state
 from .adopt import adopt
 from .envelope import Envelope, dumps
+from .state import Extras
 
 
 @dataclasses.dataclass(frozen=True)
@@ -72,17 +75,28 @@ class Release:
         kinds = (kind.name, *([kind.over] if kind.over else []))
         return any(r.asset.role is Role.GRAPHIC and r.asset.needed_by(kinds) for r in self.dist.resolved_assets())
 
-    def plan(self, kind: Kind, tree: Node, variant: str | None) -> Plan:
-        """The `.tex` of `tree` as lines with provenance: the kind's presets, then the variant's settings (L8).
+    def layout_preamble(self, kind: Kind) -> PreambleSlots:
+        """The lines that find the payload, which come before a document's own entries (A5)."""
+        return self.dist.layout.preamble(graphics=self._has_graphics(kind))
+
+    def plan(self, kind: Kind, tree: Node, variant: str | None, extras: Extras = Extras()) -> Plan:  # noqa: B008
+        """The `.tex` of `tree` as lines with provenance: the kind's presets, then the variant's settings (L8), then the
+        document's own settings (D10).
 
         An exposed base kind is written by the base's package; the directory's layout is this distribution's."""
         body = tree if kind.expand is None else kind.expand(tree)
         package = self.dist.owner(kind.name).package
+        found, own = self.layout_preamble(kind), extras.preamble
         return package.plan(
             TexDocument(
                 body,
-                settings=self.settings(kind, variant),
-                preamble=self.dist.layout.preamble(graphics=self._has_graphics(kind)),
+                options=extras.options,
+                settings=(*self.settings(kind, variant), *extras.settings),
+                preamble=PreambleSlots(
+                    before_class=own.before_class,
+                    before_package=(*found.before_package, *own.before_package),
+                    after_package=(*found.after_package, *own.after_package),
+                ),
             )
         )
 
@@ -113,11 +127,11 @@ class Release:
         files = {**self.sty, **(provenance or {})}
         return payload.build(files, tuple(self.dist.resolved_assets()), self.dist.layout, kinds)
 
-    def rendered(self, kind: Kind, tree: Node) -> dict[str, str]:
+    def rendered(self, kind: Kind, tree: Node, extras: Extras = Extras()) -> dict[str, str]:  # noqa: B008
         """Every `.tex` of the kind with the plan of it that `save` keeps (D7), by path in the directory."""
         files: dict[str, str] = {}
         for variant, name in kind.documents():
-            plan = self.plan(kind, tree, variant)
+            plan = self.plan(kind, tree, variant, extras)
             files |= {name: plan.text, directory.plan_file(variant): plan.to_json()}
         return files
 
@@ -142,9 +156,11 @@ class Release:
             "stack": self.stack(),
         }
 
-    def states(self, kind: Kind, tree: Node) -> dict[str, str]:
+    def states(self, kind: Kind, tree: Node, extras: Extras = Extras()) -> dict[str, str]:  # noqa: B008
         """The pair of states `save` and `create` write (D1)."""
-        envelope = Envelope(self.dist.name, kind.name, self.contracts.data.current, state.tree_state(tree))
+        envelope = Envelope(
+            self.dist.name, kind.name, self.contracts.data.current, state.tree_state(tree), state.extras_state(extras)
+        )
         return {directory.STATE: envelope.to_text(), directory.TEMPLATE: dumps(self.template(kind))}
 
     def read(self, path: pathlib.Path) -> Envelope:
@@ -207,7 +223,27 @@ class KindApi[T: Command | Environment]:
             )
         self.release, self.kind = release, kind
 
-    def create(self, path: pathlib.Path | str, tree: T) -> Document[T]:
+    def extras(self, settings: Sequence[AnyValue], options: Sequence[str], preamble: PreambleSlots | None) -> Extras:
+        """What a document carries besides its tree, refused whole if the kind does not allow it (D10)."""
+        found = Extras(tuple(options), tuple(settings), preamble or PreambleSlots())
+        if items := state.not_allowed(self.kind, found):
+            shown = "; ".join(f"{i['path']}: {i['reason']}" for i in items)
+            raise NotAllowedError(
+                f"kind {self.kind.name}: {shown}",
+                items=tuple(items),
+                hint="the kind lists what a document may set: Kind(settable=, options=, preamble=)",
+            )
+        return found
+
+    def create(
+        self,
+        path: pathlib.Path | str,
+        tree: T,
+        *,
+        settings: Sequence[AnyValue] = (),
+        options: Sequence[str] = (),
+        preamble: PreambleSlots | None = None,
+    ) -> Document[T]:
         """A document in `path` (made if need be) with both states written; refuses a directory that holds one."""
         path = pathlib.Path(path)
         if (path / directory.STATE).exists():
@@ -219,8 +255,9 @@ class KindApi[T: Command | Environment]:
             )
         if problems := tree.violations():
             raise ExceptionGroup("invalid document", [v.error() for v in problems])
-        directory.write(path, self.release.states(self.kind, tree))
-        return Document(tree, path, self.release, self.kind)
+        extras = self.extras(settings, options, preamble)
+        directory.write(path, self.release.states(self.kind, tree, extras))
+        return Document(tree, path, self.release, self.kind, extras)
 
     def load(
         self,
@@ -243,8 +280,9 @@ class KindApi[T: Command | Environment]:
             )
         saved = directory.read(path, directory.TEMPLATE)
         template: dict[str, Any] = json.loads(saved) if saved else {}
-        tree = adopt(
+        tree, extras = adopt(
             kind=self.kind,
+            package=self.release.dist.owner(self.kind.name).package,
             envelope=envelope,
             current=self.release.contracts.data.current,
             age=self.release.contracts.data.age,
@@ -253,10 +291,10 @@ class KindApi[T: Command | Environment]:
             saved_defaults=template.get("defaults"),
             base_data=dict(self.release.contracts.base_data) if self.kind.name in self.release.dist.expose else None,
         )
-        return Document(cast("T", tree), path, self.release, self.kind)
+        return Document(cast("T", tree), path, self.release, self.kind, extras)
 
     def schema(self, mode: state.Mode) -> dict[str, Any]:
-        return state.schema(self.kind.model, mode)
+        return state.schema(self.kind, self.release.dist.owner(self.kind.name).package, mode)
 
     def example(self) -> T:
         return cast("T", self.kind.example())

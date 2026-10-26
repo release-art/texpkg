@@ -134,8 +134,8 @@ def test_the_state_validates_against_the_stored_schema(expert, doc):
     assert list(envelope) == ["package", "kind", "data", "tree"]
     assert (envelope["package"], envelope["kind"], envelope["data"]) == ("acme-brand-tex", "expert", 1)
     schema = expert.schema("serialization")
-    assert list(Draft202012Validator(schema).iter_errors(envelope["tree"])) == []
-    assert list(Draft202012Validator(expert.schema()).iter_errors(envelope["tree"])) == []
+    assert list(Draft202012Validator(schema).iter_errors({"tree": envelope["tree"]})) == []
+    assert list(Draft202012Validator(expert.schema()).iter_errors({"tree": envelope["tree"]})) == []
     bad = json.loads(json.dumps(envelope["tree"]))
     del bad["content"][1]["content"][1]["accent"]
     assert list(Draft202012Validator(schema).iter_errors(bad))  # a stored value is always written

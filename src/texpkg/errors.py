@@ -4,7 +4,7 @@ No class is shared between packages (each wheel embeds its own copy of this modu
 base (`ValueError`, `FileNotFoundError`) and reads `.code`, which is `TP-<area><nnn>` and never reused.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .document import HandEdit
@@ -56,6 +56,14 @@ class MigrationError(TexpkgError, ValueError):
     def __init__(self, message: str, *, code: str, unresolved: "tuple[Unresolved, ...]" = (), hint: str = "") -> None:
         super().__init__(message, code=code, hint=hint)
         self.unresolved = unresolved
+
+
+class NotAllowedError(TexpkgError, ValueError):
+    """A document carries a setting, option or preamble entry its kind does not allow (D10); nothing was made."""
+
+    def __init__(self, message: str, *, items: "tuple[dict[str, Any], ...]", hint: str = "") -> None:
+        super().__init__(message, code="TP-D007", hint=hint)
+        self.items = items
 
 
 class HandEditError(TexpkgError, ValueError):

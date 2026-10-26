@@ -1,21 +1,27 @@
-"""The stored form of a document: its schemas (V26).
+"""The stored form of a document: its schemas (V26) and what it carries besides its tree (D10).
 
 Two schemas per kind, from pydantic's two modes: the input one (a field with a default is optional) and the stored one
 (every field is written, V21, so every field is required, and a node lists the fields that hold defaults in
-`$defaults`).
+`$defaults`). A document's data is `{"tree": …}` and, when it has any, `settings`, `options` and `preamble` in the
+shapes texmodel writes a `Document`'s in.
 """
 
 import copy
+import dataclasses
 import hashlib
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from texmodel import spec
 from texmodel.body import Comment
-from texmodel.components import Command, Environment, Node, Passthrough
+from texmodel.components import AnyValue, Command, Environment, Node, Passthrough
+from texmodel.document import Document as TexDocument
+from texmodel.package import Package
+from texmodel.preamble import PreambleSlots
 
-from ..declaration import Model
+from ..declaration import Kind, Model
 from ..errors import DeclarationError
+from .envelope import EXTRA_KEYS
 
 type Mode = Literal["validation", "serialization"]
 
@@ -40,14 +46,124 @@ def stored(validation: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def schema(model: Model, mode: Mode) -> dict[str, Any]:
-    """The JSON Schema of the data a kind's `model` takes (`validation`) or stores (`serialization`)."""
+def tree_schema(model: Model, mode: Mode) -> dict[str, Any]:
+    """The JSON Schema of the tree a kind's `model` takes (`validation`) or stores (`serialization`)."""
     if mode not in ("validation", "serialization"):
         raise DeclarationError(
             f"schema mode {mode!r}", code="TP-K008", hint='use "validation" (the input) or "serialization" (the stored)'
         )
     validation = spec.json_schema(model)
     return validation if mode == "validation" else stored(validation)
+
+
+@dataclasses.dataclass(frozen=True)
+class Extras:
+    """What a document carries besides its tree, within what its kind allows: class `options`, `settings` (values set
+    after the package loads) and `preamble` entries."""
+
+    options: tuple[str, ...] = ()
+    settings: tuple[AnyValue, ...] = ()
+    preamble: PreambleSlots = dataclasses.field(default_factory=PreambleSlots)
+
+
+def extras_state(extras: Extras) -> dict[str, Any]:
+    """The keys of a document's data besides `tree`, in texmodel's shapes; empty ones left out."""
+    data = spec.to_dict(TexDocument(options=extras.options, settings=extras.settings, preamble=extras.preamble))
+    return {key: data[key] for key in EXTRA_KEYS if key in data}
+
+
+def extras_from(package: Package, data: Mapping[str, Any]) -> Extras:
+    """The extras `data` describes; raises an `ExceptionGroup` of texmodel `ValidationError` for data the package does
+    not read."""
+    found = spec.from_dict(package, {"type": "Document", **data, "content": []})
+    return Extras(found.options, found.settings, found.preamble)
+
+
+def not_allowed(kind: Kind, extras: Extras) -> list[dict[str, Any]]:
+    """What `extras` holds that `kind` does not allow, as unresolved items (`path`, `reason`, `value`)."""
+    data = extras_state(extras)
+    settable = {c.__name__ for c in kind.settable}
+    entries = {c.__name__ for c in kind.preamble}
+    found = [
+        (f"/settings/{i}", f"{type(v).__name__} is not settable in kind {kind.name}", data["settings"][i])
+        for i, v in enumerate(extras.settings)
+        if type(v).__name__ not in settable
+    ]
+    found += [
+        (f"/options/{i}", f"option {o!r} is not allowed in kind {kind.name}", o)
+        for i, o in enumerate(extras.options)
+        if o not in kind.options
+    ]
+    found += [
+        (
+            f"/preamble/{slot}/{i}",
+            f"{type(item).__name__} is not an allowed preamble entry in kind {kind.name}",
+            data["preamble"][slot][i],
+        )
+        for slot, i, item in extras.preamble.items()
+        if type(item).__name__ not in entries
+    ]
+    return [{"path": path, "reason": reason, "value": value, "schema": {}} for path, reason, value in found]
+
+
+def _closure(defs: Mapping[str, Any], roots: list[str]) -> dict[str, Any]:
+    """The definitions `roots` name and the ones those name, in name order."""
+    found: dict[str, Any] = {}
+    todo = list(roots)
+    while todo:
+        name = todo.pop()
+        if name not in found:
+            found[name] = defs[name]
+            todo += [r.rsplit("/", 1)[1] for r in _refs(defs[name])]
+    return dict(sorted(found.items()))
+
+
+def _refs(node: object) -> list[str]:
+    """Every `$ref` under `node`."""
+    if isinstance(node, dict):
+        found: list[str] = []
+        for key, value in cast("dict[str, object]", node).items():
+            found += [str(value)] if key == "$ref" else _refs(value)
+        return found
+    if isinstance(node, list):
+        return [ref for item in cast("list[object]", node) for ref in _refs(item)]
+    return []
+
+
+def schema(kind: Kind, package: Package, mode: Mode) -> dict[str, Any]:
+    """The JSON Schema of the data of a document of `kind`: its `tree`, and the settings, options and preamble entries
+    the kind allows, read by `package`, the one that renders it."""
+    tree = tree_schema(kind.model, mode)
+    defs: dict[str, Any] = tree.pop("$defs", {})
+    title = str(tree["title"])
+    defs[title] = tree
+    properties: dict[str, Any] = {"tree": {"$ref": f"#/$defs/{title}"}}
+    wanted: list[str] = []
+    if kind.settable:
+        names = [f"{c.__name__}Setting" for c in kind.settable]
+        wanted += names
+        properties["settings"] = {"type": "array", "items": {"oneOf": [{"$ref": f"#/$defs/{n}"} for n in names]}}
+    if kind.options:
+        properties["options"] = {"type": "array", "uniqueItems": True, "items": {"enum": list(kind.options)}}
+    if kind.preamble:
+        names = [f"{c.__name__}Entry" for c in kind.preamble]
+        wanted += names
+        slot = {"type": "array", "items": {"oneOf": [{"$ref": f"#/$defs/{n}"} for n in names]}}
+        properties["preamble"] = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": dict.fromkeys(("before_class", "before_package", "after_package"), slot),
+        }
+    shared: dict[str, Any] = spec.json_schema(package)["$defs"] if wanted else {}
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": kind.name,
+        "type": "object",
+        "additionalProperties": False,
+        "properties": properties,
+        "required": ["tree"],
+        "$defs": dict(sorted((defs | _closure(shared, wanted)).items())),
+    }
 
 
 def _fields(node: Command | Environment | Passthrough) -> dict[str, Any]:

@@ -15,9 +15,11 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 import pydantic
-from texmodel.components import AnyValue, Command, Environment, Node, Passthrough
+from texmodel.components import AnyValue, Command, Environment, Node, Passthrough, Value
+from texmodel.document import OPTION
 from texmodel.interface import Body, BodyKind
 from texmodel.package import Package
+from texmodel.preamble import Entry
 
 from .assets import Asset, Resolved
 from .errors import DeclarationError
@@ -99,7 +101,11 @@ class Kind:
     """One named document model a package offers (K1): `model` is the root class of its trees, `presets` the settings
     every document of the kind is written with (L8), `example` a valid tree that exercises the whole kind (A7, V11).
     Every `Raw` field and `Passthrough` the kind can hold is named in `allow_raw` (P25). `stem` names the kind's `.tex`
-    files (`deck` gives `deck.tex` and `deck-<variant>.tex`); left out, it is the root class's name, lower-cased."""
+    files (`deck` gives `deck.tex` and `deck-<variant>.tex`); left out, it is the root class's name, lower-cased.
+
+    A document may carry what the kind allows and nothing else: `settable` (values a document sets, after `presets`,
+    which every document is written with), `options` (class options) and `preamble` (entry classes). A value is a preset
+    or settable, not both."""
 
     name: str
     model: Model
@@ -111,9 +117,12 @@ class Kind:
     expand: Callable[[Any], Node] | None = None
     over: str | None = None
     stem: str = ""
+    settable: tuple[type[Value[Any]], ...] = ()
+    options: tuple[str, ...] = ()
+    preamble: tuple[type[Entry], ...] = ()
 
     def __post_init__(self) -> None:
-        for field in ("presets", "migrations", "allow_raw", "variants"):
+        for field in ("presets", "migrations", "allow_raw", "variants", "settable", "options", "preamble"):
             object.__setattr__(self, field, tuple(getattr(self, field)))
         if not _KIND.fullmatch(self.name) or keyword.iskeyword(self.name):
             raise DeclarationError(
@@ -123,14 +132,7 @@ class Kind:
                 hint="a kind is a module: acme_tex.kinds.<name>",
             )
         self._unique("variant", [v.name for v in self.variants])
-        object.__setattr__(self, "stem", self.stem or self.model.__name__.lower())
-        if not _STEM.fullmatch(self.stem):
-            raise DeclarationError(
-                f"kind {self.name}: stem {self.stem!r} is not a file name without its suffix",
-                code="TP-K015",
-                path=self.name,
-                hint="letters, digits, '_' and '-', e.g. stem='brand-deck' for brand-deck.tex",
-            )
+        self._check_allowed()
         if (self.expand is None) != (self.over is None):
             raise DeclarationError(
                 f"kind {self.name}: expand and over go together",
@@ -166,6 +168,35 @@ class Kind:
             path=self.name,
             hint="the example is rendered for the output fingerprint and compiled by the author's tests",
         )
+
+    def _check_allowed(self) -> None:
+        """What a document may carry (D10): no name twice, real class options, nothing both written and settable."""
+        self._unique("settable value", [c.__name__ for c in self.settable])
+        self._unique("preamble entry", [c.__name__ for c in self.preamble])
+        self._unique("option", list(self.options))
+        if bad := next((o for o in self.options if not OPTION.fullmatch(o)), None):
+            raise DeclarationError(
+                f"kind {self.name}: option {bad!r} is not a class option",
+                code="TP-K016",
+                path=self.name,
+                hint="letters, digits, '=', '.' and '-', starting with a letter or digit",
+            )
+        written = {type(v) for v in (*self.presets, *(s for var in self.variants for s in var.settings))}
+        if clash := next((c for c in self.settable if c in written), None):
+            raise DeclarationError(
+                f"kind {self.name}: {clash.__name__} is a preset or a variant's setting and settable",
+                code="TP-K017",
+                path=self.name,
+                hint="a value is written for every document or set by a document, not both",
+            )
+        object.__setattr__(self, "stem", self.stem or self.model.__name__.lower())
+        if not _STEM.fullmatch(self.stem):
+            raise DeclarationError(
+                f"kind {self.name}: stem {self.stem!r} is not a file name without its suffix",
+                code="TP-K015",
+                path=self.name,
+                hint="letters, digits, '_' and '-', e.g. stem='brand-deck' for brand-deck.tex",
+            )
 
     def _unique(self, what: str, names: list[str]) -> None:
         if twice := next((n for n in names if names.count(n) > 1), None):
@@ -276,6 +307,7 @@ class Distribution:
         names = [k.name for k in self.kinds]
         if twice := next((n for n in names if names.count(n) > 1), None):
             raise DeclarationError(f"kind {twice!r} is declared twice", code="TP-K002", path=self.name)
+        self._check_settable()
         base_offers = [k.name for k in self.base.kinds_offered()] if self.base else []
         if bad := next((n for n in self.expose if n not in base_offers), None):
             raise DeclarationError(
@@ -349,6 +381,17 @@ class Distribution:
     def chain(self) -> tuple["Distribution", ...]:
         """This distribution, then its base, then the base's base (P19, P20)."""
         return (self, *(self.base.chain() if self.base else ()))
+
+    def _check_settable(self) -> None:
+        """A document's settings are read back through the package that renders its kind, so it registers them."""
+        for kind in self.kinds:
+            if gone := next((c for c in kind.settable if c not in self.package.registered), None):
+                raise DeclarationError(
+                    f"kind {kind.name}: settable {gone.__name__} is not registered by package {self.package.name}",
+                    code="TP-K018",
+                    path=kind.name,
+                    hint="a document's settings are read back through the kind's own package: register the value there",
+                )
 
     def kinds_offered(self) -> tuple[Kind, ...]:
         """The kinds of this distribution's module: its own, then the base's that it exposes (P21)."""

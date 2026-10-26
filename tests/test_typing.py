@@ -19,6 +19,8 @@ OK = """
 from acme_brand_tex import kinds
 from acme_brand_tex.kinds import expert, vocab
 import acme_brand_tex
+from texmodel.preamble import PreambleSlots
+from texmodel.types import CMYK
 from typing import Any
 from texpkg.document import Document
 from texpkg.protocol import KindModule, PackageModule
@@ -31,6 +33,9 @@ card = expert.Card(expert.Title("x"), expert.Fact("y", accent=expert.Accent.MOSS
 name: str = expert.NAME
 saved: Document[expert.Deck] = expert.load("deck")
 made: Document[expert.Deck] = expert.create("deck", tree)
+with_more: Document[expert.Deck] = expert.create(
+    "deck", tree, settings=[expert.Ink(CMYK(0, 0, 0, 1))], options=["a4paper"], preamble=PreambleSlots()
+)
 rendered: str = saved.render("compact")
 new: Document[expert.Deck] = saved.replace(tree)
 anything: Document[Any] = acme_brand_tex.load("deck")
@@ -39,6 +44,8 @@ schema: dict[str, object] = expert.schema(mode="serialization")
 
 BAD = """
 from acme_brand_tex.kinds import expert, vocab
+from acme_brand_tex._declaration import Compact
+from texmodel.types import CMYK
 
 wrong_tree: expert.Deck = vocab.example()
 wrong_mode = expert.schema(mode="nonsense")
@@ -47,6 +54,9 @@ wrong_field = expert.Fact(1)
 no_such = expert.FactGap
 wrong_create = expert.create("deck", vocab.example())
 wrong_replace = expert.load("deck").replace(vocab.example())
+wrong_setting = expert.create("deck", expert.example(), settings=[Compact(True)])
+wrong_option = expert.create("deck", expert.example(), options=["twocolumn"])
+nothing_settable = vocab.create("v", vocab.example(), settings=[expert.Ink(CMYK(0, 0, 0, 1))])
 """
 
 
@@ -76,4 +86,4 @@ def test_the_generated_module_satisfies_the_protocols_and_its_types_are_read(whe
 
 def test_wrong_use_of_the_generated_module_is_an_error(wheel_like):
     errors = pyright(wheel_like, "use_bad.py", BAD)
-    assert len(errors) == 7, errors
+    assert len(errors) == 10, errors

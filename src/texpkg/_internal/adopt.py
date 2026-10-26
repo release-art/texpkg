@@ -7,10 +7,12 @@ left aborts with the report.
 """
 
 import copy
+import re
 from collections.abc import Iterator, Mapping, Sequence
-from typing import Any
+from typing import Any, cast
 
 from texmodel.components import Node
+from texmodel.package import Package
 
 from ..declaration import Kind
 from ..errors import MigrationError
@@ -18,10 +20,12 @@ from ..migration import DefaultChange, Migration, Unresolved
 from . import state
 from .envelope import Envelope
 from .history import problems, unplaced
+from .state import Extras
 
 UNRESOLVED = (
     "$unresolved"  # in the state a migration gets: what the earlier ones left, as `{"path", "reason", "value"}`
 )
+EXTRAS = "$extras"  # in the state a migration gets: the document's `settings`, `options` and `preamble` (D10)
 
 
 def _policy(changes: DefaultChange | Mapping[str, DefaultChange], path: str, key: str) -> DefaultChange:
@@ -76,9 +80,40 @@ def _kind_migrations(kind: Kind, boundary: int, base_data: Mapping[int, int] | N
     return [m for m in kind.migrations if low < m.to <= high]
 
 
+def _data_path(path: str) -> list[str]:
+    """The parts of a texmodel path (`settings[1].value`) as data keys (`settings`, `1`, `value`)."""
+    return [part for part in re.split(r"[.\[\]]+", path) if part]
+
+
+def _value_at(data: object, keys: list[str]) -> object:
+    for key in keys:
+        try:
+            data = (
+                cast("list[object]", data)[int(key)] if isinstance(data, list) else cast("dict[str, object]", data)[key]
+            )
+        except KeyError, IndexError, TypeError, ValueError:
+            return None
+    return data
+
+
+def _extras_problems(kind: Kind, package: Package, data: dict[str, Any]) -> tuple[Extras, list[dict[str, Any]]]:
+    """The extras `data` describes and what stops them from being the kind's: texmodel's errors and what the kind
+    does not allow, as unresolved items."""
+    try:
+        extras = state.extras_from(package, data)
+    except ExceptionGroup as group:
+        found: list[dict[str, Any]] = []
+        for e in group.exceptions:
+            keys = _data_path(str(getattr(e, "path", "")))
+            found.append({"path": "/" + "/".join(keys), "reason": str(e), "value": _value_at(data, keys), "schema": {}})
+        return Extras(), found
+    return extras, state.not_allowed(kind, extras)
+
+
 def adopt(
     *,
     kind: Kind,
+    package: Package,
     envelope: Envelope,
     current: int,
     age: int,
@@ -86,10 +121,11 @@ def adopt(
     policy: DefaultChange | Mapping[str, DefaultChange],
     saved_defaults: Mapping[str, Any] | None,
     base_data: Mapping[int, int] | None = None,
-) -> Node:
-    """The tree of `kind` that `envelope` describes at `data` version `current`, or a `MigrationError` naming everything
-    that no migration placed. Nothing is written."""
+) -> tuple[Node, Extras]:
+    """The tree and extras of `kind` that `envelope` describes at `data` version `current`, or a `MigrationError` naming
+    everything that no migration placed. Nothing is written."""
     tree = copy.deepcopy(envelope.tree)
+    extras_data = copy.deepcopy(envelope.extras)
     left: list[dict[str, Any]] = []
     if saved_defaults is not None:
         left += default_changes(tree, saved_defaults, state.defaults_table(kind.model), policy)
@@ -97,11 +133,14 @@ def adopt(
         for boundary in range(envelope.data + 1, current + 1):
             label = f"{boundary - 1} -> {boundary}"
             for migration in (*_kind_migrations(kind, boundary, base_data), *(m for m in consumer if m.to == boundary)):
-                tree[UNRESOLVED] = left
+                tree[UNRESOLVED], tree[EXTRAS] = left, extras_data
                 result = migration(tree)
                 tree = result.state
+                extras_data = tree.pop(EXTRAS, {})
                 left = [*tree.pop(UNRESOLVED, []), *({**vars(u), "boundary": label} for u in result.unresolved)]
-    schema = state.schema(kind.model, "validation")
+    schema = state.tree_schema(kind.model, "validation")
+    extras, found = _extras_problems(kind, package, extras_data)
+    left += [{**p, "boundary": "validation"} for p in found]
     left += [{**p, "boundary": "validation"} for p in unplaced(tree, schema)]
     left += [{**p, "boundary": "validation"} for p in problems(kind.model, state.given(tree), schema)]
     if left:
@@ -116,4 +155,4 @@ def adopt(
             unresolved=items,
             hint="extend the process with a migration of your own: load(path, migrations=[...])",
         )
-    return state.tree_from_state(kind.model, tree)
+    return state.tree_from_state(kind.model, tree), extras

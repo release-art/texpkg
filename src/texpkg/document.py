@@ -5,14 +5,16 @@ import datetime
 import enum
 import json
 import pathlib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from texmodel import drift
-from texmodel.components import Command, Environment
+from texmodel.components import AnyValue, Command, Environment
+from texmodel.preamble import PreambleSlots
 
 from . import provenance
 from ._internal import directory, handedits, state
+from ._internal.state import Extras
 from .contracts import Pair
 from .declaration import Kind
 from .errors import HandEditError, NotADocumentError
@@ -92,10 +94,25 @@ class Document[T: Command | Environment]:
     """A texmodel tree of a kind's classes (`doc.tree`) with texpkg's interface as methods (P28). Made by a kind's
     `load` and `create`, never by hand; a tree is frozen, so `replace` gives another document."""
 
-    def __init__(self, tree: T, path: pathlib.Path, release: "Release", kind: Kind) -> None:
+    def __init__(self, tree: T, path: pathlib.Path, release: "Release", kind: Kind, extras: Extras = Extras()) -> None:  # noqa: B008
         self.tree = tree
         self.path = path
-        self._release, self._kind = release, kind
+        self._release, self._kind, self._extras = release, kind, extras
+
+    @property
+    def settings(self) -> tuple[AnyValue, ...]:
+        """The values this document sets, within what its kind allows (D10); written after the kind's presets."""
+        return self._extras.settings
+
+    @property
+    def options(self) -> tuple[str, ...]:
+        """The class options of the document."""
+        return self._extras.options
+
+    @property
+    def preamble(self) -> PreambleSlots:
+        """The preamble entries of the document, which come after the lines that find the payload."""
+        return self._extras.preamble
 
     @property
     def kind(self) -> str:
@@ -116,11 +133,24 @@ class Document[T: Command | Environment]:
     def render(self, variant: str | None = None) -> str:
         """The `.tex` of the document, complete: pure, nothing is written. Raises an `ExceptionGroup` of texmodel
         `ValidationError` when the tree breaks a rule."""
-        return self._release.plan(self._kind, self.tree, variant).text
+        return self._release.plan(self._kind, self.tree, variant, self._extras).text
 
-    def replace(self, tree: T) -> "Document[T]":
-        """The same document, in the same directory, with another tree."""
-        return Document(tree, self.path, self._release, self._kind)
+    def replace(
+        self,
+        tree: T | None = None,
+        *,
+        settings: Sequence[AnyValue] | None = None,
+        options: Sequence[str] | None = None,
+        preamble: PreambleSlots | None = None,
+    ) -> "Document[T]":
+        """The same document, in the same directory, with another tree, and the settings, options or preamble given;
+        what is not given stays. Refused whole if the kind does not allow what is given (D10)."""
+        extras = self._release.kind(self._kind.name, self._kind.model).extras(
+            self._extras.settings if settings is None else settings,
+            self._extras.options if options is None else options,
+            self._extras.preamble if preamble is None else preamble,
+        )
+        return Document(self.tree if tree is None else tree, self.path, self._release, self._kind, extras)
 
     def _expected(self, stamp: str, time: str) -> dict[str, str | bytes]:
         """Every file a save writes, by path in the directory."""
@@ -128,21 +158,30 @@ class Document[T: Command | Environment]:
         payload = self._release.payload(self._kind, files)
         return (
             payload.expected()
-            | self._release.rendered(self._kind, self.tree)
-            | self._release.states(self._kind, self.tree)
+            | self._release.rendered(self._kind, self.tree, self._extras)
+            | self._release.states(self._kind, self.tree, self._extras)
         )
 
-    def _data_path(self, plan_path: str) -> str:
-        """A profile's tree is expanded before it is written, so a plan path names a node of the base's tree and not a
-        path in this document's data: it is given as it is."""
+    def _data_path(self, plan_path: str, variant: str | None) -> str:
+        """A line of a setting or a preamble entry the document set is at its place in the data (D10); one the kind
+        writes keeps its plan path. A profile's tree is expanded before it is written, so a plan path names a node of
+        the base's tree and not a path in this document's data: it is given as it is."""
+        own = handedits.extra_path(
+            plan_path,
+            locked=len(self._release.settings(self._kind, variant)),
+            layout=self._release.layout_preamble(self._kind),
+        )
+        if own:
+            return own
         return plan_path if self._kind.expand else handedits.data_path(plan_path)
 
     def hand_edits(self) -> tuple[HandEdit, ...]:
         """The lines of the `.tex` files that differ from the plan `save` kept of them (D8)."""
+        variants = {name: variant for variant, name in self._kind.documents()}
         return tuple(
             HandEdit(
                 self.path / name,
-                self._data_path(edit.path),
+                self._data_path(edit.path, variants[name]),
                 edit.expected,
                 edit.found,
                 HandEditKind(edit.kind.value),
@@ -157,8 +196,8 @@ class Document[T: Command | Environment]:
 
         The provenance files carry `stamp` (default: the release's version, V4) and the time of `now` (default: the
         clock, N4). Their time is kept while the stamp and the rest of the payload are as they were."""
-        rendered = self._release.rendered(self._kind, self.tree)
-        states = self._release.states(self._kind, self.tree)
+        rendered = self._release.rendered(self._kind, self.tree, self._extras)
+        states = self._release.states(self._kind, self.tree, self._extras)
         wanted = provenance.stamp_of(stamp, self._release)
         bare = self._release.payload(self._kind)
         bare.complete()

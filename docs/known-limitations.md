@@ -13,3 +13,8 @@ What texpkg does not do yet, and what it cannot do because of the layer below.
 - **A lock holds at the Python API only** (L5): a hand-written document can still `\renewcommand` a locked value.
 - **Computed dynamic imports are not seen.** The build refuses `importlib.import_module("texmodel...")` with a literal, not
   one with a computed name.
+- **A document's settable values are the kind's package's.** texmodel reads a setting back through the package that
+  renders the kind, so a profile cannot make a value of its base settable (`TP-K018`); the base's kind can.
+- **A bad preamble slot is found at render, not at `create`.** Which slot an entry may sit in is texmodel's check
+  (`TM-C008`), made when the `.tex` is written.
+

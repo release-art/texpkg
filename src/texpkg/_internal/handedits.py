@@ -8,10 +8,26 @@ import re
 from collections.abc import Sequence
 
 from texmodel.plan import Edit, Plan
+from texmodel.preamble import PreambleSlots
 
 from . import directory
 
 _NODE = re.compile(r"[A-Z][A-Za-z]*\[(\d+)\]")  # a component's name: a capital, then letters (TM-M001)
+
+
+_SETTING = re.compile(r"settings\[(\d+)\]")
+_ENTRY = re.compile(r"preamble\.(before_class|before_package|after_package)\[(\d+)\]")
+
+
+def extra_path(plan_path: str, *, locked: int, layout: PreambleSlots) -> str:
+    """The data path of a line that a setting or a preamble entry of the document wrote (D10), or `""`: the kind's own
+    `locked` settings come first in the plan, then the document's, and the layout's lines lead each preamble slot."""
+    if found := _SETTING.fullmatch(plan_path):
+        return f"/settings/{int(found[1]) - locked}" if int(found[1]) >= locked else ""
+    if found := _ENTRY.fullmatch(plan_path):
+        own = int(found[2]) - len(getattr(layout, found[1]))
+        return f"/preamble/{found[1]}/{own}" if own >= 0 else ""
+    return ""
 
 
 def data_path(plan_path: str) -> str:

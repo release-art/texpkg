@@ -56,7 +56,11 @@ def test_a_kind_module_exports_its_classes_and_value_types_never_the_packages_ot
 
 def test_the_two_schemas_of_a_kind(acme_brand_tex, expert):
     accepted, stored = expert.schema(), expert.schema(mode="serialization")
-    assert accepted == expert.schema("validation") and accepted["title"] == "Deck"
+    assert (
+        accepted == expert.schema("validation")
+        and accepted["title"] == "expert"
+        and accepted["properties"]["tree"] == {"$ref": "#/$defs/Deck"}
+    )
     fact_in, fact_out = accepted["$defs"]["Fact"], stored["$defs"]["Fact"]
     assert fact_in["required"] == ["text"] and "$defaults" not in fact_in["properties"]
     assert fact_out["required"] == ["accent", "text", "type"]
