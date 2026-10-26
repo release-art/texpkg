@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Loading a document whose stored state holds a field the model no longer has is a `MigrationError` (`TP-M003`, the field's
+  path and value) instead of dropping the value; a migration removes it on purpose.
+
 - `Distribution(root=".")`, a path relative to the declaring module (or absolute, an existing directory inside its package), replaces the required
   `declared_in=__name__`: the declaring package is read from the call. `Distribution.root` (the `Traversable`) is now
   `Distribution.files`.

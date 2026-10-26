@@ -2,7 +2,8 @@
 V23, V29, V31, V32).
 
 Every migration across the `data` versions crossed runs, in the order the build's, the kind's, the consumer's; the
-result is validated whole; any unresolved item, or any validation error left, aborts with the report.
+result is validated whole; any unresolved item, any validation error and any stored field the model no longer has
+left aborts with the report.
 """
 
 import copy
@@ -16,7 +17,7 @@ from ..errors import MigrationError
 from ..migration import DefaultChange, Migration, Unresolved
 from . import state
 from .envelope import Envelope
-from .history import problems
+from .history import problems, unplaced
 
 UNRESOLVED = (
     "$unresolved"  # in the state a migration gets: what the earlier ones left, as `{"path", "reason", "value"}`
@@ -101,6 +102,7 @@ def adopt(
                 tree = result.state
                 left = [*tree.pop(UNRESOLVED, []), *({**vars(u), "boundary": label} for u in result.unresolved)]
     schema = state.schema(kind.model, "validation")
+    left += [{**p, "boundary": "validation"} for p in unplaced(tree, schema)]
     left += [{**p, "boundary": "validation"} for p in problems(kind.model, state.given(tree), schema)]
     if left:
         items = tuple(

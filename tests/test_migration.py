@@ -254,3 +254,34 @@ def test_the_schema_of_a_field_is_found_or_empty():
     assert history.schema_at(schema, ("content", 1, "Fact", "accent")) == {"enum": ["a"]}
     assert history.schema_at(schema, ("content", 1, "Nothing", "accent")) == {}
     assert history.schema_at(schema, ("content",)) == {}
+
+
+def with_note(root: pathlib.Path) -> pathlib.Path:
+    path = root / "_texpkg/state.json"
+    envelope = json.loads(path.read_text())
+    envelope["tree"]["content"][0]["note"] = "keep this sentence"
+    path.write_text(json.dumps(envelope))
+    return root
+
+
+def test_a_stored_field_the_model_no_longer_has_is_unresolved_not_dropped(sheet, tmp_path):
+    root = with_note(release_4(tmp_path, data=5))
+    with pytest.raises(MigrationError) as raised:
+        sheet.load(root)
+    (item,) = (i for i in raised.value.unresolved if i.path.endswith("/note"))
+    assert (item.path, item.value) == ("/content/0/note", "keep this sentence")
+    assert "has to place it or remove it on purpose" in item.reason
+
+
+def test_a_migration_that_removes_the_field_on_purpose_lets_the_document_load(sheet, tmp_path):
+    @migration(to=5)
+    def drop_note(state):  # noqa: ANN001, ANN201
+        del state["content"][0]["note"]
+        return Migrated(state)
+
+    root = with_note(release_4(tmp_path))
+    assert sheet.load(root, migrations=[drop_note]).tree is not None
+
+
+def test_a_node_of_an_unknown_class_is_left_to_the_validation():
+    assert history.unplaced({"type": "Gone", "extra": 1}, {"title": "Sheet", "properties": {"type": {}}}) == []

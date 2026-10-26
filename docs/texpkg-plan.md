@@ -636,8 +636,9 @@ so the layers (the TeX, the embedded data, the kinds) only say where a change ca
   `w > current`: refused.
 - V15 **What no migration resolved is reported, never guessed** (**decided**). An unresolved item names the path, what
   changed, the new constraint (the JSON Schema of that path) and the old value; it comes from a migration that could not
-  place something, or from validation after the migrations (V30). texpkg never transforms user content and never calls a
-  model (N4).
+  place something, or from validation after the migrations (V30). A stored field the model no longer has is reported the
+  same way, since loading would drop it without a word: only a migration removes content, on purpose. texpkg never
+  transforms user content and never calls a model (N4).
 - V16 **Only what breaks is reported** (**proposed**): a tightened bound (a shorter `max_length`, fewer rows) or a value
   removed from a restricted palette (L2) reports only the values that break it; data that still fits migrates silently.
   How: V30.

@@ -64,3 +64,28 @@ def problems(
     return [
         {"path": violation_pointer(v.path), "reason": v.message, "value": None, "schema": {}} for v in tree.violations()
     ]
+
+
+def unplaced(state: Mapping[str, Any], schema: Mapping[str, Any], path: str = "") -> list[Problem]:
+    """The fields of a stored state that the model has no field for, which loading it would drop without a word: a
+    migration places each one or removes it on purpose. A node whose class the schema does not know is left to the
+    validation, which names it."""
+    fields = {schema.get("title"): schema.get("properties", {})} | {
+        name: node.get("properties", {}) for name, node in schema.get("$defs", {}).items()
+    }
+    known = fields.get(state.get("type"))
+    if known is None:
+        return []
+    out: list[Problem] = [
+        {
+            "path": f"{path}/{key}",
+            "reason": f"the model has no field {key!r}: a migration has to place it or remove it on purpose",
+            "value": value,
+            "schema": {},
+        }
+        for key, value in state.items()
+        if key not in known and key != "$defaults"
+    ]
+    for i, child in enumerate(state.get("content", ())):
+        out += unplaced(child, schema, f"{path}/content/{i}")
+    return out

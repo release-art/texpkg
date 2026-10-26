@@ -509,3 +509,10 @@ and stores it (so `dataclasses.replace` keeps it). `root: str = "."` is a path, 
 that asset paths are relative to; it is stored relative to that module and must stay inside the declaring package, which is
 what the wheel carries (`TP-K013`, symlinks followed; a `root` that is not a directory is `TP-K014`). A declaration outside any package raises `TP-K012`. The old `Distribution.root` property
 (a `Traversable`) is `Distribution.files`. Gates: ruff, pyright, lint-imports, pytest and the `tex` tests.
+
+## After the closing entry: no silent loss
+
+`adopt` also reports every stored field the model has no field for (`history.unplaced`, run on the state after the
+migrations and before `$defaults` marks are stripped): `from_dict` ignored such a key, so a field dropped from a model lost
+its content without a word. It is an unresolved item (`TP-M003`) until a migration places or deletes it. Not done: a migration
+that itself returns less than it was given is its own explicit act and is not checked.
