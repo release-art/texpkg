@@ -7,8 +7,7 @@ distribution: a package built on another writes into the same directory, which t
 import dataclasses
 import pathlib
 
-from texmodel.package import PreambleSlots
-from texmodel.preamble import GraphicsPath, InputPath
+from texmodel.preamble import GraphicsPath, InputPath, PreambleSlots
 
 from .assets import Role
 from .errors import DeclarationError

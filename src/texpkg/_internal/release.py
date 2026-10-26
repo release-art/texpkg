@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from texmodel.components import AnyValue, Command, Environment, Node
+from texmodel.document import Document as TexDocument
 from texmodel.package import setting_line
 from texmodel.plan import Plan
 
@@ -78,9 +79,11 @@ class Release:
         body = tree if kind.expand is None else kind.expand(tree)
         package = self.dist.owner(kind.name).package
         return package.plan(
-            body,
-            settings=self.settings(kind, variant),
-            preamble=self.dist.layout.preamble(graphics=self._has_graphics(kind)),
+            TexDocument(
+                body,
+                settings=self.settings(kind, variant),
+                preamble=self.dist.layout.preamble(graphics=self._has_graphics(kind)),
+            )
         )
 
     def export(

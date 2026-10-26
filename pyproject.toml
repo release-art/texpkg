@@ -12,7 +12,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 requires-python = ">=3.15,<3.16"
-dependencies = ["texmodel>=0.4.0", "pydantic>=2.14.1"]
+dependencies = ["texmodel>=0.5.1", "pydantic>=2.14.1"]
 
 [project.optional-dependencies]
 build = ["typer>=0.27.3", "pdm-backend>=2.4"]  # the author's build (texpkg_build); a built wheel embeds only the run time (B7, B8)

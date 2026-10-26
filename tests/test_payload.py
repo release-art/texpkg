@@ -10,8 +10,7 @@ from hypothesis import (
     given,
     strategies as st,
 )
-from texmodel.package import PreambleSlots
-from texmodel.preamble import GraphicsPath, InputPath
+from texmodel.preamble import GraphicsPath, InputPath, PreambleSlots
 
 from texpkg._internal import payload
 from texpkg.assets import Asset, Resolved, Role

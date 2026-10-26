@@ -62,4 +62,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A document directory places `.sty`, graphics and notes in `res/texpkg/` and fonts at its root; `Distribution(root=)` is the directory asset paths are relative to (default: the declaring module's), inside the declaring package.
 - `Kind(stem=)` names the kind's `.tex` files; the default is the root class lower-cased.
 - Loading a document whose stored state holds a field the model no longer has is a `MigrationError` (`TP-M003`, the field's path and value), never a silent loss; a migration removes it on purpose.
-- A wheel runs from a zip. Requires `texmodel>=0.4.0`.
+- A wheel runs from a zip. Requires `texmodel>=0.5.1`.
