@@ -507,5 +507,5 @@ updated; the export goldens regenerated. Gates: ruff, pyright, lint-imports, pyt
 `declared_in=__name__` is no longer passed: `Distribution` reads the declaring package from the call frame in `__post_init__`
 and stores it (so `dataclasses.replace` keeps it). `root: str = "."` is a path, relative to the declaring module or absolute,
 that asset paths are relative to; it is stored relative to that module and must stay inside the declaring package, which is
-what the wheel carries (`TP-K013`). A declaration outside any package raises `TP-K012`. The old `Distribution.root` property
+what the wheel carries (`TP-K013`, symlinks followed; a `root` that is not a directory is `TP-K014`). A declaration outside any package raises `TP-K012`. The old `Distribution.root` property
 (a `Traversable`) is `Distribution.files`. Gates: ruff, pyright, lint-imports, pytest and the `tex` tests.

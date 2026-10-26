@@ -146,12 +146,26 @@ def test_the_migration_api_is_one_decorator_over_plain_data():
 def test_the_declaring_package_is_read_from_the_call_and_root_is_a_path_inside_it():
     assert dist.declared_in == "acme_brand" and dist.root == "."
     assert dataclasses.replace(dist, name="other-tex").declared_in == "acme_brand"
-    assert distribution(root="data").root == "data" and distribution(root=str(HERE / "data")).root == "data"
+    assert distribution(root="fixtures/acme_brand").root == "fixtures/acme_brand"
+    assert distribution(root=str(HERE / "fixtures" / "acme_brand")).root == "fixtures/acme_brand"
 
 
 @pytest.mark.parametrize("root", ["..", "../other", "/elsewhere"])
 def test_a_root_outside_the_declaring_package_is_refused(root):
     assert code_of(distribution, root=root) == "TP-K013"
+
+
+def test_a_root_that_leaves_the_package_through_a_symlink_or_is_missing_is_refused(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = HERE / "_link_out"
+    link.symlink_to(outside)
+    try:
+        assert code_of(distribution, root="_link_out") == "TP-K013"
+    finally:
+        link.unlink()
+    assert code_of(distribution, root="no-such-directory") == "TP-K014"
+    assert code_of(distribution, root="test_declaration.py") == "TP-K014"
 
 
 def test_a_distribution_built_outside_a_package_is_refused():

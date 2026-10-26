@@ -441,7 +441,7 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 
 | Name | Signature | Status | Ref |
 |---|---|---|---|
-| distribution | `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=())`; `root` is the directory asset paths are relative to: a path relative to the module that calls `Distribution(...)` (default: its own directory) or absolute, inside the declaring package; its import name (`declared_in`) is read from the call. Outside the package: `TP-K013` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
+| distribution | `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=())`; `root` is the directory asset paths are relative to: a path relative to the module that calls `Distribution(...)` (default: its own directory) or absolute, inside the declaring package; its import name (`declared_in`) is read from the call. Symlinks are followed; outside the package: `TP-K013`, not a directory: `TP-K014` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
 | kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
 | asset | `Asset(path, role: Role, why: str, kinds=())`; `Role`: `PACKAGE`, `GRAPHIC`, `FONT`, `BY_PATH`, `NOTE` | decided (`kinds=` spelling proposed) | A1, A6 |
 | embedded data | `Design(model: type[BaseModel], path: str)` | decided | L1 |
