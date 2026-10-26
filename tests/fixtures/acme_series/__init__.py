@@ -10,7 +10,10 @@ dist = Distribution(
     module="acme_series_tex",
     package=pkg,
     assets=(Asset("assets/lmroman10-regular.otf", Role.FONT, "the typeface"),),
-    kinds=tuple(Kind(series.NAME, series.ROOT, (), series.example) for series in ALL),
+    kinds=tuple(
+        Kind(series.NAME, series.ROOT, (), series.example, settable=series.SETTABLE, options=series.OPTIONS)
+        for series in ALL
+    ),
 )
 
 __all__ = ["dist"]

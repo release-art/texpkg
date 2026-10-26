@@ -207,3 +207,26 @@ def test_each_kind_of_the_generated_package_is_a_module_with_its_own_classes():
     module = load_declaration("acme_series:dist", version="0.1.0")
     assert module.kinds.names() == ("long", "short")
     assert module.kinds.modules()["short"].example().__class__.__name__ == "ShortDeck"
+
+
+def test_a_generated_kind_lists_its_own_settable_values_and_options(tmp_path):
+    from texmodel.types import Length  # noqa: PLC0415
+
+    from texpkg.errors import NotAllowedError  # noqa: PLC0415
+
+    module = load_declaration("acme_series:dist", version="0.1.0")
+    try:
+        short, long = module.kinds.modules()["short"], module.kinds.modules()["long"]
+        doc = short.create(
+            tmp_path / "s", short.example(), settings=[short.ShortGap(Length("5mm"))], options=["a4paper"]
+        )
+        assert "\\setlength{\\seShortGap}{5mm}" in doc.render() and "\\documentclass[a4paper]" in doc.render()
+        with pytest.raises(NotAllowedError) as raised:  # another series' gap, and an option it does not offer
+            short.create(tmp_path / "t", short.example(), settings=[long.LongGap(Length("5mm"))], options=["landscape"])
+        assert [i["path"] for i in raised.value.items] == ["/settings/0", "/options/0"]
+        stored = short.schema("serialization")
+        assert [r["$ref"] for r in stored["properties"]["settings"]["items"]["oneOf"]] == ["#/$defs/ShortGapSetting"]
+        assert long.schema()["properties"]["options"]["items"] == {"enum": ["a4paper", "landscape"]}
+    finally:
+        for name in [n for n in sys.modules if n.split(".")[0] == "acme_series_tex"]:
+            del sys.modules[name]

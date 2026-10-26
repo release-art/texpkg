@@ -337,7 +337,7 @@ mode presets that a deck cannot set.
   its tokens) is written by a generator: `[tool.texpkg] generate = "module:function"` names a pure
   `function(root: Path) -> {path: source}`, `root` the declaring package's directory and each path a `.py` file inside
   it. `texpkg-build generate` writes the files (each with a header; `--check` only reports) and removes generated files
-  it no longer produces; `pdm build` runs the function again and refuses a file that is missing, differs or is left over
+  it no longer produces (the header carries `# fmt: off`, so a formatter leaves them as written); `pdm build` runs the function again and refuses a file that is missing, differs or is left over
   (`TP-B012`), and a function that is not deterministic or returns a bad path (`TP-B013`), as it refuses a stale
   `contracts/next` (V12). The declaration imports the files like any module, so a consumer's pyright, a wheel, a zip and
   an editable install all see real classes, and the contracts are snapshotted from them (V11). The generator must not

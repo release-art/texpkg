@@ -13,8 +13,8 @@ _SERIES = string.Template(
 
         import enum
 
-        from texmodel.components import Command, Environment
-        from texmodel.types import Choice, Text
+        from texmodel.components import Command, Environment, Value
+        from texmodel.types import Choice, Length, Text
 
         from ..model import Title, pkg
 
@@ -24,6 +24,13 @@ _SERIES = string.Template(
             """The accents a fact of the $name series may take."""
 
         $members
+
+
+        @pkg.value
+        class ${prefix}Gap(Value[Length]):
+            """Space under each fact of a $name card."""
+
+            default = Length("$gap")
 
 
         @pkg.command
@@ -58,6 +65,8 @@ _SERIES = string.Template(
 
         NAME = "$name"
         ROOT = ${prefix}Deck
+        SETTABLE = (${prefix}Gap,)
+        OPTIONS = ($options)
 
 
         def example() -> ${prefix}Deck:
@@ -81,6 +90,8 @@ def _module(series: dict[str, object]) -> str:
         facts_min=facts[0],
         facts_max=facts[1],
         first=str(accents[0]).upper(),
+        gap=series["gap"],
+        options="".join(f'"{o}", ' for o in series["options"]),
         members="\n".join(f'    {str(a).upper()} = "{a}"' for a in accents),
     )
 
