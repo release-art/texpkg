@@ -1,5 +1,6 @@
 """The datasheet as a texpkg declaration with one migration, written by the kind's author (V6, V32)."""
 
+from pathlib import PurePosixPath
 from typing import Any
 
 from texpkg import Distribution, Kind, Migrated, Unresolved, migration

@@ -35,16 +35,9 @@ def test_a_saved_document_compiles_with_only_its_payload(acme_brand_tex, compile
     assert result.pages == 1
 
 
-def test_a_flat_layout_compiles_too(compiler: Compiler, tmp_path):
-    module = load_declaration("acme_brand:flat", version="1.2.0")
-    root = saved(module, "expert", tmp_path / "doc")
-    assert (root / "acme-brand.sty").is_file() and not (root / "res").exists()
-    compiler.compile(root / "deck.tex", tmp_path / "out").raise_for_status()
-
-
 def test_a_missing_lockup_is_a_compile_error_not_a_silent_fallback(acme_brand_tex, compiler: Compiler, tmp_path):
     root = saved(acme_brand_tex, "expert", tmp_path / "doc")
-    (root / "res" / "acme" / "lockup.pdf").unlink()
+    (root / "res" / "texpkg" / "lockup.pdf").unlink()
     assert not compiler.compile(root / "deck.tex", tmp_path / "out").ok
 
 
@@ -91,7 +84,7 @@ def test_the_provenance_is_printable_and_is_in_the_pdfs_info_dictionary(acme_bra
     import pikepdf
 
     root = saved(acme_brand_tex, "expert", tmp_path / "doc")
-    (root / "res/acme/acme-brand-provenance.sty").unlink()
+    (root / "res/texpkg/acme-brand-provenance.sty").unlink()
     module = acme_brand_tex.kinds.modules()["expert"]
     module.load(root).save(now=datetime.datetime(2026, 10, 25, 12, 30, 5, tzinfo=datetime.UTC), stamp="1.2.0-3f9c2ab")
     source = with_provenance(root, "\\DocumentMetadata{lang=en-GB}\n")
@@ -105,7 +98,7 @@ def test_the_provenance_is_printable_and_is_in_the_pdfs_info_dictionary(acme_bra
 
 def test_without_a_provenance_file_the_command_says_what_the_package_is(acme_brand_tex, compiler, tmp_path):
     root = saved(acme_brand_tex, "expert", tmp_path / "doc")
-    (root / "res/acme/acme-brand-provenance.sty").unlink()
+    (root / "res/texpkg/acme-brand-provenance.sty").unlink()
     result = compiler.compile(with_provenance(root, ""), tmp_path / "out")
     result.raise_for_status()
     assert "PROVENANCE: acme-brand 1.2.0\n" in result.log.read_text()

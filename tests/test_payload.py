@@ -16,11 +16,11 @@ from texmodel.preamble import GraphicsPath, InputPath
 from texpkg._internal import payload
 from texpkg.assets import Asset, Resolved, Role
 from texpkg.errors import DeclarationError, PayloadError
-from texpkg.layout import Flat, Project
+from texpkg.layout import Project
 
 FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "acme_brand" / "assets"
 POSIX = pathlib.PurePosixPath
-PROJECT = Project(POSIX("res/acme"))
+PROJECT = Project(POSIX("res/texpkg"))
 
 
 def resolved(path: str, role: Role, kinds: tuple[str, ...] = (), source: Traversable | None = None) -> Resolved:
@@ -28,27 +28,24 @@ def resolved(path: str, role: Role, kinds: tuple[str, ...] = (), source: Travers
 
 
 @pytest.mark.parametrize(
-    ("role", "flat", "project"),
+    ("role", "placed"),
     [
-        (Role.PACKAGE, "x.sty", "res/acme/x.sty"),
-        (Role.GRAPHIC, "x.sty", "res/acme/x.sty"),
-        (Role.FONT, "x.sty", "x.sty"),
-        (Role.BY_PATH, "sub/x.sty", "sub/x.sty"),
-        (Role.NOTE, "x.sty", "res/acme/x.sty"),
+        (Role.PACKAGE, "res/texpkg/x.sty"),
+        (Role.GRAPHIC, "res/texpkg/x.sty"),
+        (Role.FONT, "x.sty"),
+        (Role.BY_PATH, "sub/x.sty"),
+        (Role.NOTE, "res/texpkg/x.sty"),
     ],
 )
-def test_each_role_has_a_place_in_each_layout(role, flat, project):
-    path = POSIX("sub/x.sty")
-    assert Flat().place(role, path) == POSIX(flat)
-    assert PROJECT.place(role, path) == POSIX(project)
+def test_each_role_has_a_place_in_the_layout(role, placed):
+    assert PROJECT.place(role, POSIX("sub/x.sty")) == POSIX(placed)
 
 
-def test_a_layout_gives_the_preamble_lines_that_find_its_files():
-    assert Flat().preamble() == PreambleSlots()
+def test_the_layout_gives_the_preamble_lines_that_find_its_files():
     assert PROJECT.preamble() == PreambleSlots(
-        before_package=(InputPath("res/acme/"),), after_package=(GraphicsPath("res/acme/"),)
+        before_package=(InputPath("res/texpkg/"),), after_package=(GraphicsPath("res/texpkg/"),)
     )
-    assert Flat().owned() == ("*.sty",) and PROJECT.owned() == ("res/acme/**/*",)
+    assert PROJECT.owned() == ("res/texpkg/**/*",)
 
 
 @pytest.mark.parametrize("bad", ["", "/abs", "../up", "a/../b", "a\\b"])
@@ -74,8 +71,8 @@ def test_an_asset_names_the_kinds_that_need_it():
 def test_a_payload_leaves_out_the_assets_of_other_kinds():
     assets = [resolved("lockup.pdf", Role.GRAPHIC, ("expert",)), resolved("NOTICE.txt", Role.NOTE)]
     names = lambda kind: sorted(str(p.dest) for p in payload.build({}, assets, PROJECT, kind).assets)  # noqa: E731
-    assert names(("expert",)) == ["res/acme/NOTICE.txt", "res/acme/lockup.pdf"]
-    assert names(("vocab",)) == ["res/acme/NOTICE.txt"]
+    assert names(("expert",)) == ["res/texpkg/NOTICE.txt", "res/texpkg/lockup.pdf"]
+    assert names(("vocab",)) == ["res/texpkg/NOTICE.txt"]
     assert names(None) == names(("expert",))
 
 
@@ -86,16 +83,16 @@ def test_the_same_file_twice_is_one_and_two_different_files_on_one_path_are_refu
     (tmp_path / "b" / "n.txt").write_text("one")
     same = [resolved("a/n.txt", Role.NOTE, source=tmp_path / "a" / "n.txt"),
             resolved("b/n.txt", Role.NOTE, source=tmp_path / "b" / "n.txt")]  # fmt: skip
-    assert len(payload.build({}, same, Flat()).assets) == 1
+    assert len(payload.build({}, same, PROJECT).assets) == 1
     (tmp_path / "b" / "n.txt").write_text("two")
     with pytest.raises(DeclarationError) as raised:
-        payload.build({}, same, Flat())
+        payload.build({}, same, PROJECT)
     assert raised.value.code == "TP-A002" and "a/n.txt" in str(raised.value)
 
 
 def test_a_generated_sty_cannot_share_a_path_with_an_asset():
     with pytest.raises(DeclarationError) as raised:
-        payload.build({"NOTICE.txt": "x"}, [resolved("NOTICE.txt", Role.NOTE)], Flat())
+        payload.build({"NOTICE.txt": "x"}, [resolved("NOTICE.txt", Role.NOTE)], PROJECT)
     assert raised.value.code == "TP-A002"
 
 
@@ -106,7 +103,7 @@ def test_a_generated_sty_cannot_share_a_path_with_an_asset():
         ),
         max_size=8,
     ),
-    st.sampled_from([Flat(), PROJECT]),
+    st.just(PROJECT),
 )
 def test_placement_is_injective_or_raises(entries, layout):
     zipped = io.BytesIO()
@@ -129,16 +126,16 @@ def test_a_payload_is_written_whole_and_only_what_changed(tmp_path):
     built = payload.build({"acme.sty": "\\ProvidesPackage{acme}\n"}, assets, PROJECT)
     written = built.write(tmp_path)
     assert sorted(p.relative_to(tmp_path).as_posix() for p in written) == [
-        "lmroman10-regular.otf", "res/acme/acme.sty", "res/acme/lockup.pdf",
+        "lmroman10-regular.otf", "res/texpkg/acme.sty", "res/texpkg/lockup.pdf",
     ]  # fmt: skip
     assert built.write(tmp_path) == ()
-    (tmp_path / "res/acme/acme.sty").write_text("edited")
+    (tmp_path / "res/texpkg/acme.sty").write_text("edited")
     assert [p.name for p in built.write(tmp_path)] == ["acme.sty"]
 
 
 def test_an_incomplete_payload_writes_nothing(tmp_path):
     assets = [resolved("lockup.pdf", Role.GRAPHIC), resolved("gone.pdf", Role.GRAPHIC)]
-    built = payload.build({"acme.sty": "x"}, assets, Flat())
+    built = payload.build({"acme.sty": "x"}, assets, PROJECT)
     with pytest.raises(PayloadError) as raised:
         built.write(tmp_path / "out")
     assert raised.value.code == "TP-A004" and "gone.pdf" in str(raised.value)
@@ -152,12 +149,12 @@ def test_check_reports_unchanged_changed_missing_and_extra(tmp_path):
     built = payload.build({"acme.sty": "x"}, assets, PROJECT)
     built.write(tmp_path)
     assert built.check(tmp_path, PROJECT.owned()).ok
-    (tmp_path / "res/acme/acme.sty").write_text("y")
-    (tmp_path / "res/acme/lockup.pdf").unlink()
-    (tmp_path / "res/acme/retired.sty").write_text("old")
+    (tmp_path / "res/texpkg/acme.sty").write_text("y")
+    (tmp_path / "res/texpkg/lockup.pdf").unlink()
+    (tmp_path / "res/texpkg/retired.sty").write_text("old")
     report = built.check(tmp_path, PROJECT.owned())
     assert (report.stale, report.missing, report.orphaned) == (
-        ("res/acme/acme.sty",), ("res/acme/lockup.pdf",), ("res/acme/retired.sty",),
+        ("res/texpkg/acme.sty",), ("res/texpkg/lockup.pdf",), ("res/texpkg/retired.sty",),
     )  # fmt: skip
 
 
@@ -166,6 +163,6 @@ def test_a_payload_from_a_zipped_package_is_written(tmp_path):
     with zipfile.ZipFile(zipped, "w") as z:
         z.writestr("assets/NOTICE.txt", "notice")
     root = zipfile.Path(zipfile.ZipFile(zipped))
-    built = payload.build({}, [resolved("assets/NOTICE.txt", Role.NOTE, source=root / "assets/NOTICE.txt")], Flat())
+    built = payload.build({}, [resolved("assets/NOTICE.txt", Role.NOTE, source=root / "assets/NOTICE.txt")], PROJECT)
     built.write(tmp_path)
-    assert (tmp_path / "NOTICE.txt").read_text() == "notice"
+    assert (tmp_path / "res/texpkg/NOTICE.txt").read_text() == "notice"

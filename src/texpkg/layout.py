@@ -1,46 +1,17 @@
-"""Layouts (A2): where a payload file goes under a document directory, and the preamble lines that find it (A5).
+"""The layout (A2): where a payload file goes under a document directory, and the preamble lines that find it (A5).
 
-A layout is policy over `texmodel.bundle`, which decides nothing about placement.
+Policy over `texmodel.bundle`, which decides nothing about placement. There is one layout, `LAYOUT`, for every
+distribution: a package built on another writes into the same directory, which the one set of preamble lines finds.
 """
 
 import dataclasses
 import pathlib
-from typing import Protocol
 
 from texmodel.package import PreambleSlots
 from texmodel.preamble import GraphicsPath, InputPath
 
 from .assets import Role
 from .errors import DeclarationError
-
-
-class Layout(Protocol):
-    def place(self, role: Role, path: pathlib.PurePosixPath) -> pathlib.PurePosixPath:
-        """Where the file `path` (a declared asset's, or a generated `.sty`'s name) of `role` goes."""
-        ...
-
-    def preamble(self) -> PreambleSlots:
-        """The lines a generated `.tex` needs to find what `place` put where (A5)."""
-        ...
-
-    def owned(self) -> tuple[str, ...]:
-        """Globs under the document directory that only the payload writes to: a file there that the payload does not
-        hold is `extra` (A4)."""
-        ...
-
-
-@dataclasses.dataclass(frozen=True)
-class Flat:
-    """Everything in the document's own directory, which kpathsea searches first. `BY_PATH` keeps its path."""
-
-    def place(self, role: Role, path: pathlib.PurePosixPath) -> pathlib.PurePosixPath:
-        return path if role is Role.BY_PATH else pathlib.PurePosixPath(path.name)
-
-    def preamble(self) -> PreambleSlots:
-        return PreambleSlots()
-
-    def owned(self) -> tuple[str, ...]:
-        return ("*.sty",)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -72,3 +43,6 @@ class Project:
 
     def owned(self) -> tuple[str, ...]:
         return (f"{self.dir}/**/*",)
+
+
+LAYOUT = Project(pathlib.PurePosixPath("res/texpkg"))

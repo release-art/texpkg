@@ -8,14 +8,14 @@ Compile the template with LuaLaTeX from this directory:
 
 ## Files
 
-- `NOTICE.txt`
 - `README-expert.md`
 - `README-vocab.md`
-- `acme-brand-provenance.sty`
-- `acme-brand.sty`
 - `expert-template.tex`
 - `lmroman10-regular.otf`
-- `lockup.pdf`
+- `res/texpkg/NOTICE.txt`
+- `res/texpkg/acme-brand-provenance.sty`
+- `res/texpkg/acme-brand.sty`
+- `res/texpkg/lockup.pdf`
 - `vocab-template.tex`
 
 ## The template is written with

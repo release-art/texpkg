@@ -44,7 +44,7 @@ src/texpkg/                      the run time: embedded into every built wheel (
                                  migration, Migrated, Unresolved, DefaultChange
     declaration.py               Distribution, Kind, Variant, Design (frozen; checked at construction)
     assets.py                    Asset, Role
-    layout.py                    Flat, Project: placement and preamble lines
+    layout.py                    LAYOUT: placement and preamble lines
     document.py                  Document[T], Check, FileState, HandEdit, TemplateChange
     migration.py                 migration, Migrated, Unresolved, DefaultChange; the runner (V28–V32)
     errors.py                    TexpkgError and the error classes of §4a (built-in bases, stable `.code`)
@@ -94,7 +94,7 @@ Each phase lists: **goal**, **builds** (modules, the key signatures), **reuses**
 - **Builds:**
   - `assets.py`: `@enum.unique class Role(StrEnum)`; `Asset(path: str, role: Role, why: str, kinds: tuple[str, ...] = ())`,
     frozen, `path` relative to the declaring package's root, read with `importlib.resources.files(...)`.
-  - `layout.py`: `Flat()` and `Project(dir: PurePosixPath)`, each with `place(asset) -> PurePosixPath` (A1, A2: fonts at
+  - `layout.py`: `Project(dir: PurePosixPath)`, with `place(asset) -> PurePosixPath` (A1, A2: fonts at
     the root for `Project`, `BY_PATH` keeps its path) and `preamble() -> PreambleSlots` pieces (A5, from texmodel's
     `InputPath`, `GraphicsPath`).
   - `_internal/payload.py`: `items(sty: Mapping[str, str], assets, layout, kind) -> tuple[bundle.Item, ...]`; a
@@ -114,7 +114,7 @@ Each phase lists: **goal**, **builds** (modules, the key signatures), **reuses**
 - **Goal:** everything a consumer calls, working from a declaration loaded in the same process (1.4), before any wheel
   exists.
 - **Builds:**
-  - `declaration.py`: `Distribution(name, module, package, design=None, assets=(), kinds=(), base=None, expose=())`,
+  - `declaration.py`: `Distribution(name, module, package, declared_in, design=None, assets=(), kinds=(), base=None, expose=())`,
     `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=())`, `Variant(name, settings)`,
     `Design(model, path)`. Checked at construction: kind names unique, `example()` validates against `model`, `allow_raw`
     names real fields and every `Raw`/`Passthrough` field is listed (P25), variant names unique.
@@ -251,7 +251,7 @@ Each phase lists: **goal**, **builds** (modules, the key signatures), **reuses**
 
 ### Phase 6: export (E1)
 
-- **Builds:** `acme_tex.export(dest, *, now=None)`: the whole payload in `Flat`, one template `.tex` per kind (its
+- **Builds:** `acme_tex.export(dest, *, now=None)`: the whole payload in the layout, one template `.tex` per kind (its
   `example()` rendered with the kind's settings, so locks reach plain-LaTeX users, L8), a README per kind generated from
   the kind's classes, and the provenance file.
 - **Tests:** compile each template in the export with the search environment unset.

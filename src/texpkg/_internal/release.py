@@ -28,7 +28,6 @@ from ..errors import (
     NewerDataError,
     NotADocumentError,
 )
-from ..layout import Flat, Layout
 from ..migration import DefaultChange, Migration
 from . import directory, export, payload, snapshots, state
 from .adopt import adopt
@@ -68,30 +67,28 @@ class Release:
         base = self.dist.base_kind(kind)
         return (*(base.presets if base else ()), *kind.settings(variant))
 
-    def plan(self, kind: Kind, tree: Node, variant: str | None, layout: Layout | None = None) -> Plan:
+    def plan(self, kind: Kind, tree: Node, variant: str | None) -> Plan:
         """The `.tex` of `tree` as lines with provenance: the kind's presets, then the variant's settings (L8).
 
         An exposed base kind is written by the base's package; the directory's layout is this distribution's."""
         body = tree if kind.expand is None else kind.expand(tree)
         package = self.dist.owner(kind.name).package
-        return package.plan(
-            body, settings=self.settings(kind, variant), preamble=(layout or self.dist.layout).preamble()
-        )
+        return package.plan(body, settings=self.settings(kind, variant), preamble=self.dist.layout.preamble())
 
     def export(
         self, destination: pathlib.Path | str, now: datetime.datetime | None, stamp: str | None
     ) -> tuple[pathlib.Path, ...]:
-        """Write the whole payload flat, the provenance files, and a template and a README per kind (E1). Refused whole
-        if a file is missing (A3)."""
+        """Write the whole payload in the layout, the provenance files, and a template and a README per kind (E1).
+        Refused whole if a file is missing (A3)."""
         root = pathlib.Path(destination)
         wanted = provenance.stamp_of(stamp, self)
         files = provenance.files(self, wanted, provenance.time_of(now))
-        everything = payload.build({**self.sty, **files}, tuple(self.dist.resolved_assets()), Flat(), None)
+        everything = payload.build({**self.sty, **files}, tuple(self.dist.resolved_assets()), self.dist.layout, None)
         everything.complete()
         names = sorted(everything.expected())
         texts: dict[str, str] = {}
         for kind in self.dist.kinds_offered():
-            texts[export.template_name(kind)] = self.plan(kind, kind.example(), None, Flat()).text
+            texts[export.template_name(kind)] = self.plan(kind, kind.example(), None).text
         listing = [*names, *texts, *(export.readme_name(k) for k in self.dist.kinds_offered())]
         for kind in self.dist.kinds_offered():
             texts[export.readme_name(kind)] = export.readme(self.dist, kind, self.version, sorted(listing))

@@ -130,8 +130,8 @@ def test_an_installed_wheel_needs_nothing_of_the_authors_project(project, tmp_pa
     report = json.loads(done.stdout)
     assert report["version"] == "1.2.0" and report["names"] == ["expert", "vocab"]
     assert report["tex"] == expert.create(tmp_path / "again", expert.example()).render("wide")
-    assert "res/acme/lockup.pdf" in report["saved"] and "lmroman10-regular.otf" in report["saved"]
-    lockup = tmp_path / "doc/res/acme/lockup.pdf"
+    assert "res/texpkg/lockup.pdf" in report["saved"] and "lmroman10-regular.otf" in report["saved"]
+    lockup = tmp_path / "doc/res/texpkg/lockup.pdf"
     assert lockup.read_bytes() == (project / "src/acme_brand/assets/lockup.pdf").read_bytes()
 
 

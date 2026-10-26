@@ -159,7 +159,7 @@ The surface is specified in §4a; the requirements behind it follow.
 - P27 **A document is a directory** (**decided**), not a single file: it holds the document's state (JSON, possibly
   several files), the last rendered `.tex`, the materialised payload, and the consumer's own resources. `load` takes a
   `pathlib.Path` to it (**decided**); fsspec paths are **parked** (not in v1). `save` and `check` act on that directory (`render` is pure and
-  writes nothing), so the layout (A2, `PROJECT(dir)`) describes a document directory.
+  writes nothing), so the layout (A2) describes a document directory.
 - P28 **The document is a texpkg object** (**decided**): `load` and `create` return a `Document` that holds the kind's
   texmodel tree (`doc.tree`, typed per kind: `Document[expert.Deck]`) and carries texpkg's interface as methods
   (`render`, `save`, `check`). No module-level `render(doc)`.
@@ -200,7 +200,7 @@ The surface is specified in §4a; the requirements behind it follow.
       _texpkg/history/1/…        the previous pair; up to 3
       deck.tex                   the last render
       images/…                   the consumer's own resources
-      res/acme/…, *.ttf          the materialised payload (PROJECT layout)
+      res/acme/…, *.ttf          the materialised payload (`Project` layout)
   ```
 
 - D6 **The template state records only what reached the document** (**decided**): the settings `render` wrote for its
@@ -356,7 +356,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 |---|---|---|---|
 | kinds listed | `acme_tex.kinds.names() -> tuple[str, ...]` | decided | P26 |
 | kinds by name | `acme_tex.kinds.modules() -> Mapping[str, KindModule]` | decided | P26 |
-| plain-LaTeX export | `acme_tex.export(dest: Path \| str, *, now: datetime \| None = None, stamp: str \| None = None) -> tuple[Path, ...]` | decided: writes the package's `.sty`, those it embeds and every asset (`FLAT` layout), refused whole if a file is missing; one template `.tex` per kind and a README: proposed | E1, A3 |
+| plain-LaTeX export | `acme_tex.export(dest: Path \| str, *, now: datetime \| None = None, stamp: str \| None = None) -> tuple[Path, ...]` | decided: writes the package's `.sty`, those it embeds and every asset (in the layout, A2), refused whole if a file is missing; one template `.tex` per kind and a README: proposed | E1, A3 |
 | any kind | `acme_tex.load(path: Path \| str, *, migrations: Sequence[Migration] = (), default_changes: DefaultChange \| Mapping[str, DefaultChange] = DefaultChange.FOLLOW) -> Document[Any]` | decided as a nice-to-have | P26, V23 |
 | release version | `acme_tex.__version__: str` | decided | V1 |
 | contract versions | `acme_tex.CONTRACTS: Contracts` (`.data`, `.interface`: `Triple(current, revision, age)`; `.output`: `Pair(current, revision)`) | decided | V10 |
@@ -441,7 +441,7 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 
 | Name | Signature | Status | Ref |
 |---|---|---|---|
-| distribution | `Distribution(name, module, package, declared_in, design=None, assets=(), kinds=(), base=None, expose=(), layout=Flat())`; `declared_in=__name__` in the declaring package's `__init__.py` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
+| distribution | `Distribution(name, module, package, declared_in, design=None, assets=(), kinds=(), base=None, expose=())`; `declared_in=__name__` in the declaring package's `__init__.py` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
 | kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
 | asset | `Asset(path, role: Role, why: str, kinds=())`; `Role`: `PACKAGE`, `GRAPHIC`, `FONT`, `BY_PATH`, `NOTE` | decided (`kinds=` spelling proposed) | A1, A6 |
 | embedded data | `Design(model: type[BaseModel], path: str)` | decided | L1 |
@@ -476,9 +476,10 @@ distribution = "acme_tex_decl:dist"
 - A1 An asset is `Asset(path, role, why, kinds=())`; `Role` is an enum (**decided**): `PACKAGE` (`.sty`), `GRAPHIC`, `FONT`,
   `BY_PATH` (named by path in a preamble, keeps that path), `NOTE` (notes, licences). The role decides placement; no rule is
   inferred from a suffix.
-- A2 Layouts (**decided** for v1): `FLAT` (everything in the document's own directory, which kpathsea searches first) and
-  `PROJECT(dir)` (`.sty` and graphics in `dir`, fonts at the root because luaotfload reads no document-side search path,
-  `BY_PATH` at its own path). A TDS / `TEXMFHOME` layout waits for a consumer that needs it.
+- A2 The layout (**decided**): one, fixed, not part of the declaration API. `.sty` and graphics go in `res/texpkg/`, fonts
+  at the root because luaotfload reads no document-side search path, `BY_PATH` at its own path. Every distribution in a
+  chain writes there, so one set of preamble lines finds all of it; `save` and `export` both use it. A TDS / `TEXMFHOME`
+  layout waits for a consumer that needs it.
 - A3 Materialising refuses the whole payload if any file is missing, writes bytes (never a link or a path) and removes
   nothing (**decided**).
 - A4 `check` compares by content, never by mtime. Each file is `unchanged`, `changed`, `missing` or `extra` (`extra`: a
@@ -733,7 +734,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 
 ## 7. Export (opportunistic)
 
-- E1 `export(dir)`: the payload in the `FLAT` layout plus a README, compiling with a bare `latexmk -lualatex`.
+- E1 `export(dir)`: the payload in the layout (A2), a template and a README per kind; the templates carry the layout's search-path lines and compile with a bare `latexmk -lualatex`.
 
 ## 8. Phases
 
@@ -764,7 +765,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | A texpkg package carries its texmodel API so a project generates TeX from its own data | decided |
 | API and TeX ship at one version | decided |
 | texpkg is a pure library: no process, no clock; stamps and times are arguments, except the provenance time, read from the clock unless `now=` is given | decided |
-| v1 layouts are `FLAT` and `PROJECT(dir)`; TDS later | decided |
+| one fixed layout, `res/texpkg/`, for `save` and `export`; TDS later | decided |
 | No command line for consumers in v1 (a library only); authors get the `texpkg-build` command | decided |
 | Compiling, search-path environments and the font check are outside texpkg | decided |
 | texpkg packages can depend on each other | decided |

@@ -8,7 +8,7 @@ import acme_brand_tex  # pyright: ignore[reportMissingImports]
 from acme_brand_tex._declaration.model import FactGap  # pyright: ignore[reportMissingImports]
 from texmodel.types import Length
 
-from texpkg import Asset, Distribution, Kind, Project, Role
+from texpkg import Asset, Distribution, Kind, Role
 
 from .model import Brief, Heading, Headline, Point, Slide, Tint, expand, pkg
 
@@ -40,7 +40,6 @@ dist = Distribution(
     ),
     base=acme_brand_tex.dist,
     expose=("vocab",),
-    layout=Project(pathlib.PurePosixPath("res/acme")),
 )
 
 __all__ = ["Heading", "Slide", "dist", "slide_example"]

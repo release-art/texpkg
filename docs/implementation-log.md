@@ -492,3 +492,12 @@ How to check: `pdm install`, then the gates (`ruff format --check src tests`, `r
 `pytest`: 250 passed, 1 xfailed, 100% coverage), then `TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov` (17 compile tests,
 needs the `texmodel-test` image or `TEXPKG_TEST_IMAGE`; the PDF/X check needs `gs` and `verapdf` on the host). Phase 7's
 clean-environment test is `tests/test_end_to_end.py`; the embedding one is `tests/test_embed.py`.
+
+## After the closing entry: one layout
+
+`Flat`, the `Layout` protocol and the `layout=` argument of `Distribution` are removed: there is one fixed layout, `LAYOUT`
+(`res/texpkg/`, fonts at the root), and `export` places the payload in it (the templates carry `\input@path` and
+`\graphicspath`). It is fixed, not per distribution, because only the top package's preamble lines reach the `.tex`, so a
+chain has to share one directory. Reason: nothing needed `Flat`, and `export` in the layout keeps package files apart from the
+user's own. Plan A2, E1, the API table and the decisions log
+updated; the export goldens regenerated. Gates: ruff, pyright, lint-imports, pytest (249 passed, 1 xfailed, 100% coverage); the 16 `tex` tests pass.

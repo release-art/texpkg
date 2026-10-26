@@ -93,7 +93,12 @@ def test_a_kind_writes_its_presets_and_then_its_variant():
 
 
 def distribution(**changes):  # noqa: ANN003, ANN201
-    fields = {"name": "x-tex", "module": "x_tex", "package": pkg, "declared_in": "acme_brand"}
+    fields = {
+        "name": "x-tex",
+        "module": "x_tex",
+        "package": pkg,
+        "declared_in": "acme_brand",
+    }
     return Distribution(**fields | changes)
 
 

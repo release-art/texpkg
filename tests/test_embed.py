@@ -219,15 +219,15 @@ def test_a_wheel_installs_into_a_fresh_environment_that_has_only_pydantic(brand_
         "_texpkg/state.json",
         "_texpkg/template.json",
         "lmroman10-regular.otf",
-        "res/acme/DECK.txt",
-        "res/acme/NOTICE.txt",
-        "res/acme/acme-brand-provenance.sty",
-        "res/acme/acme-brand.sty",
-        "res/acme/acme-deck-provenance.sty",
-        "res/acme/acme-deck.sty",
+        "res/texpkg/DECK.txt",
+        "res/texpkg/NOTICE.txt",
+        "res/texpkg/acme-brand-provenance.sty",
+        "res/texpkg/acme-brand.sty",
+        "res/texpkg/acme-deck-provenance.sty",
+        "res/texpkg/acme-deck.sty",
         "slide.tex",
     ]
-    assert "res/acme/acme-brand.sty" in report["vocab"] and "glossary.tex" in report["vocab"]
+    assert "res/texpkg/acme-brand.sty" in report["vocab"] and "glossary.tex" in report["vocab"]
     assert report["stack"] == ["acme-deck-tex 0.1.0", "acme-brand-tex 1.2.0"]
     assert report["generator"].count(".") == 2
 
@@ -310,7 +310,7 @@ def test_the_dev_loop_builds_a_dependent_in_memory(tmp_path, acme_brand_tex):
         assert module.kinds.names() == ("slide", "brief", "vocab") and vocab.NAME == "vocab"
         doc = vocab.create(tmp_path / "v", vocab.example())
         doc.save()
-        assert (tmp_path / "v/res/acme/acme-brand.sty").is_file() and "abGlossary" in doc.render()
+        assert (tmp_path / "v/res/texpkg/acme-brand.sty").is_file() and "abGlossary" in doc.render()
         assert slide.create(tmp_path / "s", slide.example()).render().count("\\adHeading") == 2
         assert [e.package for e in doc.stack.entries] == ["acme-deck-tex", "acme-brand-tex"]
     finally:
@@ -415,4 +415,6 @@ def test_a_chain_of_three_flattens_to_one_copy_of_each(brand_site, tmp_path, mon
         "acme-deck-tex",
         "acme-brand-tex",
     ]
-    assert (tmp_path / "doc/acme-brand.sty").is_file() and (tmp_path / "doc/acme-deck.sty").is_file()
+    assert (tmp_path / "doc/res/texpkg/acme-brand.sty").is_file() and (
+        tmp_path / "doc/res/texpkg/acme-deck.sty"
+    ).is_file()

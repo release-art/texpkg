@@ -2,7 +2,6 @@
 
 from .assets import Asset, Role
 from .declaration import Design, Distribution, Kind, Variant
-from .layout import Flat, Project
 from .migration import DefaultChange, Migrated, Unresolved, migration
 
 __all__ = [
@@ -10,10 +9,8 @@ __all__ = [
     "DefaultChange",
     "Design",
     "Distribution",
-    "Flat",
     "Kind",
     "Migrated",
-    "Project",
     "Role",
     "Unresolved",
     "Variant",

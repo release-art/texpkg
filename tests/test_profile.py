@@ -80,8 +80,8 @@ def test_a_profile_document_saves_with_the_payload_of_the_kind_it_expands_to(dec
     brief.create(tmp_path / "b", brief.example()).save()
     slide = deck.kinds.modules()["slide"]
     slide.create(tmp_path / "s", slide.example()).save()
-    assert (tmp_path / "b/res/acme/lockup.pdf").is_file()  # the expert kind's lock-up
-    assert not (tmp_path / "s/res/acme/lockup.pdf").exists()
+    assert (tmp_path / "b/res/texpkg/lockup.pdf").is_file()  # the expert kind's lock-up
+    assert not (tmp_path / "s/res/texpkg/lockup.pdf").exists()
 
 
 def test_a_profile_documents_hand_edits_are_found_by_the_plans_path(deck, tmp_path):

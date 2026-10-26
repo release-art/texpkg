@@ -40,10 +40,10 @@ EXPERT_FILES = [
     "deck-wide.tex",
     "deck.tex",
     "lmroman10-regular.otf",
-    "res/acme/NOTICE.txt",
-    "res/acme/acme-brand-provenance.sty",
-    "res/acme/acme-brand.sty",
-    "res/acme/lockup.pdf",
+    "res/texpkg/NOTICE.txt",
+    "res/texpkg/acme-brand-provenance.sty",
+    "res/texpkg/acme-brand.sty",
+    "res/texpkg/lockup.pdf",
 ]
 
 
@@ -199,9 +199,9 @@ def test_save_writes_the_states_every_tex_with_its_plan_and_the_payload_of_the_k
         "_texpkg/template.json",
         "glossary.tex",
         "lmroman10-regular.otf",
-        "res/acme/NOTICE.txt",
-        "res/acme/acme-brand-provenance.sty",
-        "res/acme/acme-brand.sty",
+        "res/texpkg/NOTICE.txt",
+        "res/texpkg/acme-brand-provenance.sty",
+        "res/texpkg/acme-brand.sty",
     ]
     assert (doc.path / "deck.tex").read_text() == doc.render()
     assert (doc.path / "deck-wide.tex").read_text() == doc.render("wide")
@@ -301,22 +301,22 @@ def test_check_is_current_after_a_save_and_never_writes(doc):
 
 def test_check_reports_changed_missing_and_extra_files(doc):
     doc.save()
-    (doc.path / "res/acme/acme-brand.sty").write_text("edited")
-    (doc.path / "res/acme/lockup.pdf").unlink()
-    (doc.path / "res/acme/retired.sty").write_text("old")
+    (doc.path / "res/texpkg/acme-brand.sty").write_text("edited")
+    (doc.path / "res/texpkg/lockup.pdf").unlink()
+    (doc.path / "res/texpkg/retired.sty").write_text("old")
     report = doc.check()
     states = {p.relative_to(doc.path).as_posix(): s for p, s in report.files.items() if s is not FileState.UNCHANGED}
     assert states == {
-        "res/acme/acme-brand.sty": FileState.CHANGED,
-        "res/acme/lockup.pdf": FileState.MISSING,
-        "res/acme/retired.sty": FileState.EXTRA,
+        "res/texpkg/acme-brand.sty": FileState.CHANGED,
+        "res/texpkg/lockup.pdf": FileState.MISSING,
+        "res/texpkg/retired.sty": FileState.EXTRA,
     }
     assert not report.current
 
 
 def test_an_extra_file_alone_does_not_make_a_document_not_current(doc):
     doc.save()
-    (doc.path / "res/acme/retired.sty").write_text("old")
+    (doc.path / "res/texpkg/retired.sty").write_text("old")
     assert doc.check().current
 
 

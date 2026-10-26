@@ -437,7 +437,7 @@ def test_a_removed_kind_breaks_the_data_contract_and_an_added_one_extends_it(bra
     gone = contracts(brand)
     assert "data: breaking: kind vocab: removed" in gone.output and versions(brand).data == Triple(2, 0, 0)
     release(brand)
-    edit(brand, path, "    ),\n    layout=", line + "    ),\n    layout=")
+    edit(brand, path, "    ),\n)\n\n# The same", line + "    ),\n)\n\n# The same")
     added = contracts(brand)
     assert "data: compatible: kind vocab: added" in added.output and versions(brand).data == Triple(3, 0, 1)
 

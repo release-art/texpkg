@@ -9,7 +9,7 @@
 ],
 [
 "preamble.before_package[0]",
-"\\makeatletter\\def\\input@path{{res/acme/}}\\makeatother"
+"\\makeatletter\\def\\input@path{{res/texpkg/}}\\makeatother"
 ],
 [
 "document",
@@ -21,7 +21,7 @@
 ],
 [
 "preamble.after_package[0]",
-"\\graphicspath{{}{res/acme/}}"
+"\\graphicspath{{}{res/texpkg/}}"
 ],
 [
 "document",

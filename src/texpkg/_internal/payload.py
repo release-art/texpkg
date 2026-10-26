@@ -15,7 +15,7 @@ from texmodel import bundle, drift
 
 from ..assets import Resolved, Role
 from ..errors import DeclarationError, PayloadError
-from ..layout import Layout
+from ..layout import Project
 
 
 @dataclasses.dataclass(frozen=True)
@@ -85,7 +85,7 @@ class Payload:
 
 
 def build(
-    sty: Mapping[str, str], assets: Sequence[Resolved], layout: Layout, kinds: Collection[str] | None = None
+    sty: Mapping[str, str], assets: Sequence[Resolved], layout: Project, kinds: Collection[str] | None = None
 ) -> Payload:
     """The payload of a document of `kinds` (a kind and the base kind a profile kind expands to; `None`: every kind, for
     an export) in `layout`. An asset naming other kinds is left out

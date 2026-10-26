@@ -18,7 +18,7 @@ from texmodel.package import Package
 
 from .assets import Asset, Resolved
 from .errors import DeclarationError
-from .layout import Flat, Layout
+from .layout import LAYOUT, Project
 from .migration import Migration
 
 _KIND = re.compile(r"[a-z][a-z0-9_]*")  # a kind is a module, `acme_tex.kinds.<name>`
@@ -190,7 +190,7 @@ class Distribution:
 
     `declared_in` is the import name of the package that holds the declaration: write `declared_in=__name__` in its
     `__init__.py`. Assets are read from it (`importlib.resources`), and so are they in a built wheel, where the
-    declaration is copied (P22). `layout` is how `save` places the payload in a document directory.
+    declaration is copied (P22). The payload goes in a directory as `LAYOUT` places it.
     """
 
     name: str
@@ -202,7 +202,10 @@ class Distribution:
     kinds: tuple[Kind, ...] = ()
     base: "Distribution | None" = None
     expose: tuple[str, ...] = ()
-    layout: Layout = Flat()
+
+    @property
+    def layout(self) -> Project:
+        return LAYOUT
 
     def __post_init__(self) -> None:
         for field in ("assets", "kinds", "expose"):

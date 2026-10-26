@@ -14,7 +14,7 @@ from .helpers import FIXTURES, golden
 
 NOW = datetime.datetime(2026, 10, 25, 12, 30, 5, tzinfo=datetime.UTC)
 LATER = NOW + datetime.timedelta(days=1)
-FILE = "res/acme/acme-brand-provenance.sty"
+FILE = "res/texpkg/acme-brand-provenance.sty"
 
 
 def test_the_text_is_composed_of_the_parts_that_are_there():
@@ -94,7 +94,7 @@ def test_a_new_stamp_or_a_changed_payload_materialises_again(doc):
     doc.save(now=NOW)
     doc.save(now=LATER, stamp="other")
     assert "2026-10-26T12:30:05Z" in (doc.path / FILE).read_text()
-    (doc.path / "res/acme/acme-brand.sty").write_text("edited")
+    (doc.path / "res/texpkg/acme-brand.sty").write_text("edited")
     doc.save(now=NOW + datetime.timedelta(days=2), stamp="other")
     assert "2026-10-27T12:30:05Z" in (doc.path / FILE).read_text()
 
@@ -119,7 +119,7 @@ def test_a_dependent_writes_one_file_per_package_of_its_stack(tmp_path, acme_bra
     slide = module.kinds.modules()["slide"]
     document = slide.create(tmp_path, slide.example())
     document.save(now=NOW)
-    brand = (tmp_path / "res/acme/acme-brand-provenance.sty").read_text()
-    assert (tmp_path / "res/acme/acme-deck-provenance.sty").is_file()
+    brand = (tmp_path / "res/texpkg/acme-brand-provenance.sty").read_text()
+    assert (tmp_path / "res/texpkg/acme-deck-provenance.sty").is_file()
     assert "acme-brand 1.0.0, stamp 2.0.0, materialised 2026-10-25T12:30:05Z" in brand
     assert document.check().current and not document.check(stamp="other").current

@@ -5,7 +5,7 @@ import pathlib
 
 from texmodel.types import CMYK, Length
 
-from texpkg import Asset, Distribution, Flat, Kind, Project, Role, Variant
+from texpkg import Asset, Distribution, Kind, Role, Variant
 
 from .model import Accent, Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Mark, Term, Title, design, pkg
 
@@ -43,11 +43,9 @@ dist = Distribution(
         ),
         Kind("vocab", Glossary, presets=(Ink(CMYK(0, 0, 0, 0.8)),), example=vocab_example),
     ),
-    layout=Project(pathlib.PurePosixPath("res/acme")),
 )
 
 # The same declaration, changed as a later release would: for the tests that load a document with another one.
-flat = dataclasses.replace(dist, layout=Flat())
 changed = dataclasses.replace(
     dist,
     kinds=(dataclasses.replace(dist.kinds[0], presets=(FactGap(Length("4mm")),)), dist.kinds[1]),
@@ -87,6 +85,5 @@ __all__ = [
     "dist",
     "misdeclared",
     "expert_example",
-    "flat",
     "vocab_example",
 ]
