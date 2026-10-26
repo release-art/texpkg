@@ -1,0 +1,88 @@
+% acme-brand.sty -- generated with texmodel X.Y.Z. Do not edit; run `texmodel build`.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{acme-brand}[2026/10/21 v1.2.0 The acme brand]
+
+\RequirePackage{xcolor}
+
+% from library acme (source: acme.tex)
+% The brand's setup: its typeface, found by path in the document's own directory (luaotfload reads no search path), and
+% its colours, which come from the design data.
+\RequirePackage{fontspec}
+\RequirePackage{graphicx}
+\RequirePackage{xcolor}
+\setmainfont{lmroman10-regular.otf}[Path=./]
+\definecolor{ab-slate}{HTML}{2F3E46}
+\definecolor{ab-moss}{HTML}{52796F}
+
+% Space under each fact.
+% from acme_brand.model.FactGap (value: Length)
+\newlength{\abFactGap}
+\setlength{\abFactGap}{2mm}
+
+% The text colour.
+% from acme_brand.model.Ink (value: Colour)
+\definecolor{ab-ink}{cmyk}{0,0,0,0.95}
+
+% Tighten the layout.
+% from acme_brand.model.Compact (value: Bool)
+\newif\ifabCompact
+\abCompactfalse
+
+% The brand's lock-up.
+% from acme_brand.model.Mark (body: inline)
+\newcommand{\abMark}{%
+\par\noindent\includegraphics[height=6mm]{lockup.pdf}\par
+}
+
+% The subject's name.
+% from acme_brand.model.Title (body: inline)
+\newcommand{\abTitle}[1]{%
+\par\noindent{\ifabCompact\large\else\Large\fi\bfseries\color{ab-ink}#1}\par
+}
+
+% One short sentence under the title.
+% from acme_brand.model.Fact (body: inline)
+\newcommand{\abFact}[2][ab-slate]{%
+\par\noindent\textcolor{#1}{#2}\par\vspace{\abFactGap}
+}
+
+% A word and what it means.
+% from acme_brand.model.Term (body: inline)
+\newcommand{\abTerm}[2]{%
+\par\noindent\textbf{#1}\quad #2\par
+}
+
+% A card: a title and up to three facts.
+% from acme_brand.model.Card (body: inline)
+\newenvironment{abCard}{%
+\begin{minipage}{\linewidth}
+}{%
+\end{minipage}\par\medskip
+}
+
+% Cards under the brand's lock-up.
+% from acme_brand.model.Deck (body: inline)
+\newenvironment{abDeck}{%
+\begingroup
+}{%
+\endgroup
+}
+
+% Words and their meanings.
+% from acme_brand.model.Glossary (body: inline)
+\newenvironment{abGlossary}{%
+\begingroup
+}{%
+\endgroup
+}
+
+% from library texpkg-provenance (source: inline)
+\makeatletter
+\def\abProvenanceStamp{}
+\def\abProvenanceTime{}
+\newcommand{\abProvenanceInfo}{%
+  acme-brand 1.2.0%
+  \ifx\abProvenanceStamp\@empty\else, stamp \abProvenanceStamp\fi
+  \ifx\abProvenanceTime\@empty\else, materialised \abProvenanceTime\fi}
+\InputIfFileExists{acme-brand-provenance.sty}{}{}
+\makeatother

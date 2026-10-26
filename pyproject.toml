@@ -1,0 +1,122 @@
+[project]
+name = "texpkg"
+dynamic = ["version"]
+description = "LaTeX package management."
+authors = [{name = "Ilja Orlovs", email = "ilja@release.art"}]
+license = "MIT"
+license-files = ["LICENSE"]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.15",
+    "Typing :: Typed",
+]
+requires-python = ">=3.15,<3.16"
+dependencies = ["texmodel>=0.4.0", "pydantic>=2.14.1"]
+
+[project.optional-dependencies]
+build = ["typer>=0.27.3", "pdm-backend>=2.4"]  # the author's build (texpkg_build); a built wheel embeds only the run time (B7, B8)
+
+[project.scripts]
+texpkg-build = "texpkg_build.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/release-art/texpkg"
+Repository = "https://github.com/release-art/texpkg"
+
+[tool.ruff]
+target-version = "py315"
+lint.select = ["A", "B", "C", "E", "F", "I", "W", "N", "C4", "T20", "PTH"]
+lint.ignore = ["N802"]
+line-length = 120
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402"]
+
+[tool.ruff.lint.isort]
+order-by-type = true
+combine-as-imports = true
+force-wrap-aliases = true
+known-first-party = ["texpkg"]
+forced-separate = ["tests"]
+
+[tool.pyright]
+include = ["src", "tests"]
+strict = ["src"]
+pythonVersion = "3.15"
+extraPaths = ["src", "tests/fixtures"]
+
+[tool.pytest.ini_options]
+addopts = "-v -l --color=yes --cov=texpkg --cov=texpkg_build --cov-report term-missing --cov-fail-under=100 --no-cov-on-fail"
+pythonpath = ["src", "tests/fixtures"]
+testpaths = ["tests"]
+timeout = 15
+markers = [
+    "tex: needs the reference image with latexmk (skipped without it; TEXPKG_REQUIRE_TEX=1 makes that a failure)",
+]
+
+[tool.importlinter]
+root_packages = ["texpkg", "texpkg_build"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "the run time does not know the build"
+type = "forbidden"
+source_modules = ["texpkg"]
+forbidden_modules = ["texpkg_build"]
+
+[[tool.importlinter.contracts]]
+name = "the run time imports only the standard library, texmodel and pydantic"
+type = "forbidden"
+source_modules = ["texpkg"]
+forbidden_modules = ["typer", "pdm", "jsonschema", "hypothesis", "pytest", "texmodel_build"]
+
+[[tool.importlinter.contracts]]
+name = "only cli prints and formats"
+type = "forbidden"
+source_modules = ["texpkg", "texpkg_build.hook", "texpkg_build.testing", "texpkg_build._internal"]
+forbidden_modules = ["typer", "texpkg_build.cli"]
+
+[[tool.importlinter.contracts]]
+name = "nothing starts a process"
+type = "forbidden"
+source_modules = ["texpkg", "texpkg_build"]
+forbidden_modules = ["subprocess"]
+allow_indirect_imports = true  # texmodel_build starts the compiler; only its spawn module imports subprocess
+
+[tool.pdm]
+distribution = true
+
+# The version is the git tag (v1.2.3); no tag falls back to 0.0.0.
+[tool.pdm.version]
+source = "scm"
+tag_regex = '^v(?P<version>\d+\.\d+\.\d+.*)$'
+fallback_version = "0.0.0"
+
+[tool.pdm.build]
+package-dir = "src"
+includes = ["src/texpkg", "src/texpkg_build"]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.16.0",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.17.1",
+    "pyright>=1.1.414",
+    "pip-audit>=2.7",
+    "hypothesis>=6",
+    "import-linter>=2.15",
+    "jsonschema>=4.26.0",
+    "pdm-backend>=2.5.0",
+    "pikepdf>=10.17.0",
+    "proof-pdf>=0.3.3",
+]
