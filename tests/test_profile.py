@@ -111,10 +111,14 @@ TEXT = st.text(alphabet=st.characters(blacklist_categories=("Cs",)), min_size=0,
 
 def trees(brief):
     point = st.builds(
-        lambda text, given: brief.Point(text, tint=brief.Tint.MOSS) if given else brief.Point(text), TEXT, st.booleans()
+        lambda text, given: brief.Point(text=text, tint=brief.Tint.MOSS) if given else brief.Point(text=text),
+        TEXT,
+        st.booleans(),
     )
     return st.builds(
-        lambda head, points: brief.Brief(brief.Headline(head), *points), TEXT, st.lists(point, min_size=1, max_size=3)
+        lambda head, points: brief.Brief(brief.Headline(text=head), *points),
+        TEXT,
+        st.lists(point, min_size=1, max_size=3),
     )
 
 
@@ -146,10 +150,10 @@ def test_a_profile_that_widens_its_base_fails_the_law(deck):
     wide = dataclasses.replace(
         deck_dist, kinds=(deck_dist.kinds[0], dataclasses.replace(deck_dist.kinds[1], expand=widening))
     )
-    point = model.Point("x")
+    point = model.Point(text="x")
     check_expansion(wide, "brief")  # the kind's own example is fine
     with pytest.raises(DeclarationError) as raised:
-        check_expansion(wide, "brief", [model.Brief(model.Headline("h"), point, point, point)])
+        check_expansion(wide, "brief", [model.Brief(model.Headline(text="h"), point, point, point)])
     assert (
         raised.value.code == "TP-K010"
         and "widens" not in str(raised.value)
@@ -168,7 +172,7 @@ def test_a_tree_that_is_not_valid_is_not_a_counterexample(deck):
     )
 
     with pytest.raises(DeclarationError) as raised:
-        check_expansion(deck_dist, "brief", [model.Brief(model.Headline("x"))])  # no points
+        check_expansion(deck_dist, "brief", [model.Brief(model.Headline(text="x"))])  # no points
     assert raised.value.code == "TP-K010" and "Point" in str(raised.value)
 
 

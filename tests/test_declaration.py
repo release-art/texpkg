@@ -49,7 +49,7 @@ class Page(Environment):
 
 
 def page() -> Page:
-    return Page(Label("a"))
+    return Page(Label(text="a"))
 
 
 HERE = pathlib.Path(__file__).parent
@@ -78,19 +78,23 @@ def test_allow_raw_must_name_a_real_hole():
 
 
 def test_the_example_must_be_a_valid_tree_of_the_model():
-    assert code_of(Kind, "expert", Deck, (), lambda: Card(Title("x"), Fact("y"))) == "TP-K001"  # another model
+    assert (
+        code_of(Kind, "expert", Deck, (), lambda: Card(Title(text="x"), Fact(text="y"))) == "TP-K001"
+    )  # another model
     assert code_of(Kind, "expert", Deck, (), lambda: Deck(Mark())) == "TP-K001"  # breaks the grammar
 
 
 @pytest.mark.parametrize("name", ["Expert", "1x", "a-b", "", "class"])
 def test_a_kind_is_named_as_a_module(name):
-    assert code_of(Kind, name, Glossary, (), lambda: Glossary(Term("a", "b"))) == "TP-K005"
+    assert code_of(Kind, name, Glossary, (), lambda: Glossary(Term(word="a", meaning="b"))) == "TP-K005"
 
 
 def test_variant_names_are_file_name_parts_and_unique():
     assert code_of(Variant, "Fronts") == "TP-K005"
     twice = (Variant("a"), Variant("a"))
-    assert code_of(Kind, "vocab", Glossary, (), lambda: Glossary(Term("a", "b")), variants=twice) == "TP-K002"
+    assert (
+        code_of(Kind, "vocab", Glossary, (), lambda: Glossary(Term(word="a", meaning="b")), variants=twice) == "TP-K002"
+    )
 
 
 def test_a_kind_writes_its_presets_and_then_its_variant():

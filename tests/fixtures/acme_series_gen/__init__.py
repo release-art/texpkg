@@ -5,6 +5,7 @@ import json
 import pathlib
 import string
 import textwrap
+from typing import Any
 
 _SERIES = string.Template(
     textwrap.dedent(
@@ -70,7 +71,7 @@ _SERIES = string.Template(
 
 
         def example() -> ${prefix}Deck:
-            card = ${prefix}Card(Title("Fox"), *[${prefix}Fact("Sly") for _ in range($facts_min)])
+            card = ${prefix}Card(Title(text="Fox"), *[${prefix}Fact(text="Sly") for _ in range($facts_min)])
             return ${prefix}Deck(*[card for _ in range($cards_min)])
         '''
     ).strip()
@@ -78,10 +79,9 @@ _SERIES = string.Template(
 )
 
 
-def _module(series: dict[str, object]) -> str:
+def _module(series: dict[str, Any]) -> str:
     name = str(series["name"])
-    cards, facts, accents = (series["cards"], series["facts"], series["accents"])
-    assert isinstance(cards, list) and isinstance(facts, list) and isinstance(accents, list)
+    cards, facts, accents, options = (series["cards"], series["facts"], series["accents"], series["options"])
     return _SERIES.substitute(
         name=name,
         prefix=name.capitalize(),
@@ -91,7 +91,7 @@ def _module(series: dict[str, object]) -> str:
         facts_max=facts[1],
         first=str(accents[0]).upper(),
         gap=series["gap"],
-        options="".join(f'"{o}", ' for o in series["options"]),
+        options="".join(f'"{o}", ' for o in options),
         members="\n".join(f'    {str(a).upper()} = "{a}"' for a in accents),
     )
 

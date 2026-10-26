@@ -14,11 +14,11 @@ from .model import Brief, Heading, Headline, Point, Slide, Tint, expand, pkg
 
 
 def brief_example() -> Brief:
-    return Brief(Headline("Why moss"), Point("It is calm"), Point("It prints well", tint=Tint.MOSS))
+    return Brief(Headline(text="Why moss"), Point(text="It is calm"), Point(text="It prints well", tint=Tint.MOSS))
 
 
 def slide_example() -> Slide:
-    return Slide(Heading("Hello"), Heading("World"))
+    return Slide(Heading(text="Hello"), Heading(text="World"))
 
 
 dist = Distribution(

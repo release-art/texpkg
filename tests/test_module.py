@@ -107,7 +107,7 @@ def test_a_document_refuses_an_unknown_variant_and_reports_every_violation_at_on
     with pytest.raises(DeclarationError) as raised:
         document.render("nope")
     assert raised.value.code == "TP-K004"
-    broken = document.replace(expert.Deck(expert.Card(expert.Title("x"))))
+    broken = document.replace(expert.Deck(expert.Card(expert.Title(text="x"))))
     with pytest.raises(ExceptionGroup) as grouped:
         broken.render()
     assert len(grouped.value.exceptions) >= 2  # no Mark, no Fact
@@ -115,7 +115,7 @@ def test_a_document_refuses_an_unknown_variant_and_reports_every_violation_at_on
 
 def test_replace_gives_another_document_in_the_same_directory(acme_brand_tex, tmp_path, expert):
     document = expert.create(tmp_path, expert.example())
-    other = document.replace(expert.Deck(expert.Mark(), expert.Card(expert.Title("Owl"), expert.Fact("x"))))
+    other = document.replace(expert.Deck(expert.Mark(), expert.Card(expert.Title(text="Owl"), expert.Fact(text="x"))))
     assert other.path == document.path and other.tree is not document.tree and "Owl" in other.render()
 
 

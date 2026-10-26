@@ -12,12 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A document of a kind with no graphic no longer gets `\graphicspath`, which a package that does not load `graphicx` cannot compile.
 - The declaration directory the build copies is the package, also when `Distribution(root=)` names a subdirectory.
 
+### Changed
+
+- Requires `texmodel>=0.6.0`, whose commands take keyword arguments (`Fact(text="a")`): a kind's classes, examples and a generator's source use them.
+
 ### Added
 
 - A document carries settings, options and preamble entries within what its kind lists: `Kind(settable=, options=, preamble=)`,
   `create(..., settings=, options=, preamble=)` typed per kind, `doc.settings`, `doc.options`, `doc.preamble` and `replace`. They
   are stored beside `tree` (texmodel's shapes), in the kind's schemas and contracts, in `state["$extras"]` for a migration, and a
-  hand edit of a line they wrote has a data path. `NotAllowedError` (`TP-D007`), `TP-K016` to `TP-K018`. Requires texmodel 0.5.1.
+  hand edit of a line they wrote has a data path. `NotAllowedError` (`TP-D007`), `TP-K016` to `TP-K018`. Requires texmodel 0.6.0.
 - Kinds generated from data (K4): `[tool.texpkg] generate = "module:function"` names a function from the declaring package's directory
   to `{path: source}`; `texpkg-build generate [--check]` writes the files, and `pdm build` refuses one that is missing, stale,
   hand-edited or left over (`TP-B012`) and a generator that is not deterministic (`TP-B013`). Each generated file starts with
@@ -67,4 +71,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A document directory places `.sty`, graphics and notes in `res/texpkg/` and fonts at its root; `Distribution(root=)` is the directory asset paths are relative to (default: the declaring module's), inside the declaring package.
 - `Kind(stem=)` names the kind's `.tex` files; the default is the root class lower-cased.
 - Loading a document whose stored state holds a field the model no longer has is a `MigrationError` (`TP-M003`, the field's path and value), never a silent loss; a migration removes it on purpose.
-- A wheel runs from a zip. Requires `texmodel>=0.5.1`.
+- A wheel runs from a zip. Requires `texmodel>=0.6.0`.

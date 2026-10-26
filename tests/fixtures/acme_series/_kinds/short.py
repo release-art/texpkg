@@ -62,5 +62,5 @@ OPTIONS = ("a4paper", )
 
 
 def example() -> ShortDeck:
-    card = ShortCard(Title("Fox"), *[ShortFact("Sly") for _ in range(1)])
+    card = ShortCard(Title(text="Fox"), *[ShortFact(text="Sly") for _ in range(1)])
     return ShortDeck(*[card for _ in range(1)])

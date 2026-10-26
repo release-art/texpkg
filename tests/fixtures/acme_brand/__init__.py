@@ -14,13 +14,13 @@ from .model import Accent, Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Ma
 def expert_example() -> Deck:
     return Deck(
         Mark(),
-        Card(Title("Fox"), Fact("Sly & quick"), Fact("50% of $5", accent=Accent.MOSS)),
-        Card(Title("Owl"), Fact("Sees in the dark")),
+        Card(Title(text="Fox"), Fact(text="Sly & quick"), Fact(text="50% of $5", accent=Accent.MOSS)),
+        Card(Title(text="Owl"), Fact(text="Sees in the dark")),
     )
 
 
 def vocab_example() -> Glossary:
-    return Glossary(Term("fox", "a sly mammal"), Term("owl", "a night bird"))
+    return Glossary(Term(word="fox", meaning="a sly mammal"), Term(word="owl", meaning="a night bird"))
 
 
 dist = Distribution(

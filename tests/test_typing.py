@@ -29,7 +29,7 @@ package: PackageModule = acme_brand_tex
 kind: KindModule = expert
 tree: expert.Deck = expert.example()
 glossary: vocab.Glossary = vocab.example()
-card = expert.Card(expert.Title("x"), expert.Fact("y", accent=expert.Accent.MOSS))
+card = expert.Card(expert.Title(text="x"), expert.Fact(text="y", accent=expert.Accent.MOSS))
 name: str = expert.NAME
 saved: Document[expert.Deck] = expert.load("deck")
 made: Document[expert.Deck] = expert.create("deck", tree)
@@ -50,7 +50,7 @@ from texmodel.types import CMYK
 wrong_tree: expert.Deck = vocab.example()
 wrong_mode = expert.schema(mode="nonsense")
 wrong_arguments = expert.changes("one", 2)
-wrong_field = expert.Fact(1)
+wrong_field = expert.Fact(text=1)
 no_such = expert.FactGap
 wrong_create = expert.create("deck", vocab.example())
 wrong_replace = expert.load("deck").replace(vocab.example())

@@ -70,7 +70,7 @@ def expand(brief: Any) -> Any:
     return expert.Deck(
         expert.Mark(),
         expert.Card(
-            expert.Title(headline.text),
-            *(expert.Fact(p.text, accent=expert.Accent[p.tint.name]) for p in points),
+            expert.Title(text=headline.text),
+            *(expert.Fact(text=p.text, accent=expert.Accent[p.tint.name]) for p in points),
         ),
     )

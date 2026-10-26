@@ -63,5 +63,5 @@ OPTIONS = ("a4paper", "landscape", )
 
 
 def example() -> LongDeck:
-    card = LongCard(Title("Fox"), *[LongFact("Sly") for _ in range(1)])
+    card = LongCard(Title(text="Fox"), *[LongFact(text="Sly") for _ in range(1)])
     return LongDeck(*[card for _ in range(2)])

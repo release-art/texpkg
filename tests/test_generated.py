@@ -179,10 +179,10 @@ GOOD = textwrap.dedent(
     import acme_series_tex.kinds.short as short
 
     deck: short.ShortDeck = short.example()
-    fact = short.ShortFact("Sly", accent=short.ShortAccent.BLUE)
+    fact = short.ShortFact(text="Sly", accent=short.ShortAccent.BLUE)
     """
 )
-BAD = GOOD + "\nshort.LongDeck\nshort.ShortFact('x', accent='red')\n"
+BAD = GOOD + "\nshort.LongDeck\nshort.ShortFact(text='x', accent='red')\n"
 
 
 def pyright(python: pathlib.Path, source: pathlib.Path):  # noqa: ANN201

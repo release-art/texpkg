@@ -74,7 +74,7 @@ def test_create_refuses_a_directory_that_holds_a_document_and_a_tree_that_breaks
         expert.create(doc.path, expert.example())
     assert raised.value.code == "TP-D002" and isinstance(raised.value, FileExistsError)
     with pytest.raises(ExceptionGroup):
-        expert.create(doc.path.parent / "other", Deck(Card(Title("no mark, no fact"))))
+        expert.create(doc.path.parent / "other", Deck(Card(Title(text="no mark, no fact"))))
     assert not (doc.path.parent / "other").exists()
 
 
@@ -87,11 +87,11 @@ def test_load_returns_the_saved_tree_and_writes_nothing(expert, doc):
 
 TEXT = st.text(alphabet=st.characters(blacklist_categories=("Cs",)), max_size=12)
 FACT = st.builds(
-    lambda text, accent: Fact(text, accent=accent) if accent else Fact(text),
+    lambda text, accent: Fact(text=text, accent=accent) if accent else Fact(text=text),
     TEXT,
     st.sampled_from([None, *Accent]),
 )
-CARD = st.builds(lambda title, facts: Card(Title(title), *facts), TEXT, st.lists(FACT, min_size=1, max_size=3))
+CARD = st.builds(lambda title, facts: Card(Title(text=title), *facts), TEXT, st.lists(FACT, min_size=1, max_size=3))
 DECK = st.builds(lambda cards: Deck(Mark(), *cards), st.lists(CARD, min_size=1, max_size=3))
 
 
@@ -109,7 +109,7 @@ def test_a_tree_survives_a_save_and_a_load(tree):
 
 
 def test_a_value_the_author_set_to_the_default_stays_the_authors(expert, tmp_path):
-    set_by_author = Deck(Mark(), Card(Title("a"), Fact("b", accent=Accent.SLATE), Fact("c")))
+    set_by_author = Deck(Mark(), Card(Title(text="a"), Fact(text="b", accent=Accent.SLATE), Fact(text="c")))
     doc = expert.create(tmp_path, set_by_author)
     assert doc.defaults == ("/content/1/content/2/accent",)
     loaded = expert.load(tmp_path)
@@ -245,7 +245,7 @@ def test_a_second_save_writes_nothing_and_adds_no_history(doc):
 def test_a_save_after_a_change_keeps_the_last_three_pairs(expert, doc):
     doc.save()
     for n in range(1, 6):
-        doc = doc.replace(Deck(Mark(), Card(Title(f"v{n}"), Fact("x"))))
+        doc = doc.replace(Deck(Mark(), Card(Title(text=f"v{n}"), Fact(text="x"))))
         doc.save()
     history = doc.path / "_texpkg/history"
     assert sorted(p.name for p in history.iterdir()) == ["1", "2", "3"]
@@ -260,7 +260,7 @@ def test_a_save_after_a_change_keeps_the_last_three_pairs(expert, doc):
 def test_a_save_writes_only_what_changed(doc):
     doc.save()
     before = mtimes(doc.path)
-    doc.replace(Deck(Mark(), Card(Title("Changed"), Fact("x")))).save()
+    doc.replace(Deck(Mark(), Card(Title(text="Changed"), Fact(text="x")))).save()
     after = mtimes(doc.path)
     changed = sorted(k.removeprefix(doc.path.as_posix() + "/") for k in after if before.get(k) != after[k])
     assert changed == [
@@ -277,7 +277,7 @@ def test_a_save_writes_only_what_changed(doc):
 
 
 def test_save_writes_nothing_when_the_tree_or_the_payload_is_not_whole(expert, doc, tmp_path):
-    broken = doc.replace(Deck(Card(Title("no mark"))))
+    broken = doc.replace(Deck(Card(Title(text="no mark"))))
     with pytest.raises(ExceptionGroup):
         broken.save()
     assert files(doc.path) == ["_texpkg/state.json", "_texpkg/template.json"]
@@ -338,7 +338,7 @@ def test_an_extra_file_alone_does_not_make_a_document_not_current(doc):
 
 def test_check_sees_an_unsaved_tree(doc):
     doc.save()
-    report = doc.replace(Deck(Mark(), Card(Title("Other"), Fact("x")))).check()
+    report = doc.replace(Deck(Mark(), Card(Title(text="Other"), Fact(text="x")))).check()
     changed = {p.name for p, s in report.files.items() if s is FileState.CHANGED}
     assert changed == {
         "state.json",
@@ -371,7 +371,7 @@ def test_a_hand_edited_tex_is_given_back_and_not_overwritten(expert, doc):
         None,
     )
     assert (edit.expected, edit.found) == ("\\abTitle{Fox}", "\\abTitle{Fox!}")
-    changed = doc.replace(Deck(Mark(), Card(Title("Other"), Fact("x"))))
+    changed = doc.replace(Deck(Mark(), Card(Title(text="Other"), Fact(text="x"))))
     with pytest.raises(HandEditError) as raised:
         changed.save()
     assert raised.value.code == "TP-D005" and raised.value.edits == (edit,) and isinstance(raised.value, ValueError)
@@ -467,7 +467,7 @@ def test_history_rotation_needs_a_pair_to_keep(tmp_path):
 
 
 def test_a_glossary_document_round_trips_through_its_kind(vocab, tmp_path):
-    tree = Glossary(Term("a", "b"), Term("c", "d"))
+    tree = Glossary(Term(word="a", meaning="b"), Term(word="c", meaning="d"))
     created = vocab.create(tmp_path, tree)
     assert isinstance(vocab.load(tmp_path).tree, Glossary) and created.defaults == ()
 
@@ -498,7 +498,7 @@ class Page(Environment):
 
 
 def test_comments_and_passthroughs_are_state_too():
-    tree = Page(Line("a"), Comment("a note"), Passthrough(Raw(r"\vspace{1mm}")), Line("b", mark="*"))
+    tree = Page(Line(text="a"), Comment("a note"), Passthrough(Raw(r"\vspace{1mm}")), Line(text="b", mark="*"))
     stored = state.tree_state(tree)
     assert [c["type"] for c in stored["content"]] == ["Line", "Comment", "Passthrough", "Line"]
     assert stored["content"][1] == {"type": "Comment", "text": "a note"}

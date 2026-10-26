@@ -27,7 +27,7 @@ for module in (acme_brand_tex, acme_deck_tex):
     for name, kind in module.kinds.modules().items():
         tree = kind.example()
         if (module.__name__, name) == ("acme_brand_tex", "expert"):  # a colour the author chose, to be dropped later
-            pinned = kind.Card(kind.Title("Pinned"), kind.Fact("explicit", accent=kind.Accent.SLATE))
+            pinned = kind.Card(kind.Title(text="Pinned"), kind.Fact(text="explicit", accent=kind.Accent.SLATE))
             tree = kind.Deck(*tree.content, pinned)
         doc = kind.create(f"{sys.argv[1]}/{module.__name__}/{name}", tree)
         doc.save()
