@@ -67,13 +67,21 @@ class Release:
         base = self.dist.base_kind(kind)
         return (*(base.presets if base else ()), *kind.settings(variant))
 
+    def _has_graphics(self, kind: Kind) -> bool:
+        kinds = (kind.name, *([kind.over] if kind.over else []))
+        return any(r.asset.role is Role.GRAPHIC and r.asset.needed_by(kinds) for r in self.dist.resolved_assets())
+
     def plan(self, kind: Kind, tree: Node, variant: str | None) -> Plan:
         """The `.tex` of `tree` as lines with provenance: the kind's presets, then the variant's settings (L8).
 
         An exposed base kind is written by the base's package; the directory's layout is this distribution's."""
         body = tree if kind.expand is None else kind.expand(tree)
         package = self.dist.owner(kind.name).package
-        return package.plan(body, settings=self.settings(kind, variant), preamble=self.dist.layout.preamble())
+        return package.plan(
+            body,
+            settings=self.settings(kind, variant),
+            preamble=self.dist.layout.preamble(graphics=self._has_graphics(kind)),
+        )
 
     def export(
         self, destination: pathlib.Path | str, now: datetime.datetime | None, stamp: str | None

@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A document of a kind with no graphic no longer gets `\graphicspath`, which a package that does not load `graphicx` cannot compile.
+- The declaration directory the build copies is the package, also when `Distribution(root=)` names a subdirectory.
+
 ### Added
 
+- Kinds generated from data (K4): `[tool.texpkg] generate = "module:function"` names a function from the declaring package's directory
+  to `{path: source}`; `texpkg-build generate [--check]` writes the files, and `pdm build` refuses one that is missing, stale,
+  hand-edited or left over (`TP-B012`) and a generator that is not deterministic (`TP-B013`).
 - The package layout: `texpkg` (the run time) and `texpkg_build` (the build), with import contracts, the `build` extra
   and the `texpkg-build` entry point.
 - `Asset`, `Role`, the layout (`res/texpkg/`) and a payload that is written whole or not at all, compared by

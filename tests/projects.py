@@ -16,13 +16,13 @@ _IGNORE = shutil.ignore_patterns("__pycache__")
 
 
 def author_project(
-    root: pathlib.Path, *, declaration: str = "acme_brand", project: str = "acme-brand-tex"
+    root: pathlib.Path, *, declaration: str = "acme_brand", project: str = "acme-brand-tex", also: tuple[str, ...] = ()
 ) -> pathlib.Path:
-    """The project `tests/consumers/<project>` with the declaration package `tests/fixtures/<declaration>` in `src/`."""
+    """The project `tests/consumers/<project>` with the declaration package `tests/fixtures/<declaration>` in `src/`,
+    and the other packages of `tests/fixtures` it needs (`also`)."""
     shutil.copytree(CONSUMERS / project, root, ignore=_IGNORE)
-    shutil.copytree(
-        FIXTURES / declaration, root / "src" / declaration, ignore=shutil.ignore_patterns("__pycache__", "generated")
-    )
+    for name in (declaration, *also):
+        shutil.copytree(FIXTURES / name, root / "src" / name, ignore=shutil.ignore_patterns("__pycache__", "generated"))
     return root
 
 

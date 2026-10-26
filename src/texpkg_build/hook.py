@@ -16,7 +16,7 @@ from pdm.backend.hooks import Context
 from texpkg.declaration import Distribution
 from texpkg.errors import DeclarationError
 
-from ._internal import checks, embed, generate
+from ._internal import checks, embed, generate, generated
 from ._internal.isolate import author_source
 from .testing import load_declaration
 
@@ -53,7 +53,11 @@ def pdm_build_update_files(context: Context, files: dict[str, pathlib.Path]) -> 
             hint="the module is generated from the declaration: test it with texpkg_build.testing.load_declaration",
         )
     module, attr = _pointer(context)
-    with author_source(context.root / (context.config.build_config.package_dir or ".")) as isolation:
+    source = context.root / (context.config.build_config.package_dir or ".")
+    with author_source(source) as isolation:
+        if pointer := context.config.data.get("tool", {}).get("texpkg", {}).get("generate"):
+            where = generated.package_directory(source, module)
+            generated.refuse_if_stale(pointer, where, generated.produce(pointer, where, isolation))
         isolation.forget(module.split(".")[0])
         dist = getattr(importlib.import_module(module), attr, None)
         if not isinstance(dist, Distribution):
@@ -69,8 +73,8 @@ def pdm_build_update_files(context: Context, files: dict[str, pathlib.Path]) -> 
         loaded = load_declaration(f"{module}:{attr}", version=version)
         checks.module_satisfies_the_protocols(loaded)
         contracts, held = checks.contract_gate(context.root, dist, loaded._bound.RELEASE, version)  # pyright: ignore[reportAttributeAccessIssue]
-        generated = generate.sources(dist, attr, version, contracts)
+        module_files = generate.sources(dist, attr, version, contracts)
         files.clear()  # a wheel holds the generated module, not the author's sources
         embed.embed(
-            context.build_dir / dist.module, dist, declaration, generated, held
+            context.build_dir / dist.module, dist, declaration, module_files, held
         )  # not ensure_build_dir(): its .gitignore

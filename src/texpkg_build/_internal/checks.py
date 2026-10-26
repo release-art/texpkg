@@ -1,6 +1,7 @@
 """What the build refuses (B4): a defect fails `pdm build`, not a consumer's import."""
 
 import importlib
+import importlib.resources
 import pathlib
 import re
 from types import ModuleType
@@ -21,7 +22,9 @@ from . import snapshot
 
 def declaration_directory(dist: Distribution) -> pathlib.Path:
     """The directory of the declaration package, which the build copies whole (P22)."""
-    path = pathlib.Path(str(dist.files))
+    path = pathlib.Path(
+        str(importlib.resources.files(dist.declared_in))
+    )  # not `dist.files`: root may be a subdirectory
     if not (path / "__init__.py").is_file():
         raise DeclarationError(
             f"{dist.declared_in}: the declaration must be a package (a directory with an __init__.py)",

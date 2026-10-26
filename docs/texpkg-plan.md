@@ -319,10 +319,19 @@ mode presets that a deck cannot set.
 - K3 Data names its kind: the envelope is `{package, data, kind, ...}`. `<kind>.load` checks it and raises
   `KindMismatchError` on another kind (P26); only the optional generic `acme_tex.load` dispatches on it. Each kind gives
   its own schema (`expert.schema(mode=)`, §4a) (**decided**).
-- K4 A hand-written kind is already a real class (P23). Only kinds made from embedded data (the first consumer's series
-  are listed in its tokens) need generating: the build enumerates them and writes their classes into the module
-  (`acme_tex.kinds.expert.Deck`), so a consumer's pyright sees real classes rather than models made with `create_model`
-  at import time; needed by the first consumer's port (§8); not built (**decided**).
+- K4 **Kinds made from data are generated source, committed and checked** (**decided**). A hand-written kind is already
+  a real class (P23). A kind whose classes depend on data (a series' card counts, bounds and allowed colours, listed in
+  its tokens) is written by a generator: `[tool.texpkg] generate = "module:function"` names a pure
+  `function(root: Path) -> {path: source}`, `root` the declaring package's directory and each path a `.py` file inside
+  it. `texpkg-build generate` writes the files (each with a header; `--check` only reports) and removes generated files
+  it no longer produces; `pdm build` runs the function again and refuses a file that is missing, differs or is left over
+  (`TP-B012`), and a function that is not deterministic or returns a bad path (`TP-B013`), as it refuses a stale
+  `contracts/next` (V12). The declaration imports the files like any module, so a consumer's pyright, a wheel, a zip and
+  an editable install all see real classes, and the contracts are snapshotted from them (V11). The generator must not
+  import the declaring package, whose `__init__` imports what it writes; it may import anything else, the build
+  environment included. A class name is a TeX name (P11), so each series' root and parts need distinct names
+  (`ShortDeck`, `LongDeck`). Considered and not chosen: a `Kind` generator the build writes into the wheel, which needs
+  the classes before the declaration has finished importing.
 - K5 Kinds are part of the `data` contract: adding one is compatible, removing or renaming one is breaking and needs a
   consumer to migrate its data (V6). A profile can offer a subset of its base's kinds, narrow them, or add its own (**decided**).
 - K6 **A kind declares its variants; building them is the consumer's** (**decided**). A variant is a named set of settings
@@ -459,6 +468,7 @@ distribution = "acme_tex_decl:dist"
 |---|---|---|---|
 | the hook | `pdm_build.py` re-exports `texpkg_build`'s pdm hook functions | decided | B2 |
 | the declaration's pointer | `[tool.texpkg] distribution = "module:attr"` | decided | B3 |
+| the generator (optional) | `[tool.texpkg] generate = "module:function"`; `texpkg-build generate [--check]` | decided | K4 |
 | base pinned exactly | `==` in `[build-system] requires` | proposed | P14 |
 | contract versions | `texpkg-build contracts`: compares with the last snapshot, writes the versions file | decided: a command, for authors | V12 |
 | build | `pdm build`: generates the module, renders the `.sty`, embeds, refuses what would ship broken | decided (behaviour) | B1, B4 |
@@ -477,8 +487,8 @@ distribution = "acme_tex_decl:dist"
 - A4 `check` compares by content, never by mtime. Each file is `unchanged`, `changed`, `missing` or `extra` (`extra`: a
   file in a place materialising writes to that it did not write, such as a retired `.sty`). Generated files that hold a
   time are compared by stamp (**decided**).
-- A5 The layout also gives the preamble lines a document needs (`\input@path` before `\usepackage`, `\graphicspath{{}{dir/}}`
-  after it) so the generated `.tex` and the layout cannot disagree (**decided**).
+- A5 The layout also gives the preamble lines a document needs (`\input@path` before `\usepackage`, and `\graphicspath{{}{dir/}}`
+  after it for a kind that has a graphic: `\graphicspath` is `graphicx`'s) so the generated `.tex` and the layout cannot disagree (**decided**).
 - A6 **An asset may name the kinds that need it** (**decided**): `Asset(..., kinds=["expert"])`; an asset naming none is
   needed by every kind. `save` writes the `.sty` and the assets the document's kind needs; `check` compares that set;
   `export` still writes everything (E1). texpkg does not read TeX to find what a kind loads (N1), so the declaration is
@@ -732,7 +742,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 - **Move the per-model core into texmodel** (V8, V9) once it is stable: `_internal/history.py` (data paths, problems,
   unplaced fields), `classify.py`, `versions.py`, `provenance_tex.py`. texpkg then imports it.
 - **Port the first consumer** (acceptance): its `pack` becomes a texpkg declaration with no change to its output. Its
-  kinds are its series, generated from its tokens (K4, not built); cards become texmodel nodes; its hook files become
+  kinds are its series, generated from its tokens (K4); cards become texmodel nodes; its hook files become
   variants (K6). Accepted when its generated `.sty`, `deck.tex` for every series and its `derived/` files are
   byte-identical before and after. A byte difference is attributed to texmodel or texpkg before it is fixed.
 - **A hand edit's field and value** (D9): `HandEdit.value` is `None`; texmodel 0.4.0 offers `Plan.edits` and
@@ -821,6 +831,9 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | Asset paths are relative to `Distribution.root`, by default the declaring module's directory, and stay inside the declaring package | decided |
 | A stored field the model no longer has is an unresolved item, never dropped; only a migration removes content | decided |
 | `Kind(stem=)` names the kind's `.tex` files; the default is the root class lower-cased | decided |
+| Kinds made from data are generated source: `[tool.texpkg] generate`, `texpkg-build generate`, committed and refused when stale by the build | decided |
+| A kind's document is a texmodel tree; a pydantic root with a render function is not supported, because `Plan`, hand edits, the defaults marks and the schemas need nodes | decided |
+| A document does not carry its package's version as a field; the stack in `template.json` and the provenance command do | decided |
 | The version is a constant the build writes into the module, never read from metadata at run time | decided |
 
 ## 10. Open questions

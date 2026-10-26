@@ -204,3 +204,12 @@ def test_a_generated_module_that_breaks_the_protocol_is_refused(tmp_path, monkey
     with pytest.raises(DeclarationError) as raised:
         checks.module_satisfies_the_protocols(module)
     assert "kinds.expert" in str(raised.value)
+
+
+def test_the_declaration_directory_is_the_package_even_when_root_is_a_subdirectory():
+    from texpkg_build._internal import checks  # noqa: PLC0415
+
+    from .test_declaration import distribution  # noqa: PLC0415
+
+    moved = distribution(root="fixtures/acme_brand")
+    assert checks.declaration_directory(moved) == pathlib.Path(__file__).parent

@@ -42,7 +42,8 @@ def test_each_role_has_a_place_in_the_layout(role, placed):
 
 
 def test_the_layout_gives_the_preamble_lines_that_find_its_files():
-    assert PROJECT.preamble() == PreambleSlots(
+    assert PROJECT.preamble(graphics=False) == PreambleSlots(before_package=(InputPath("res/texpkg/"),))
+    assert PROJECT.preamble(graphics=True) == PreambleSlots(
         before_package=(InputPath("res/texpkg/"),), after_package=(GraphicsPath("res/texpkg/"),)
     )
     assert PROJECT.owned() == ("res/texpkg/**/*",)
