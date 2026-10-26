@@ -1,4 +1,4 @@
-"""The per-kind payload proved by compiling, and the font check (phase 6a: A7, A8)."""
+"""The per-kind payload proved by compiling, and the font check (A7, A8)."""
 
 import pathlib
 from types import SimpleNamespace

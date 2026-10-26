@@ -1,4 +1,4 @@
-"""Contract versions (phase 5b: V10-V13, V33, V35-V37)."""
+"""Contract versions (V10-V13, V33, V35-V37)."""
 
 import dataclasses
 import json

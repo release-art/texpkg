@@ -1,4 +1,4 @@
-"""Profiles and embedded data (phase 3a: L1-L8)."""
+"""Profiles and embedded data (L1-L8)."""
 
 import dataclasses
 import json

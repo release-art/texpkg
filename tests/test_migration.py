@@ -1,4 +1,4 @@
-"""Migrations (phase 5a: V5-V9, V14-V16, V22, V23, V28-V32)."""
+"""Migrations (V5-V9, V14-V16, V22, V23, V28-V32)."""
 
 import json
 import pathlib

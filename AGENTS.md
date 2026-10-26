@@ -10,8 +10,9 @@ for emitting LaTeX from versioned (migratable) data; packages can depend on each
 dependent at build time (static linking), texmodel and texpkg's run time embedded too. texpkg builds that module from
 the author's declaration at wheel build time (`texpkg-build`, a pdm build hook) and defines the API behind it: load a
 document directory, render it, save it with the files it needs, check it later.
-[docs/texpkg-plan.md](docs/texpkg-plan.md) is the target spec, the API reference (§4a), the phases (§8) and the
-decisions log (§9); [docs/implementation-plan.md](docs/implementation-plan.md) is how and in which order it is built. texmodel owns components, document models and escaping.
+[docs/texpkg-plan.md](docs/texpkg-plan.md) is the spec, the API reference (§4a), what is not built yet (§8), the decisions log (§9)
+and the open questions (§10); [docs/known-limitations.md](docs/known-limitations.md) is what texpkg does not do. texmodel owns
+components, document models and escaping.
 
 **Pre-1.0:** no backward compatibility for the Python API or the saved output: rename or remove directly. List every
 such change under `Changed` or `Removed` in `CHANGELOG.md`.
@@ -31,8 +32,8 @@ not settled: ask before building on it.
   arguments.
 - **Nothing real or private enters this repo.** No customer, brand or person's name, no real package, no real data: examples
   and tests use a synthetic `acme` package. A defect found in a real consumer becomes a synthetic test that shows it.
-- When a change alters behaviour, update in the same change: the plan (status, decisions log), the README if the front page
-  changes, and `CHANGELOG.md` under `## [Unreleased]`.
+- When a change alters behaviour, update in the same change: the plan (the section it touches, the decisions log),
+  `docs/known-limitations.md`, the README if the front page changes, and `CHANGELOG.md` under `## [Unreleased]`.
 
 ## Quality gates (mandatory)
 
@@ -45,8 +46,8 @@ pdm run pytest                  # coverage over both packages must stay at 100%
 TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the library or the build changed
 ```
 
-- `bin/autoformat.sh` formats, fixes and runs pyright, import-linter and pytest; `.githooks/pre-commit` runs the gates
-  (`git config core.hooksPath .githooks`).
+- `bin/autoformat.sh` formats, fixes and runs pyright and import-linter; `bin/test.sh` runs pytest; `.githooks/pre-commit`
+  runs ruff, pyright and import-linter (`git config core.hooksPath .githooks`).
 - Judge each gate by its exit code. Run the files you touched first, the whole suite last.
 - Output that TeX must accept is proved by compiling, not by comparing text.
 - Do not weaken the gates: no `# pragma: no cover`, no blanket `# noqa` or `# type: ignore`, no loosened config. A narrow
@@ -63,7 +64,7 @@ TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the 
 - `texpkg` never imports `texpkg_build`; nothing starts a process (tests do, through `tests/spawn.py`); only
   `texpkg_build/cli.py` prints. `lint-imports` enforces these.
 - What texpkg needs from texmodel and texmodel lacks is written in one self-contained texpkg module and listed in
-  `docs/texmodel-requests.md` (N5, V9). Do not edit texmodel from here.
+  `docs/known-limitations.md` with the test that shows it (N5, V9). Do not edit texmodel from here.
 
 ## Conventions
 
@@ -79,9 +80,8 @@ TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the 
 
 ## Working with the maintainer
 
-- Work from the plan's phases; for a design choice it leaves open, propose rather than pick silently.
-- Git is the maintainer's: read-only commands only (`status`, `diff`, `log`, `show`) unless explicitly asked (an
-  implementation brief may grant commits on one named branch). Releasing is theirs; the version is the git tag.
+- Work from the plan's §8; for a design choice it leaves open, propose rather than pick silently.
+- Git is the maintainer's: read-only commands only (`status`, `diff`, `log`, `show`) unless explicitly asked. Releasing is theirs; the version is the git tag.
 - Uncommitted changes aren't yours: read `git status` and `git diff` first, build on them, never revert them.
 - Scratch files go in your scratchpad, never in the repo.
 

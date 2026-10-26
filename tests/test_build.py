@@ -1,4 +1,4 @@
-"""The build: `pdm build` of an author's project (phase 2b: B1-B6, B8, V1)."""
+"""The build: `pdm build` of an author's project (B1-B6, B8, V1)."""
 
 import hashlib
 import importlib

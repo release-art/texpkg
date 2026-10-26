@@ -1,4 +1,4 @@
-"""The declaration is checked when it is built (phase 2: P25, K1, K2, K6, P20, P21)."""
+"""The declaration is checked when it is built (P25, K1, K2, K6, P20, P21)."""
 
 import dataclasses
 import pathlib

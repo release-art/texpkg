@@ -1,4 +1,4 @@
-"""The module a build generates, through its whole surface (phase 2: P6, P24, P26, K3, K6, V26, B11)."""
+"""The module a build generates, through its whole surface (P6, P24, P26, K3, K6, V26, B11)."""
 
 import pathlib
 import sys

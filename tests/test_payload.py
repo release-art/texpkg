@@ -1,4 +1,4 @@
-"""Assets, layouts and payloads (phase 1: A1-A6, P10, P11)."""
+"""Assets, layouts and payloads (A1-A6, P10, P11)."""
 
 import io
 import pathlib

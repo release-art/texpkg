@@ -67,7 +67,7 @@ def test_a_profile_document_compiles_as_the_base_kind_it_expands_to(acme_brand_t
     compiler.compile(tmp_path / "doc" / "brief.tex", tmp_path / "out").raise_for_status()
 
 
-# -- provenance (phase 4) --------------------------------------------------------------------------------------------
+# -- provenance --------------------------------------------------------------------------------------------
 
 
 def with_provenance(root: pathlib.Path, head: str, *, name: str = "prov") -> pathlib.Path:

@@ -1,4 +1,4 @@
-"""The document directory and its state (phase 2a: P27, P29, D1-D9, V21-V27)."""
+"""The document directory and its state (P27, P29, D1-D9, V21-V27)."""
 
 import json
 import pathlib

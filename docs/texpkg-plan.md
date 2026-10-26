@@ -1,9 +1,7 @@
 # texpkg — project plan
 
-The target spec and the decisions log. It describes what texpkg is meant to be; what is built is marked in §8, and how
-it is built is [implementation-plan.md](implementation-plan.md). Status of
-each decision: **decided**, **proposed** (drafted, not agreed) or **open** (a question). Requirement ids (`P1`, `A3`)
-are what tests and commits cite.
+The spec and the decisions log: what texpkg is, and (§8) what is not built yet. Status of each decision: **decided**,
+**proposed** (drafted, not agreed) or **open** (a question). Requirement ids (`P1`, `A3`) are what tests and commits cite.
 
 ## 1. Purpose
 
@@ -106,7 +104,7 @@ profiles' models) is neither's: it is the content being packaged, built with tex
   so a wheel can be checked by rebuilding (**decided**).
 - B6 A sdist carries the declaration and the sources, not the generated module, and builds the same wheel (**decided**).
 - B7 **The run time is embedded too** (**decided**): texmodel and texpkg's run time are copied into the wheel
-  (`acme_tex._embedded.texmodel`, `._embedded.texpkg_runtime`) like a base (P13, P19). The same data then renders the same
+  (`acme_tex._embedded.texmodel`, `._embedded.texpkg`) like a base (P13, P19). The same data then renders the same
   `.tex` whatever else the consumer has installed, so `output` (V10) depends on the wheel alone, and two packages built
   on different texmodel releases install side by side. Only what cannot be copied stays a dependency: pydantic (compiled),
   with a wide range (`>=2,<3`) (**proposed**, the range). The package's own versions keep the usual meaning (V13).
@@ -118,8 +116,7 @@ profiles' models) is neither's: it is the content being packaged, built with tex
   as an optional extra (`acme-tex[fsspec]`).
 - B10 Embedded code must not ask the environment who it is (**proposed**): texmodel reads its own version with
   `importlib.metadata.version("texmodel")` for the generated-file stamp, which inside a copy finds no metadata, or another
-  installed texmodel's. The version is written into the copy as a constant when it is embedded (a texmodel change, N5),
-  and the build refuses code that reads its own distribution's metadata (B4). The same holds for the package's own
+  installed texmodel's. The build sets texmodel's `GENERATOR_VERSION` in the copy, and refuses code that reads its own distribution's metadata (B4). The same holds for the package's own
   version (V1).
 - B11 **No types are shared between packages** (**decided**): with the run time embedded (B7), one package's `Document`,
   errors and enums are its own classes, and no shared `texpkg-api` distribution exists. A consumer using several packages
@@ -174,13 +171,9 @@ The surface is specified in §4a; the requirements behind it follow.
   defaults written out and marked (V21); (2) the **template state**, the package as it was when the document was saved:
   its version and contracts, the default values, the kind's presets and locks, the design values it rendered with
   (L1), its schema, and the stack (V18). With both, a later release can migrate a document at the `tex` and `design`
-  level from what the document itself records, not only from the snapshots the newer wheel ships.- D1 **A saved document records two states** (**decided**): (1) the **user's state**, the values the caller gave, with
-  defaults written out and marked (V21); (2) the **template state**, the package as it was when the document was saved:
-  its version and contracts, the default values, the kind's presets and locks, the design values it rendered with
-  (L1), its schema, and the stack (V18). With both, a later release can migrate a document at the `tex` and `design`
   level from what the document itself records, not only from the snapshots the newer wheel ships.
 - D2 **The last few saves are kept** (**decided**): each `save` keeps the previous pair of states as history; the last 3
-  by default (a `save` argument or a `Distribution` setting, **proposed**).
+  (fixed).
 - D3 `create` writes both states; `save` rewrites them, moving the previous pair to history and dropping the oldest
   beyond the kept number (D2); `load` reads, migrates in memory and writes nothing. A stored document changes only when the
   caller saves (**decided**).
@@ -200,7 +193,7 @@ The surface is specified in §4a; the requirements behind it follow.
       _texpkg/history/1/…        the previous pair; up to 3
       deck.tex                   the last render
       images/…                   the consumer's own resources
-      res/acme/…, *.ttf          the materialised payload (`Project` layout)
+      res/texpkg/…, *.ttf        the materialised payload (A2)
   ```
 
 - D6 **The template state records only what reached the document** (**decided**): the settings `render` wrote for its
@@ -218,12 +211,11 @@ The surface is specified in §4a; the requirements behind it follow.
   texpkg wrote and what the file holds now, and whether lines were added, removed or changed. `save(force=True)`
   overwrites the hand edit; `check` reports hand edits too. Generated payload files are not covered: `check` reports them
   changed (A4) and `save` rewrites them (**proposed**).
-- D9 **Which field changed, and to what value, is texmodel's** (**proposed**, following texmodel's brief
-  `docs/briefs/hand-edit-values.md`): where texmodel attributes an edit to one argument (`Line.spans`, `Edit.fields`) and
+- D9 **Which field changed, and to what value, is texmodel's** (**proposed**, following texmodel 0.4.0's `Plan.edits`): where texmodel attributes an edit to one argument (`Line.spans`, `Edit.fields`) and
   reads it back as a typed value (`ValueKind.read`), a `HandEdit` carries the field's data path and its value; where it
   cannot (an edit over several arguments, a body, a custom kind without `read`), the edit carries the node's data path and
   the raw text, and the value is unknown, never guessed. texpkg reads no TeX itself (N1); applying an edit back to the
-  document stays with the consumer until texmodel offers it.
+  document stays with the consumer until texmodel offers it. Not built (§8): `HandEdit.value` is `None`.
 
 ### Dependencies between packages
 
@@ -263,8 +255,8 @@ The surface is specified in §4a; the requirements behind it follow.
   the dependent at its next build (P16). An unexposed kind stays internal.
 - P30 **Rebuilding against a newer base** (**decided**): one numbering per package. The dependent's snapshot records, for
   each exposed kind, which base `data` version each of its own `data` versions corresponds to; texpkg runs the base's
-  migrations for that kind (`to=` in the base's numbering) at the dependent's matching boundary, together with the
-  build's derived renames and default migrations, so the dependent's author re-keys nothing. What the rebuild changes
+  migrations for that kind (`to=` in the base's numbering) at the dependent's matching boundary, so the
+  dependent's author re-keys nothing. What the rebuild changes
   is otherwise covered: the base's `interface` (V17), its `.sty` and assets (the dependent's `output`, P16), its design
   values (reported per document, D4), and base types the dependent's own kinds reuse (its snapshot re-derived, V12).
 
@@ -330,7 +322,7 @@ mode presets that a deck cannot set.
 - K4 A hand-written kind is already a real class (P23). Only kinds made from embedded data (the first consumer's series
   are listed in its tokens) need generating: the build enumerates them and writes their classes into the module
   (`acme_tex.kinds.expert.Deck`), so a consumer's pyright sees real classes rather than models made with `create_model`
-  at import time; needed by the first consumer's port (phase 8) more than by phase 2 (**decided**).
+  at import time; needed by the first consumer's port (§8); not built (**decided**).
 - K5 Kinds are part of the `data` contract: adding one is compatible, removing or renaming one is breaking and needs a
   consumer to migrate its data (V6). A profile can offer a subset of its base's kinds, narrow them, or add its own (**decided**).
 - K6 **A kind declares its variants; building them is the consumer's** (**decided**). A variant is a named set of settings
@@ -371,7 +363,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | create | `expert.create(path: Path \| str, tree: Deck) -> Document[Deck]`: refuses a directory that already holds a document | decided | P23 |
 | name | `expert.NAME: Final[str]` | decided | K1 |
 | schema | `expert.schema(mode: Literal["validation", "serialization"] = "validation") -> dict[str, Any]` | decided | V26 |
-| example | `expert.example() -> Deck` | decided | E1, Q15 |
+| example | `expert.example() -> Deck` | decided | E1 |
 | variants | `expert.variants() -> tuple[str, ...]` | decided (listing); name proposed | K6 |
 | what changed | `expert.changes(old: int, new: int) -> Changes` (fields added, removed, tightened; the author's notes; the release of each `data` version) | decided | V33 |
 
@@ -452,7 +444,7 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 
 ```toml
 [build-system]
-requires = ["pdm-backend", "texpkg-build>=0.1,<0.2", "acme-brand-tex==7.0.0"]   # a base pinned exactly: it is embedded
+requires = ["pdm-backend", "texpkg[build]>=0.4", "acme-brand-tex==7.0.0"]   # a base pinned exactly: it is embedded
 build-backend = "pdm.backend"
 
 [project]
@@ -471,7 +463,7 @@ distribution = "acme_tex_decl:dist"
 | contract versions | `texpkg-build contracts`: compares with the last snapshot, writes the versions file | decided: a command, for authors | V12 |
 | build | `pdm build`: generates the module, renders the `.sty`, embeds, refuses what would ship broken | decided (behaviour) | B1, B4 |
 
-## 5. Assets and layouts
+## 5. Assets and the layout
 
 - A1 An asset is `Asset(path, role, why, kinds=())`; `Role` is an enum (**decided**): `PACKAGE` (`.sty`), `GRAPHIC`, `FONT`,
   `BY_PATH` (named by path in a preamble, keeps that path), `NOTE` (notes, licences). The role decides placement; no rule is
@@ -485,23 +477,21 @@ distribution = "acme_tex_decl:dist"
 - A4 `check` compares by content, never by mtime. Each file is `unchanged`, `changed`, `missing` or `extra` (`extra`: a
   file in a place materialising writes to that it did not write, such as a retired `.sty`). Generated files that hold a
   time are compared by stamp (**decided**).
-- A5 Layouts also give the preamble lines a document needs (`\input@path` before `\usepackage`, `\graphicspath{{}{dir/}}`
+- A5 The layout also gives the preamble lines a document needs (`\input@path` before `\usepackage`, `\graphicspath{{}{dir/}}`
   after it) so the generated `.tex` and the layout cannot disagree (**decided**).
 - A6 **An asset may name the kinds that need it** (**decided**): `Asset(..., kinds=["expert"])`; an asset naming none is
   needed by every kind. `save` writes the `.sty` and the assets the document's kind needs; `check` compares that set;
   `export` still writes everything (E1). texpkg does not read TeX to find what a kind loads (N1), so the declaration is
   proved on the packager's side (A7).
-- A7 **A per-kind payload is proved by compiling** (**proposed**): a test helper of `texpkg-build` saves each kind's
+- A7 **A per-kind payload is proved by compiling** (**proposed**): a test helper of `texpkg_build.testing` (`check_isolated`) saves each kind's
   example, in each of its variants, into a fresh directory holding only that kind's payload, and compiles it with the
   search environment unset (no `TEXINPUTS`, no `OSFONTDIR`), through texmodel_build. It fails on a missing file, and on
   any embedded font or graphic read from outside the directory, since luaotfload can substitute a system font without an
   error (the first consumer's font check). It proves only what the example uses, so a kind's example exercises the whole
   kind: every optional part and variant (the same examples feed the `output` fingerprint, V11).
-- A8 **The embedded-font check moves into texmodel_build** (**decided**): the first consumer's `fonts.py` (read each
-  embedded font's absolute path from the LuaTeX log, flag any outside the allowed directories), generalised from "from
-  `sources/fonts/`" to "from these directories", so the first consumer and A7 share it. It needs `max_print_line` raised,
-  which texmodel_build's environment already does, and it does not see fonts inside an included PDF: a check that says
-  where it stops. A texmodel_build change with its own tests, made for A7.
+- A8 **The embedded-font check is texmodel_build's** (**decided**): `texmodel_build.fonts` reads each embedded font's
+  path from the LuaTeX log and flags any outside the allowed directories; A7 uses it. It does not see fonts inside an
+  included PDF: a check that says where it stops.
 
 ## 6. Versions and provenance
 
@@ -547,8 +537,8 @@ distribution = "acme_tex_decl:dist"
   standard and a tick against those met. The kind's migration maps each row to the fixed list; a row naming a standard the
   list does not hold cannot be placed. That migration is specific to the datasheet.
 - V7 A release freezes its contract snapshot (V11), so a consumer can diff what a document may say between two releases.
-- V8 **Migrations are worked out here and crystallise into texmodel** (**decided**). texmodel's plan has them (§13,
-  X1–X10) and none is built; texpkg is where the real needs show up, so the design is found here first. What is about one
+- V8 **Migrations are worked out here and crystallise into texmodel** (**decided**). texmodel has declared renames
+  (`renamed_from`) and the rest is not built; texpkg is where the real needs show up, so the design is found here first. What is about one
   model moves to texmodel once it is stable; what is about packages stays here. Proposed split:
   - *texmodel*: one model's history: declared renames (aliases), classifying a change (compatible or breaking) by
     diffing two declarations.
@@ -566,9 +556,9 @@ distribution = "acme_tex_decl:dist"
   unresolved item (path, what changed, the old value, the new schema), so the consumer **extends or amends the process**
   with a migration of its own and loads again.
 - V32 **One migration API, whoever writes it** (**decided**): a kind lists its migrations (`Kind(..., migrations=[...])`)
-  and a consumer passes its own (`expert.load(path, migrations=[...])`); the renames and default migrations the build
-  derives are the same type. For each `data` boundary crossed they run in order: the build's, the kind's, the
-  consumer's, each seeing what the earlier ones left unresolved. All are optional: a breaking change with no migration
+  and a consumer passes its own (`expert.load(path, migrations=[...])`); the
+  default policy (V23) runs first, then for each `data` boundary crossed the kind's migrations and the consumer's, in
+  order, each seeing what the earlier ones left unresolved (`state["$unresolved"]`). All are optional: a breaking change with no migration
   anywhere aborts with the report.
 
   ```py
@@ -658,7 +648,7 @@ so the layers (the TeX, the embedded data, the kinds) only say where a change ca
   file (V2), and promises no compatibility.
 - V35 **The `output` fingerprint compares the same data** (**decided**): the build renders the **previous** release's
   example data with the new package and compares it with the previous release's `.tex`, so editing an example is not
-  an output change; a new or edited example is the baseline for the next release, and an example whose data no longer
+  an output change, and the package's `.sty` is rendered at a fixed version, so the release number is not one either; a new or edited example is the baseline for the next release, and an example whose data no longer
   loads (a `data` break) is reported as not compared, never guessed. The snapshot holds **one hash per file** (each
   `.sty`, each example `.tex` per variant, each asset), so the build reports which files changed. **Every byte counts**:
   a comment or texmodel's generator stamp changing is an output change the author classifies as a `revision` (V12);
@@ -669,7 +659,7 @@ so the layers (the TeX, the embedded data, the kinds) only say where a change ca
 - V37 **Snapshots freeze at release** (**proposed**), as texmodel's plan X2 does for schemas: `texpkg-build contracts`
   rewrites `contracts/next/` while developing (the versions file, both schemas per kind, `interface.json`, `output.json`
   with one hash per file, each example's data and rendered `.tex`) and proposes the next release version (V13); a
-  release step freezes `next/` into `contracts/<version>/`, never rewritten after; the build refuses a tag that does not
+  release step freezes `next/` into `contracts/<version>/`, never rewritten after; right after a freeze `next` describes the release just made, and `texpkg-build contracts` starts the next; the build refuses a tag that does not
   match the newest frozen directory or understates it. The wheel carries every frozen directory (`changes`, migrations
   and V35 read them).
 
@@ -689,8 +679,8 @@ Examples:
   rendered with, so it reproduces on its own; the mark says which values came from the package rather than the author.
 - V22 **Default changes migrate automatically, with the distribution** (**decided**, as the rule; exceptions exist). When
   a release changes a default, a value still marked as default moves to the new one (under the consumer's `FOLLOW`, V23), and stays marked; a value the author
-  set is left alone. The migration is derived from the snapshot diff (a changed `default` in a kind's schema, V11) and bundled
-  in the wheel, with nothing hand-written.
+  set is left alone. It compares the defaults the document saved (its template state, D1) with the installed package's, so it
+  needs no snapshot and nothing hand-written.
 - V23 **Whether a document accepts a changed default is the consumer's decision** (**decided**): a downstream migration
   decision, like every other data-level one (V6). The package ships what changed (old and new default values, D1, V22);
   the consumer chooses at `load`: `default_changes=DefaultChange.FOLLOW` (marked values move to the new default),
@@ -704,8 +694,8 @@ Examples:
 - V25 **Telling a default from a value the author set is pydantic's `model_fields_set`** (**decided**), on every tree,
   however it was built: texmodel's components become pydantic models (a texmodel decision, reversing its "component
   classes stay stdlib dataclasses"; texpkg depends on it, N5). A value equal to the default but set by the author stays
-  the author's. texmodel has switched (its components are frozen pydantic models, `model_fields_set` is what the
-  caller passed), on its development branch, not yet released.
+  the author's. texmodel has switched since 0.4.0 (its components are frozen pydantic models,
+  `model_fields_set` is what the caller passed).
 
 ### Pydantic for state, schemas and migrations
 
@@ -722,9 +712,9 @@ components today (`spec`), so each kind's state model is one of those, extended.
   validator and rebuilds `model_fields_set` from it, so a round trip keeps what was given. The stored schema limits
   `$defaults` to the node's defaulted fields, and an after validator checks a marked value equals its default.
 - V28 **A migration is a before validator over plain data** (**decided**): a function from the stored dict of one `data`
-  version to the next, returning the data and what it left unresolved (`Migrated`, V32). Renames (pydantic aliases,
-  `AliasChoices`, texmodel's X3) and default migrations (V22) are derived by the build from snapshot diffs; a kind's and
-  a consumer's are written by hand. Old data is never validated against an old model: only the result validates,
+  version to the next, returning the data and what it left unresolved (`Migrated`, V32). A rename is read by texmodel
+  before validation (`field(renamed_from=)`) and a changed default is applied from the document's saved template state
+  (V22), so neither needs a derived migration; a kind's and a consumer's are written by hand. Old data is never validated against an old model: only the result validates,
   against the current model, so the wheel needs no old model classes, only the migrations and the snapshots.
 - V29 Default migrations run on every load that crosses a default change, whatever the age (V14): a changed default breaks no
   data (a revision by the bump table) yet must move marked values (**proposed**).
@@ -737,26 +727,19 @@ components today (`spec`), so each kind's state model is one of those, extended.
 
 - E1 `export(dir)`: the payload in the layout (A2), a template and a README per kind; the templates carry the layout's search-path lines and compile with a bare `latexmk -lualatex`.
 
-## 8. Phases
+## 8. Not built yet
 
-| # | Work | Status |
-|---|---|---|
-| 0 | This plan and `AGENTS.md`; the package layout and its import contracts | built |
-| 1 | Assets and layouts: `Asset` (with `kinds=`), `Role`, `Layout` and placement as policy over texmodel's `bundle`; reading from `importlib.resources`; `check` on `bundle.stale` and `drift` (A1–A6, P10, P11) | built |
-| 2 | The declaration and the module API: `Distribution`, `Kind`, `Variant`, `Design`; the protocol; kind modules (`load`, `create`, `schema`, `example`, `variants`, `changes`); `Document` (`render`, `save`, `check`); the errors (§4a, P6–P8, P22–P28, K1–K7, B11) | built (`export` with 6) |
-| 2a | The document directory and its state: the two states, defaults written and marked, history, `_texpkg/`, plans and hand edits, the payload written by `save` (P27, P29, D1–D9, V21–V27) | built (`load` reads the current `data` version only until 5a) |
-| 2b | The build: the `texpkg-build` hook generating the module, the version constant, rendering the `.sty`, copying assets, refusing a broken build (B1–B6, B8, V1) | built |
-| 3 | Embedding, static linking: the base and the run time (texmodel, texpkg) copied privately into the module; one base per package; relative imports; conflicts; build-time compatibility (P13–P21, P30, B7, B10, V17) | built (P30 and V17 with 5b) |
-| 3a | Profiles: embedded data, the four ways to narrow, `expand` and the L3 law's tests (L1–L8) | built |
-| 4 | Provenance: the command, the file, its texmodel component, the PDF metadata entry; compiled and checked with veraPDF (V2–V4, V34) | built |
-| 5 | *(Folded into 2a: the state format is written once, in its final form; implementation plan §1.2.)* | built in 2a |
-| 5a | Migrations: the per-model core in its own module (V9), the migration API, atomic adoption, unresolved items, default migrations (V5–V8, V14–V16, V28–V33) | built (the build's derived renames and the `changes` report come with 5b) |
-| 5b | Contract versions: snapshots, classification, the versions file, the freeze at release, the `output` fingerprint, the stack record (V10–V13, V17–V20, V35–V37) | built (the build's derived renames and default migrations are not: see the log) |
-| 5c | Move the per-model core into texmodel once it is stable; texpkg imports it | |
-| 6 | `export`: the payload, the per-kind templates, the README (E1) | built |
-| 6a | The per-kind payload proved by compiling, with the embedded-font check moved into texmodel_build (A7, A8) | built (the font check is built aside in texpkg, `docs/texmodel-requests.md`) |
-| 7 | Two synthetic wheels in the tests (`acme-brand-tex`, and `acme-deck-tex` built on it), built and installed into a clean venv: load, render, save and compile with nothing else present | built |
-| 8 | The first consumer's `pack` ported onto texpkg with no change to its output: the acceptance gate | |
+- **Move the per-model core into texmodel** (V8, V9) once it is stable: `_internal/history.py` (data paths, problems,
+  unplaced fields), `classify.py`, `versions.py`, `provenance_tex.py`. texpkg then imports it.
+- **Port the first consumer** (acceptance): its `pack` becomes a texpkg declaration with no change to its output. Its
+  kinds are its series, generated from its tokens (K4, not built); cards become texmodel nodes; its hook files become
+  variants (K6). Accepted when its generated `.sty`, `deck.tex` for every series and its `derived/` files are
+  byte-identical before and after. A byte difference is attributed to texmodel or texpkg before it is fixed.
+- **A hand edit's field and value** (D9): `HandEdit.value` is `None`; texmodel 0.4.0 offers `Plan.edits` and
+  `texmodel_build.hand_edits.read_edits`, which read an edit through TeX stubs. texpkg spawns no process (N4), so how
+  the value reaches `HandEdit` is open.
+- **A template project** for starting a package (open question 3).
+- A TDS / `TEXMFHOME` layout and fsspec paths wait for a consumer that needs them (A2, B9).
 
 ## 9. Decisions log
 
@@ -824,7 +807,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | Adopting a release is atomic: all migrations succeed whole or `load` raises, asking the consumer to extend the process | decided |
 | One migration API (`@migration(to=N)`, `Migrated`, `migrations=[...]`) for the build's, a kind's and a consumer's migrations; a migration is a before validator over plain data | decided |
 | State, schemas and migrations follow pydantic's patterns and use pydantic | decided |
-| texmodel's components are pydantic models, so every tree carries `model_fields_set` (done in texmodel, unreleased) | decided |
+| texmodel's components are pydantic models, so every tree carries `model_fields_set` (texmodel 0.4.0) | decided |
 | texpkg builds the module from the author's declaration at wheel build time | decided |
 | texmodel and texpkg's run time are embedded in each wheel; only pydantic stays a dependency | decided |
 | texpkg is one distribution with two import packages: the run time (embedded) and the build (never reaching a consumer) | decided |
@@ -835,29 +818,16 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | The `.sty` is rendered at build time and shipped | proposed |
 | Assets may live anywhere in the source tree; the build copies them in, the module reads them with `importlib.resources` | proposed |
 | Placement follows an explicit `Role`, not file suffixes | decided |
+| Asset paths are relative to `Distribution.root`, by default the declaring module's directory, and stay inside the declaring package | decided |
+| A stored field the model no longer has is an unresolved item, never dropped; only a migration removes content | decided |
+| `Kind(stem=)` names the kind's `.tex` files; the default is the root class lower-cased | decided |
 | The version is a constant the build writes into the module, never read from metadata at run time | decided |
 
 ## 10. Open questions
 
-1. *(Settled: B7, P22, P24.)*
-2. **Where the migration split falls** (V8): the line between one model's history and the package's is a first guess.
-3. *(Settled: D6, D7, D8; fsspec parked, B9.)*
-4. *(Settled: V13.)*
-5. *(Settled: §1, the line between texpkg and texmodel.)*
-6. **The remaining names.** `Distribution`'s fields; the provenance names (`\<prefix>ProvenanceInfo`, `…Stamp`, `…Time`,
+1. **Where the migration split falls** (V8): the line between one model's history and the package's is a first guess.
+2. **The remaining names.** `Distribution`'s fields; the provenance names (`\<prefix>ProvenanceInfo`, `…Stamp`, `…Time`,
    `<name>-provenance.sty`, `/<Prefix>Provenance`).
-7. **Starting a texpkg package.** A template project, or only the docs and the test examples.
-8. *(Settled: L8, in each generated document.)*
-9. *(Settled: L7, hand-written.)*
-10. *(Settled: P20, one base per package.)*
-11. *(Settled: P30.)*
-12. *(Settled: K6.)*
-13. *(Settled: A6, A7.)*
-14. *(Settled: V19, kept separate.)*
-15. *(Settled: V35.)*
-16. *(Settled: V36; the freeze, V37, proposed.)*
-17. *(Settled: P18–P21.)*
-18. *(Settled: B11, none.)*
-19. *(Settled: V23, the consumer chooses at `load`.)*
-20. *(Settled: V34.)*
-21. *(Settled: V25, texmodel's components become pydantic models.)*
+3. **Starting a texpkg package.** A template project, or only the docs and the test examples.
+4. **Design points to revisit:** `state["$unresolved"]` as the way a later migration sees earlier leftovers; the `output`
+   fingerprint rendering the `.sty` at a fixed version; the `next` snapshot one release behind after a freeze.

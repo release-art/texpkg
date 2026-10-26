@@ -2,8 +2,8 @@
 
 What texpkg does not do yet, and what it cannot do because of the layer below.
 
-- **A hand edit's field and value are not read back** (D9). `HandEdit.value` is `None` until texmodel's field-level edits
-  are committed.
+- **A hand edit's field and value are not read back** (D9). `HandEdit.value` is `None`; texmodel's `read_edits` reads
+  them through TeX, and texpkg spawns no process (plan §8).
 - **A profile kind's hand edits are named by the plan's path, not by a data path.** A profile's tree is expanded by a
   function before it is written, so a line belongs to a node of the base's tree; there is no general way back to the
   profile's own data (`HandEdit.path` is the plan path).

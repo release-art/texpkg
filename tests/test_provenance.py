@@ -1,4 +1,4 @@
-"""Provenance (phase 4: V2-V4, V34): the command, the file, the PDF entry."""
+"""Provenance (V2-V4, V34): the command, the file, the PDF entry."""
 
 import datetime
 

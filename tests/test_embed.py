@@ -1,4 +1,4 @@
-"""Embedding (phase 3: P13-P21, B7, B10, 1.5): a wheel that needs only pydantic."""
+"""Embedding (P13-P21, B7, B10): a wheel that needs only pydantic."""
 
 import ast
 import pathlib
