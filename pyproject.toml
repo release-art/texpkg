@@ -100,11 +100,6 @@ fallback_version = "0.0.0"
 package-dir = "src"
 includes = ["src/texpkg", "src/texpkg_build"]
 
-[tool.pdm.dev-dependencies]
-dev = [
-    "-e file:///${PROJECT_ROOT}/../texmodel#egg=texmodel",
-]
-
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"

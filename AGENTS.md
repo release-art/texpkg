@@ -88,5 +88,5 @@ TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the 
 ## Development environment
 
 - `pdm install`; run tools as `pdm run ...`. Python is 3.15 only.
-- texmodel is installed editable from the sibling checkout (`../texmodel`, `[tool.pdm.dev-dependencies]`) until it is
-  released with what texpkg needs (its components as pydantic models); texpkg then depends on the released version.
+- texmodel is the released one (`texmodel>=0.4.0`). To try a change in the sibling checkout, `pdm add -e ../texmodel --dev` locally
+  and do not commit that.
