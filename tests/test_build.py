@@ -135,7 +135,6 @@ def test_an_installed_wheel_needs_nothing_of_the_authors_project(project, tmp_pa
     assert lockup.read_bytes() == (project / "src/acme_brand/assets/lockup.pdf").read_bytes()
 
 
-@pytest.mark.xfail(strict=True, reason="texmodel's TemplateRef reads a file by path: docs/texmodel-requests.md")
 def test_a_wheel_runs_from_its_zip(project, tmp_path):
     built = projects.wheel(project, tmp_path / "dist")
     assert run_wheel(built, tmp_path, tmp_path / "doc").returncode == 0

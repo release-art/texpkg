@@ -12,13 +12,14 @@ from collections.abc import Iterable
 from types import ModuleType
 
 from texmodel.components import Node
+from texmodel_build import fonts
 from texmodel_build.compiler import Compiler
 
 from texpkg.contracts import Contracts
 from texpkg.declaration import Distribution
 from texpkg.errors import DeclarationError
 
-from ._internal import fonts, generate
+from ._internal import generate
 
 
 def _is_under(name: str, root: str) -> bool:
@@ -162,7 +163,9 @@ def check_isolated(module: ModuleType, compiler: Compiler, workdir: pathlib.Path
                 problems += [
                     f"{kind.name}/{name}: font read from outside the document directory: {path}"
                     for path in fonts.outside(
-                        result.log.read_text(encoding="utf-8", errors="replace"), ["/work/src", str(root.resolve())]
+                        result.log.read_text(encoding="utf-8", errors="replace"),
+                        [pathlib.Path("/work/src"), root.resolve()],
+                        root.resolve(),
                     )
                 ]
     if problems:

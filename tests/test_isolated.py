@@ -3,25 +3,7 @@
 import pytest
 
 from texpkg.errors import DeclarationError
-from texpkg_build._internal import fonts
 from texpkg_build.testing import check_isolated, load_declaration
-
-LOG = """
-Output written on doc.pdf (1 page).
- </work/src/lmroman10-regular.otf> <./own.ttf>
-</usr/share/fonts/Other.otf>
-"""
-
-
-def test_the_fonts_a_log_says_were_embedded_are_found_once_each():
-    assert fonts.embedded(LOG + LOG) == ["/work/src/lmroman10-regular.otf", "./own.ttf", "/usr/share/fonts/Other.otf"]
-    assert fonts.embedded("<not a font> <file.pdf>") == []
-
-
-def test_only_a_font_from_outside_the_allowed_directories_is_reported():
-    assert fonts.outside(LOG, ["/work/src"]) == ["/usr/share/fonts/Other.otf"]
-    assert fonts.outside(LOG, ["/work/src/", "/usr/share/fonts"]) == []
-    assert fonts.outside("<./own.otf>", []) == []  # a relative path is the document's own
 
 
 @pytest.mark.tex

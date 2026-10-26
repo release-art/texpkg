@@ -521,3 +521,12 @@ that itself returns less than it was given is its own explicit act and is not ch
 
 The `.tex` file name is `Kind.stem`, a field now: left out, the root class lower-cased, stored at construction so
 `dataclasses.replace` keeps it; otherwise letters, digits, `_` and `-` (`TP-K015`). `deck-<variant>.tex` follows it.
+
+## After the closing entry: texmodel 0.4.0
+
+The three texmodel requests are met, so their workarounds go: `embed.set_generator_version` sets texmodel's `GENERATOR_VERSION`
+constant in the copy (`TP-E006` if it is missing), `check_isolated` reads the log with `texmodel_build.fonts` (texpkg's
+`fonts.py` and its unit tests are deleted), and the strict `xfail` of the zip test is gone. The zip test found a bug in the
+new `root` check, which assumed a directory on disk: it resolves symlinks only for a real directory and asks
+`importlib.resources` whether `root` is a directory. `docs/texmodel-requests.md` lists nothing open. Not done: wiring
+`texmodel_build.hand_edits.read_edits` into `HandEdit.value` (known limitation D9).

@@ -8,6 +8,7 @@ import importlib.resources
 import importlib.resources.abc
 import inspect
 import keyword
+import os
 import pathlib
 import re
 from collections.abc import Callable, Iterator
@@ -205,8 +206,11 @@ def _declared_in(name: str, root: str) -> tuple[str, str]:
             path=name,
             hint="declare the distribution in a module of a package",
         )
-    here = pathlib.Path(str(frame.f_globals["__file__"])).resolve().parent if frame else pathlib.Path()
-    target = (here / root).resolve()  # symlinks and `..` followed, so what is checked is where the files are
+    here = pathlib.Path(str(frame.f_globals["__file__"])).parent if frame else pathlib.Path()
+    if here.is_dir():  # symlinks and `..` followed, so what is checked is where the files are
+        here, target = here.resolve(), (here / root).resolve()
+    else:  # a package imported from a zip has no directory to resolve
+        target = pathlib.Path(os.path.normpath(here / root))
     if not target.is_relative_to(here):
         raise DeclarationError(
             f"root {root!r} is outside the package that declares {name}",
@@ -214,14 +218,15 @@ def _declared_in(name: str, root: str) -> tuple[str, str]:
             path=name,
             hint="the wheel carries the declaring package only: keep the assets inside it",
         )
-    if not target.is_dir():
+    relative = target.relative_to(here).as_posix()
+    if not importlib.resources.files(str(package)).joinpath(*pathlib.PurePosixPath(relative).parts).is_dir():
         raise DeclarationError(
             f"root {root!r} is not a directory of the package that declares {name}",
             code="TP-K014",
             path=name,
             hint="a path relative to the declaring module, e.g. root='data'",
         )
-    return str(package), target.relative_to(here).as_posix()
+    return str(package), relative
 
 
 @dataclasses.dataclass(frozen=True)

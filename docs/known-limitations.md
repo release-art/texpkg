@@ -2,8 +2,6 @@
 
 What texpkg does not do yet, and what it cannot do because of the layer below.
 
-- **A zipped wheel cannot be imported.** texmodel reads `TemplateRef` files by path (`docs/texmodel-requests.md`). Installed
-  wheels are unpacked, so only a wheel put on `sys.path` as a zip is affected.
 - **A hand edit's field and value are not read back** (D9). `HandEdit.value` is `None` until texmodel's field-level edits
   are committed.
 - **A profile kind's hand edits are named by the plan's path, not by a data path.** A profile's tree is expanded by a

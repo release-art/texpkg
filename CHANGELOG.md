@@ -17,10 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- The workarounds for texmodel before 0.4.0: the rewrite of `generator_version()` in the embedded copy (it sets
+  `GENERATOR_VERSION`), texpkg's own embedded-font reader (it uses `texmodel_build.fonts`). The minimum is `texmodel>=0.4.0`.
+
 - The `Flat` layout, `Project` and the `layout=` argument of `Distribution`: there is one fixed layout, `res/texpkg/`, and
   `export` places the payload in it, so the templates carry the search-path lines.
 
 ### Added
+
+- A wheel runs from a zip: texmodel 0.4.0 reads a `TemplateRef` through `importlib.resources`, and `Distribution(root=)` is checked through it.
 
 - `Kind(stem=)` names the kind's `.tex` files; the default stays the root class lower-cased.
 

@@ -2,6 +2,8 @@
 
 import dataclasses
 import pathlib
+import sys
+import zipfile
 
 import pytest
 from acme_brand import Card, Compact, Deck, Fact, FactGap, Glossary, Mark, Term, Title, dist, expert_example
@@ -187,3 +189,22 @@ def test_a_distribution_built_outside_a_package_is_refused():
 def test_assets_are_read_from_the_root():
     moved = distribution(root="fixtures/acme_brand/assets")
     assert moved.files.joinpath("lockup.pdf").is_file()
+
+
+def test_a_distribution_declared_in_a_zipped_package_checks_its_root_through_the_package(tmp_path, monkeypatch):
+    source = (
+        "from texmodel.package import Package\n"
+        "from texpkg import Distribution\n"
+        "pkg = Package('x-tex', prefix='x', version='1.0.0', date='2026/10/22', description='d')\n"
+        "dist = Distribution(name='x-tex', module='x_tex', package=pkg, root='data')\n"
+    )
+    with zipfile.ZipFile(tmp_path / "zpkg.zip", "w") as z:
+        z.writestr("zpkg/__init__.py", source)
+        z.writestr("zpkg/data/note.txt", "x")
+    monkeypatch.syspath_prepend(str(tmp_path / "zpkg.zip"))
+    try:
+        import zpkg  # noqa: PLC0415  # pyright: ignore[reportMissingImports]
+
+        assert zpkg.dist.root == "data" and zpkg.dist.files.joinpath("note.txt").read_text() == "x"
+    finally:
+        sys.modules.pop("zpkg", None)

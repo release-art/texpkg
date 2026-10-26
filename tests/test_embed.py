@@ -2,6 +2,7 @@
 
 import ast
 import pathlib
+import re
 import shutil
 import sys
 import textwrap
@@ -123,29 +124,13 @@ def test_code_that_is_fine_in_a_copy_passes():
     embed.scan_declaration(source, "x.py", {"acme_deck"}, {"texmodel", "texpkg"})
 
 
-def test_generator_version_is_a_constant_in_the_copy():
-    original = textwrap.dedent(
-        '''
-        import importlib.metadata
-
-        def other():
-            return 1
-
-
-        def generator_version() -> str:
-            """doc"""
-            m = importlib.metadata.version("texmodel")
-            return m
-
-
-        X = 2
-        '''
-    )
-    out = embed.patch_generator_version(original, "9.8.7")
-    namespace: dict[str, object] = {}
-    exec(out, namespace)  # noqa: S102
-    assert namespace["generator_version"]() == "9.8.7" and namespace["X"] == 2 and namespace["other"]() == 1  # type: ignore[operator]
-    assert "metadata.version" not in out.split("def generator_version")[1]
+def test_generator_version_is_set_in_the_copy():
+    original = 'GENERATOR_VERSION: str | None = None\n"""doc"""\nX = 2\n'
+    out = embed.set_generator_version(original, "9.8.7")
+    assert out == 'GENERATOR_VERSION: str | None = \'9.8.7\'\n"""doc"""\nX = 2\n'
+    with pytest.raises(DeclarationError) as raised:
+        embed.set_generator_version("X = 2\n", "9.8.7")
+    assert raised.value.code == "TP-E006"
 
 
 # -- wheels ----------------------------------------------------------------------------------------------------------
@@ -166,7 +151,7 @@ def test_a_wheel_embeds_texmodel_texpkg_and_one_copy_of_each_base(brand_site, tm
     assert "acme_deck_tex/_embedded/acme_brand_tex/_sty/acme-brand.sty" in inside
     with zipfile.ZipFile(built) as z:
         package_py = z.read("acme_deck_tex/_embedded/texmodel/package.py").decode()
-        assert "importlib.metadata.version" not in package_py.split("def generator_version")[1].split("\n\n\n")[0]
+        assert re.search(r"^GENERATOR_VERSION: str \| None = '\d+\.\d+\.\d+", package_py, re.MULTILINE)
         imports = z.read("acme_deck_tex/_declaration/model.py").decode()
         assert "from .._embedded.acme_brand_tex" in imports and "from .._embedded.texmodel" in imports
         for name in inside:

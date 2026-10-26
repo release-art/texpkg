@@ -155,18 +155,17 @@ def scan_declaration(source: str, where: str, own: set[str], embedded: set[str])
                 )
 
 
-def patch_generator_version(source: str, version: str) -> str:
-    """texmodel's `generator_version()` with the version written in (B10): a copy has no metadata to ask."""
-    tree = ast.parse(source)
-    func = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "generator_version")
-    lines = source.splitlines(keepends=True)
-    assert func.end_lineno is not None
-    body = (
-        "def generator_version() -> str:\n"
-        f'    """The texmodel this copy was embedded from, written when it was embedded (B10)."""\n'
-        f"    return {version!r}\n"
-    )
-    return "".join(lines[: func.lineno - 1]) + body + "".join(lines[func.end_lineno :])
+def set_generator_version(source: str, version: str) -> str:
+    """texmodel's `GENERATOR_VERSION` set to `version` (B10): a copy has no installed metadata to ask."""
+    unset = "GENERATOR_VERSION: str | None = None\n"
+    if source.count(unset) != 1:
+        raise _fail(
+            "TP-E006",
+            "texmodel.package no longer declares GENERATOR_VERSION as None",
+            "texmodel/package.py",
+            "this texpkg needs a texmodel that reads GENERATOR_VERSION when it is set (texmodel>=0.4.0)",
+        )
+    return source.replace(unset, f"GENERATOR_VERSION: str | None = {version!r}\n")
 
 
 def copy_tree(source: pathlib.Path, dest: pathlib.Path, *, skip: tuple[str, ...] = ()) -> list[pathlib.Path]:
@@ -229,7 +228,7 @@ def embed(
         rewrite_tree(base / name, (name,), (module, EMBEDDED, name), to_copy)
     patched = base / "texmodel" / "package.py"
     patched.write_text(
-        patch_generator_version(patched.read_text(encoding="utf-8"), generator_version()), encoding="utf-8"
+        set_generator_version(patched.read_text(encoding="utf-8"), generator_version()), encoding="utf-8"
     )
     if dist.base is not None:
         _embed_base(base, module, dist.base.module)
