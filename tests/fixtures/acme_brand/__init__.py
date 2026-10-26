@@ -49,6 +49,7 @@ changed = dataclasses.replace(
     dist,
     kinds=(dataclasses.replace(dist.kinds[0], presets=(FactGap(Length("4mm")),)), dist.kinds[1]),
 )
+renamed = dataclasses.replace(dist, kinds=(dataclasses.replace(dist.kinds[0], stem="brand-deck"), *dist.kinds[1:]))
 broken = dataclasses.replace(
     dist, assets=(*dist.assets, Asset("assets/gone.pdf", Role.GRAPHIC, "a file nobody shipped"))
 )
@@ -83,6 +84,7 @@ __all__ = [
     "clash",
     "dist",
     "misdeclared",
+    "renamed",
     "expert_example",
     "vocab_example",
 ]

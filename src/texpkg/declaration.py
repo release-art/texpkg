@@ -23,6 +23,7 @@ from .errors import DeclarationError
 from .layout import LAYOUT, Project
 from .migration import Migration
 
+_STEM = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")  # a `.tex` file name without its suffix
 _KIND = re.compile(r"[a-z][a-z0-9_]*")  # a kind is a module, `acme_tex.kinds.<name>`
 _VARIANT = re.compile(r"[a-z][a-z0-9-]*")  # a variant is part of a file name
 _DISTRIBUTION = re.compile(r"[a-z][a-z0-9-]*")
@@ -96,7 +97,8 @@ def raw_holes(model: Model) -> tuple[str, ...]:
 class Kind:
     """One named document model a package offers (K1): `model` is the root class of its trees, `presets` the settings
     every document of the kind is written with (L8), `example` a valid tree that exercises the whole kind (A7, V11).
-    Every `Raw` field and `Passthrough` the kind can hold is named in `allow_raw` (P25)."""
+    Every `Raw` field and `Passthrough` the kind can hold is named in `allow_raw` (P25). `stem` names the kind's `.tex`
+    files (`deck` gives `deck.tex` and `deck-<variant>.tex`); left out, it is the root class's name, lower-cased."""
 
     name: str
     model: Model
@@ -107,6 +109,7 @@ class Kind:
     variants: tuple[Variant, ...] = ()
     expand: Callable[[Any], Node] | None = None
     over: str | None = None
+    stem: str = ""
 
     def __post_init__(self) -> None:
         for field in ("presets", "migrations", "allow_raw", "variants"):
@@ -119,6 +122,14 @@ class Kind:
                 hint="a kind is a module: acme_tex.kinds.<name>",
             )
         self._unique("variant", [v.name for v in self.variants])
+        object.__setattr__(self, "stem", self.stem or self.model.__name__.lower())
+        if not _STEM.fullmatch(self.stem):
+            raise DeclarationError(
+                f"kind {self.name}: stem {self.stem!r} is not a file name without its suffix",
+                code="TP-K015",
+                path=self.name,
+                hint="letters, digits, '_' and '-', e.g. stem='brand-deck' for brand-deck.tex",
+            )
         if (self.expand is None) != (self.over is None):
             raise DeclarationError(
                 f"kind {self.name}: expand and over go together",
@@ -160,11 +171,6 @@ class Kind:
             raise DeclarationError(
                 f"kind {self.name}: {what} {twice!r} is declared twice", code="TP-K002", path=self.name
             )
-
-    @property
-    def stem(self) -> str:
-        """The name of the kind's `.tex` files: the root class's, lower-cased (`Deck` is `deck.tex`)."""
-        return self.model.__name__.lower()
 
     def documents(self) -> tuple[tuple[str | None, str], ...]:
         """The `.tex` a save writes, as `(variant, file name)`: the kind's own, then one per variant (K7)."""

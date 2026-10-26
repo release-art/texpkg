@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+import sys
 
 import pytest
 from acme_brand import Accent, Card, Deck, Fact, Glossary, Mark, Term, Title, expert_example
@@ -286,6 +287,21 @@ def test_save_writes_nothing_when_the_tree_or_the_payload_is_not_whole(expert, d
     with pytest.raises(PayloadError) as raised:
         other.save()
     assert raised.value.code == "TP-A004" and files(other.path) == ["_texpkg/state.json", "_texpkg/template.json"]
+
+
+def test_a_kind_can_name_its_tex_files(tmp_path):
+    module = load_declaration("acme_brand:renamed", version="1.2.0")
+    try:
+        kind = module.kinds.modules()["expert"]
+        doc = kind.create(tmp_path / "doc", kind.example())
+        doc.save()
+        tex = sorted(p.name for p in doc.path.glob("*.tex"))
+        assert tex == ["brand-deck-compact.tex", "brand-deck-wide.tex", "brand-deck.tex"]
+        (doc.path / "brand-deck.tex").write_text((doc.path / "brand-deck.tex").read_text() + "% edited\n")
+        assert {e.file.name for e in doc.hand_edits()} == {"brand-deck.tex"}
+    finally:
+        for name in [n for n in sys.modules if n.split(".")[0] == "acme_brand_tex"]:
+            del sys.modules[name]
 
 
 def test_check_is_current_after_a_save_and_never_writes(doc):

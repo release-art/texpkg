@@ -340,7 +340,7 @@ mode presets that a deck cannot set.
   fronts page for page, stay with the consumer (N2); a kind may declare the pairing (`pairs=("fronts", "backs")`) so a
   checker knows what to assert (**proposed**). Declared variants are listed by the kind (`expert.variants()`), so a
   tool driving the package (a downstream MCP server, a build script) finds them without reading code.
-- K7 Details: `save` writes `deck.tex` and one `deck-<variant>.tex` per variant; the variant names are part
+- K7 Details: `save` writes `deck.tex` and one `deck-<variant>.tex` per variant (`deck` is the root class lower-cased, or the kind's `stem=`, `TP-K015` if it is not a file name); the variant names are part
   of the `interface` snapshot (V11), so removing or renaming one is breaking and adding one compatible; each variant's
   rendered example joins the `output` fingerprint (**decided**).
 
@@ -442,7 +442,7 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 | Name | Signature | Status | Ref |
 |---|---|---|---|
 | distribution | `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=())`; `root` is the directory asset paths are relative to: a path relative to the module that calls `Distribution(...)` (default: its own directory) or absolute, inside the declaring package; its import name (`declared_in`) is read from the call. Symlinks are followed; outside the package: `TP-K013`, not a directory: `TP-K014` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
-| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
+| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="")`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
 | asset | `Asset(path, role: Role, why: str, kinds=())`; `Role`: `PACKAGE`, `GRAPHIC`, `FONT`, `BY_PATH`, `NOTE` | decided (`kinds=` spelling proposed) | A1, A6 |
 | embedded data | `Design(model: type[BaseModel], path: str)` | decided | L1 |
 | default policy | `DefaultChange.FOLLOW`, `.FREEZE`, `.ASK`: an `@enum.unique` enum (a `StrEnum`, so one package's value equals another's), passed by the consumer to `load(default_changes=...)`; the `FOLLOW` default and the per-path mapping are proposed | decided | V23 |

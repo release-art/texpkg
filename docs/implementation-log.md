@@ -516,3 +516,8 @@ what the wheel carries (`TP-K013`, symlinks followed; a `root` that is not a dir
 migrations and before `$defaults` marks are stripped): `from_dict` ignored such a key, so a field dropped from a model lost
 its content without a word. It is an unresolved item (`TP-M003`) until a migration places or deletes it. Not done: a migration
 that itself returns less than it was given is its own explicit act and is not checked.
+
+## After the closing entry: `Kind(stem=)`
+
+The `.tex` file name is `Kind.stem`, a field now: left out, the root class lower-cased, stored at construction so
+`dataclasses.replace` keeps it; otherwise letters, digits, `_` and `-` (`TP-K015`). `deck-<variant>.tex` follows it.

@@ -168,6 +168,15 @@ def test_a_root_that_leaves_the_package_through_a_symlink_or_is_missing_is_refus
     assert code_of(distribution, root="test_declaration.py") == "TP-K014"
 
 
+def test_the_tex_file_name_is_the_root_class_lower_cased_unless_the_kind_names_it():
+    expert = dist.kind("expert")
+    assert expert.stem == "deck" and expert.documents()[:2] == ((None, "deck.tex"), ("compact", "deck-compact.tex"))
+    named = dataclasses.replace(expert, stem="brand-deck")
+    assert named.documents()[:2] == ((None, "brand-deck.tex"), ("compact", "brand-deck-compact.tex"))
+    assert code_of(dataclasses.replace, expert, stem="a/b") == "TP-K015"
+    assert code_of(dataclasses.replace, expert, stem="deck.tex") == "TP-K015"
+
+
 def test_a_distribution_built_outside_a_package_is_refused():
     namespace = {"__name__": "script", "Distribution": Distribution, "pkg": pkg, "__file__": __file__}
     with pytest.raises(DeclarationError) as raised:

@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Loading a document whose stored state holds a field the model no longer has is a `MigrationError` (`TP-M003`, the field's
   path and value) instead of dropping the value; a migration removes it on purpose.
-
 - `Distribution(root=".")`, a path relative to the declaring module (or absolute, an existing directory inside its package), replaces the required
   `declared_in=__name__`: the declaring package is read from the call. `Distribution.root` (the `Traversable`) is now
   `Distribution.files`.
@@ -22,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `export` places the payload in it, so the templates carry the search-path lines.
 
 ### Added
+
+- `Kind(stem=)` names the kind's `.tex` files; the default stays the root class lower-cased.
 
 - The package layout: `texpkg` (the run time) and `texpkg_build` (the build), with import contracts, the `build` extra
   and the `texpkg-build` entry point (phase 0).
