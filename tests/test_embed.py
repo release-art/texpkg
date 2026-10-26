@@ -376,7 +376,6 @@ def test_a_chain_of_three_flattens_to_one_copy_of_each(brand_site, tmp_path, mon
                 name="acme-poster-tex",
                 module="acme_poster_tex",
                 package=pkg,
-                declared_in=__name__,
                 kinds=(Kind("slide", Slide, (), lambda: Slide(Line("a"))),),
                 base=acme_deck_tex.dist,
                 expose=("vocab",),

@@ -501,3 +501,11 @@ clean-environment test is `tests/test_end_to_end.py`; the embedding one is `test
 chain has to share one directory. Reason: nothing needed `Flat`, and `export` in the layout keeps package files apart from the
 user's own. Plan A2, E1, the API table and the decisions log
 updated; the export goldens regenerated. Gates: ruff, pyright, lint-imports, pytest (249 passed, 1 xfailed, 100% coverage); the 16 `tex` tests pass.
+
+## After the closing entry: `root`
+
+`declared_in=__name__` is no longer passed: `Distribution` reads the declaring package from the call frame in `__post_init__`
+and stores it (so `dataclasses.replace` keeps it). `root: str = "."` is a path, relative to the declaring module or absolute,
+that asset paths are relative to; it is stored relative to that module and must stay inside the declaring package, which is
+what the wheel carries (`TP-K013`). A declaration outside any package raises `TP-K012`. The old `Distribution.root` property
+(a `Traversable`) is `Distribution.files`. Gates: ruff, pyright, lint-imports, pytest and the `tex` tests.

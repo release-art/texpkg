@@ -21,7 +21,7 @@ from . import snapshot
 
 def declaration_directory(dist: Distribution) -> pathlib.Path:
     """The directory of the declaration package, which the build copies whole (P22)."""
-    path = pathlib.Path(str(dist.root))
+    path = pathlib.Path(str(dist.files))
     if not (path / "__init__.py").is_file():
         raise DeclarationError(
             f"{dist.declared_in}: the declaration must be a package (a directory with an __init__.py)",
@@ -88,7 +88,7 @@ def design_is_valid(dist: Distribution) -> None:
     if dist.design is None:
         return
     try:
-        dist.design.load(dist.root)
+        dist.design.load(dist.files)
     except (OSError, ValueError) as exc:  # a missing file, bad JSON and pydantic's ValidationError are all of these
         raise DeclarationError(
             f"{dist.name}: the design data {dist.design.path} is not a valid {dist.design.model.__name__}: {exc}",

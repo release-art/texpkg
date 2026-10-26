@@ -24,7 +24,7 @@ class Role(enum.StrEnum):
 
 @dataclasses.dataclass(frozen=True)
 class Asset:
-    """A file the package ships. `path` is relative to the declaring package's root (`Distribution.root`); `kinds`
+    """A file the package ships. `path` is relative to the declaring package's root (`Distribution.files`); `kinds`
     names the kinds that need it, none meaning every kind (A6)."""
 
     path: str

@@ -114,7 +114,7 @@ Each phase lists: **goal**, **builds** (modules, the key signatures), **reuses**
 - **Goal:** everything a consumer calls, working from a declaration loaded in the same process (1.4), before any wheel
   exists.
 - **Builds:**
-  - `declaration.py`: `Distribution(name, module, package, declared_in, design=None, assets=(), kinds=(), base=None, expose=())`,
+  - `declaration.py`: `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=())`,
     `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=())`, `Variant(name, settings)`,
     `Design(model, path)`. Checked at construction: kind names unique, `example()` validates against `model`, `allow_raw`
     names real fields and every `Raw`/`Passthrough` field is listed (P25), variant names unique.

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `Distribution(root=".")`, a path relative to the declaring module (or absolute, inside its package), replaces the required
+  `declared_in=__name__`: the declaring package is read from the call. `Distribution.root` (the `Traversable`) is now
+  `Distribution.files`.
+
 ### Removed
 
 - The `Flat` layout, `Project` and the `layout=` argument of `Distribution`: there is one fixed layout, `res/texpkg/`, and

@@ -1,5 +1,8 @@
 """The declaration is checked when it is built (phase 2: P25, K1, K2, K6, P20, P21)."""
 
+import dataclasses
+import pathlib
+
 import pytest
 from acme_brand import Card, Compact, Deck, Fact, FactGap, Glossary, Mark, Term, Title, dist, expert_example
 from texmodel.components import Command, Environment, Passthrough
@@ -44,6 +47,9 @@ class Page(Environment):
 
 def page() -> Page:
     return Page(Label("a"))
+
+
+HERE = pathlib.Path(__file__).parent
 
 
 def code_of(call, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN201
@@ -97,7 +103,6 @@ def distribution(**changes):  # noqa: ANN003, ANN201
         "name": "x-tex",
         "module": "x_tex",
         "package": pkg,
-        "declared_in": "acme_brand",
     }
     return Distribution(**fields | changes)
 
@@ -124,7 +129,7 @@ def test_a_distribution_lists_its_chain_assets_and_sty():
     assert [d.name for d in top.chain()] == ["x-tex", "acme-brand-tex"]
     assert [r.asset.path for r in top.resolved_assets()] == [a.path for a in dist.assets]
     assert all(r.source.is_file() for r in dist.resolved_assets())
-    assert dist.root.joinpath("assets").is_dir()
+    assert dist.files.joinpath("assets").is_dir()
 
 
 def test_the_migration_api_is_one_decorator_over_plain_data():
@@ -136,3 +141,26 @@ def test_the_migration_api_is_one_decorator_over_plain_data():
     assert code_of(migration(to=1), lambda state: Migrated(state)) == "TP-M001"
     assert [m.value for m in DefaultChange] == ["follow", "freeze", "ask"]
     assert DefaultChange.FOLLOW == "follow"
+
+
+def test_the_declaring_package_is_read_from_the_call_and_root_is_a_path_inside_it():
+    assert dist.declared_in == "acme_brand" and dist.root == "."
+    assert dataclasses.replace(dist, name="other-tex").declared_in == "acme_brand"
+    assert distribution(root="data").root == "data" and distribution(root=str(HERE / "data")).root == "data"
+
+
+@pytest.mark.parametrize("root", ["..", "../other", "/elsewhere"])
+def test_a_root_outside_the_declaring_package_is_refused(root):
+    assert code_of(distribution, root=root) == "TP-K013"
+
+
+def test_a_distribution_built_outside_a_package_is_refused():
+    namespace = {"__name__": "script", "Distribution": Distribution, "pkg": pkg, "__file__": __file__}
+    with pytest.raises(DeclarationError) as raised:
+        exec('Distribution(name="x-tex", module="x_tex", package=pkg)', namespace)  # noqa: S102
+    assert raised.value.code == "TP-K012"
+
+
+def test_assets_are_read_from_the_root():
+    moved = distribution(root="fixtures/acme_brand/assets")
+    assert moved.files.joinpath("lockup.pdf").is_file()

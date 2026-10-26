@@ -33,7 +33,6 @@ dist = Distribution(
     name="acme-sheet-tex",
     module="acme_sheet_tex",
     package=pkg,
-    declared_in=__name__,
     kinds=(Kind("datasheet", Sheet, (), example, migrations=(standards_to_ticks,)),),
 )
 

@@ -26,7 +26,6 @@ dist = Distribution(
     name="acme-brand-tex",
     module="acme_brand_tex",
     package=pkg,
-    declared_in=__name__,
     design=design,
     assets=(
         Asset("assets/lmroman10-regular.otf", Role.FONT, "the brand typeface"),

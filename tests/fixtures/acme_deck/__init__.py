@@ -25,7 +25,6 @@ dist = Distribution(
     name="acme-deck-tex",
     module="acme_deck_tex",
     package=pkg,
-    declared_in=__name__,
     assets=(Asset("assets/DECK.txt", Role.NOTE, "what the deck package is"),),
     kinds=(
         Kind("slide", Slide, presets=(), example=slide_example),

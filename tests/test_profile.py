@@ -34,7 +34,7 @@ def deck(acme_brand_tex):
 def test_the_design_data_is_validated_and_fills_the_sty(acme_brand_tex):
     design = acme_brand.dist.design
     assert design is not None
-    tokens: Any = design.load(acme_brand.dist.root)
+    tokens: Any = design.load(acme_brand.dist.files)
     assert tokens.palette.slate.tex == "2F3E46"
     assert "\\definecolor{ab-slate}{HTML}{2F3E46}" in acme_brand_tex._bound.RELEASE.sty["acme-brand.sty"]
     checks.design_is_valid(acme_brand.dist)

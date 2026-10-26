@@ -6,7 +6,10 @@ Checked when it is built, so a mistake fails at import, not at a consumer's `loa
 import dataclasses
 import importlib.resources
 import importlib.resources.abc
+import inspect
 import keyword
+import os
+import pathlib
 import re
 from collections.abc import Callable, Iterator
 from typing import Any
@@ -183,31 +186,63 @@ class Kind:
         return (*self.presets, *found.settings)
 
 
+def _declared_in(name: str, root: str) -> tuple[str, str]:
+    """The package of the module that called `Distribution(...)` and `root` (a path, relative to that module or
+    absolute) made relative to it: past this function, `__post_init__` and the generated `__init__`."""
+    frame = inspect.currentframe()
+    for _ in range(3):
+        frame = frame.f_back if frame else None
+    package = frame.f_globals.get("__package__") if frame else None
+    if not package:
+        raise DeclarationError(
+            "the declaring module is not in a package, so the package the assets are read from is unknown",
+            code="TP-K012",
+            path=name,
+            hint="declare the distribution in a module of a package",
+        )
+    here = pathlib.Path(str(frame.f_globals["__file__"])).parent if frame else pathlib.Path()
+    relative = os.path.relpath(os.path.normpath(here / root), here)
+    if relative == ".." or relative.startswith(".." + os.sep):
+        raise DeclarationError(
+            f"root {root!r} is outside the package that declares {name}",
+            code="TP-K013",
+            path=name,
+            hint="the wheel carries the declaring package only: keep the assets inside it",
+        )
+    return str(package), pathlib.PurePath(relative).as_posix()
+
+
 @dataclasses.dataclass(frozen=True)
 class Distribution:
     """What a package author declares (B1): the texmodel `package` whose `.sty` is shipped, its `kinds`, its `assets`,
     the `base` it is built on (P20) and which of the base's kinds it `expose`s (P21).
 
-    `declared_in` is the import name of the package that holds the declaration: write `declared_in=__name__` in its
-    `__init__.py`. Assets are read from it (`importlib.resources`), and so are they in a built wheel, where the
-    declaration is copied (P22). The payload goes in a directory as `LAYOUT` places it.
+    `root` is the directory an asset's `path` is relative to: a path relative to the module that calls
+    `Distribution(...)`, or absolute, and inside the package that holds it (the wheel carries that package, P22).
+    `declared_in`, the import name of that package, is read from the call and not passed.
+    The payload goes in a directory as `LAYOUT` places it.
     """
 
     name: str
     module: str
     package: Package
-    declared_in: str
+    root: str = "."
     design: Design | None = None
     assets: tuple[Asset, ...] = ()
     kinds: tuple[Kind, ...] = ()
     base: "Distribution | None" = None
     expose: tuple[str, ...] = ()
+    declared_in: str = ""
 
     @property
     def layout(self) -> Project:
         return LAYOUT
 
     def __post_init__(self) -> None:
+        if not self.declared_in:  # stored, so `dataclasses.replace` keeps both
+            declared_in, root = _declared_in(self.name, self.root)
+            object.__setattr__(self, "declared_in", declared_in)
+            object.__setattr__(self, "root", root)
         for field in ("assets", "kinds", "expose"):
             object.__setattr__(self, field, tuple(getattr(self, field)))
         if not _DISTRIBUTION.fullmatch(self.name):
@@ -290,9 +325,9 @@ class Distribution:
         return self.base.kind(kind.over) if self.base and kind.over else None
 
     @property
-    def root(self) -> importlib.resources.abc.Traversable:
-        """The declaring package, where the assets are."""
-        return importlib.resources.files(self.declared_in)
+    def files(self) -> importlib.resources.abc.Traversable:
+        """The directory the assets are read from, in the declaring package."""
+        return importlib.resources.files(self.declared_in).joinpath(*pathlib.PurePosixPath(self.root).parts)
 
     def chain(self) -> tuple["Distribution", ...]:
         """This distribution, then its base, then the base's base (P19, P20)."""
@@ -324,4 +359,4 @@ class Distribution:
         """Every asset of the chain, with the file it names: this distribution's first (P10)."""
         for dist in self.chain():
             for asset in dist.assets:
-                yield Resolved(asset, dist.root.joinpath(*asset.path.split("/")))
+                yield Resolved(asset, dist.files.joinpath(*asset.path.split("/")))
