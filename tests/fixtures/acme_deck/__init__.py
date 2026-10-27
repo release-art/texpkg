@@ -6,6 +6,7 @@ import pathlib
 # exported by its kinds).
 import acme_brand_tex  # pyright: ignore[reportMissingImports]
 from acme_brand_tex._declaration.model import FactGap, Ink  # pyright: ignore[reportMissingImports]
+from texmodel.preamble import PassOption, PreambleSlots, RequireMetadata
 from texmodel.types import Length
 
 from texpkg import Asset, Distribution, Kind, Role
@@ -27,7 +28,14 @@ dist = Distribution(
     package=pkg,
     assets=(Asset("assets/DECK.txt", Role.NOTE, "what the deck package is"),),
     kinds=(
-        Kind("slide", Slide, presets=(), example=slide_example),
+        Kind(
+            "slide",
+            Slide,
+            presets=(),
+            example=slide_example,
+            preamble=(PassOption,),
+            locked_preamble=PreambleSlots(before_class=(RequireMetadata(pdfversion="2.0"),)),  # every slide has it
+        ),
         Kind(
             "brief",
             Brief,
