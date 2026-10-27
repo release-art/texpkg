@@ -342,8 +342,9 @@ mode presets that a deck cannot set.
   (`TP-B012`), and a function that is not deterministic or returns a bad path (`TP-B013`), as it refuses a stale
   `contracts/next` (V12). The declaration imports the files like any module, so a consumer's pyright, a wheel, a zip and
   an editable install all see real classes, and the contracts are snapshotted from them (V11). The generator must not
-  import the declaring package, whose `__init__` imports what it writes; it may import anything else, the build
-  environment included. A class name is a TeX name (P11), so each series' root and parts need distinct names
+  import a module that imports what it writes, as the declaration does; the declaration may sit in a module of its package
+  (`distribution = "pkg.declaration:dist"`) with `pkg/__init__.py` free of imports, and the generator then shares the
+  package's pure modules. It may import anything else, the build environment included. A class name is a TeX name (P11), so each series' root and parts need distinct names
   (`ShortDeck`, `LongDeck`). Considered and not chosen: a `Kind` generator the build writes into the wheel, which needs
   the classes before the declaration has finished importing.
 - K5 Kinds are part of the `data` contract: adding one is compatible, removing or renaming one is breaking and needs a

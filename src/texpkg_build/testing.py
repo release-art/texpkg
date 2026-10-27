@@ -54,7 +54,7 @@ def load_declaration(pointer: str, *, version: str = "0.0.0", contracts: Contrac
     root = pathlib.Path(scratch.name) / dist.module
     for loaded in [n for n in sys.modules if _is_under(n, dist.module)]:
         del sys.modules[loaded]
-    _write(dist, attr, version, contracts or Contracts(), root)
+    _write(dist, pointer, version, contracts or Contracts(), root)
     spec = importlib.util.spec_from_file_location(
         dist.module, root / "__init__.py", submodule_search_locations=[str(root)]
     )
@@ -102,16 +102,24 @@ class _Flatten(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         """The module is the nested one, already running."""
 
 
-def _attribute_of(dist: Distribution) -> str:
-    """The name the declaration package gives `dist`, which a base's generated module imports it by."""
-    namespace = vars(importlib.import_module(dist.declared_in))
-    return next(name for name, value in namespace.items() if value is dist)
+def _pointer_of(dist: Distribution) -> str:
+    """The `module:attribute` a base's declaration is imported by: the module of its package that holds it."""
+    for name, module in sorted(sys.modules.items()):
+        if _is_under(name, dist.declared_in):
+            if attr := next((n for n, value in vars(module).items() if value is dist), None):
+                return f"{name}:{attr}"
+    raise DeclarationError(
+        f"{dist.name} is not held by a module of {dist.declared_in}",
+        code="TP-B003",
+        path=dist.name,
+        hint="declare the distribution at the top level of a module of its package",
+    )
 
 
-def _write(dist: Distribution, attr: str, version: str, contracts: Contracts, root: pathlib.Path) -> None:
+def _write(dist: Distribution, pointer: str, version: str, contracts: Contracts, root: pathlib.Path) -> None:
     """The generated module of `dist` in `root`, and in `root/_embedded/<base>` that of each base: embedding without
     copying, since the declarations are the modules already imported."""
-    for path, text in generate.sources(dist, attr, version, contracts).items():
+    for path, text in generate.sources(dist, pointer, version, contracts).items():
         (root / path).parent.mkdir(parents=True, exist_ok=True)
         (root / path).write_text(text, encoding="utf-8")
     if dist.base:
@@ -119,7 +127,7 @@ def _write(dist: Distribution, attr: str, version: str, contracts: Contracts, ro
         (root / "_embedded" / "__init__.py").write_text("", encoding="utf-8")
         _write(
             dist.base,
-            _attribute_of(dist.base),
+            _pointer_of(dist.base),
             dist.base.package.version,
             contracts,
             root / "_embedded" / dist.base.module,

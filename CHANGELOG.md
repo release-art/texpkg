@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `[tool.texpkg] distribution = "pkg.declaration:dist"`, a declaration in a module of its package, works: `texpkg-build generate` and
+  the build find the generated files in the declaring package (not in a directory named after the module), and the generated module
+  imports the declaration from that module. The package's `__init__` can stay import-free, so a generator can share its pure modules.
+
 ## [0.2.0] - 2026-10-27
 
 ### Fixed
