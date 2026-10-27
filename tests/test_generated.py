@@ -13,7 +13,7 @@ from texpkg.errors import DeclarationError
 from texpkg_build._internal import generated
 from texpkg_build._internal.isolate import Isolation
 from texpkg_build.cli import app
-from texpkg_build.testing import load_declaration
+from texpkg_build.testing import check_isolated, load_declaration
 
 from . import projects, spawn, venvs
 from .helpers import FIXTURES
@@ -207,6 +207,17 @@ def test_each_kind_of_the_generated_package_is_a_module_with_its_own_classes():
     module = load_declaration("acme_series:dist", version="0.1.0")
     assert module.kinds.names() == ("long", "short")
     assert module.kinds.modules()["short"].example().__class__.__name__ == "ShortDeck"
+
+
+@pytest.mark.tex
+@pytest.mark.timeout(300)
+def test_every_generated_kind_compiles_with_only_its_own_payload(compiler, tmp_path):
+    module = load_declaration("acme_series:dist", version="0.1.0")
+    try:
+        check_isolated(module, compiler, tmp_path)
+    finally:
+        for name in [n for n in sys.modules if n.split(".")[0] == "acme_series_tex"]:
+            del sys.modules[name]
 
 
 def test_a_generated_kind_lists_its_own_settable_values_and_options(tmp_path):
