@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-27
+
 ### Added
 
 - `Kind(locked_preamble=PreambleSlots(...))`: typed preamble entries every document of the kind is written with (a `\DocumentMetadata` the `.sty`
