@@ -10,7 +10,7 @@ import pytest
 from acme_brand import Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Mark, Term, Title, dist, expert_example
 from texmodel.components import Command, Environment, Passthrough, Value
 from texmodel.package import Package
-from texmodel.preamble import PdfInfo
+from texmodel.preamble import PassOption, PdfInfo, PreambleSlots, RequireMetadata
 from texmodel.types import Length, Raw, Text
 
 from texpkg import Asset, DefaultChange, Distribution, Kind, Migrated, Role, Variant, migration
@@ -262,10 +262,21 @@ def test_a_distribution_declared_in_a_zipped_package_checks_its_root_through_the
         ({"options": ("!",)}, "TP-K016"),
         ({"settable": (FactGap,)}, "TP-K017"),  # a preset of the kind
         ({"settable": (Compact,)}, "TP-K017"),  # a variant's setting
+        ({"locked_preamble": PreambleSlots(before_class=(Raw(r"\\x"),))}, "TP-K020"),  # not a typed entry
+        ({"locked_preamble": PreambleSlots(before_package=(RequireMetadata(lang="en"),))}, "TP-K020"),  # wrong slot
+        ({"locked_preamble": PreambleSlots(before_class=(PassOption("a", "b"), PassOption("c", "d")))}, "TP-K020"),
+        ({"locked_preamble": PreambleSlots(before_class=(RequireMetadata(lang="en"),))}, "TP-K020"),  # also allowed
     ],
 )
 def test_what_a_kind_lets_a_document_carry_is_checked(changes, code):
     assert code_of(dataclasses.replace, dist.kind("expert"), **changes) == code
+
+
+def test_a_kind_locks_entries_of_classes_it_does_not_also_allow():
+    locked = PreambleSlots(before_class=(PassOption("xcolor", "table"),), before_package=(PassOption("a", "b"),))
+    assert code_of(dataclasses.replace, dist.kind("expert"), locked_preamble=locked) == "TP-K020"  # twice, in two slots
+    kind = dataclasses.replace(dist.kind("expert"), locked_preamble=PreambleSlots(before_class=locked.before_class))
+    assert kind.locked_classes() == ("PassOption",) and dist.kind("expert").locked_classes() == ()
 
 
 def test_a_settable_value_is_registered_by_the_package_that_reads_it_back():

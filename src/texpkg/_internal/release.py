@@ -79,21 +79,32 @@ class Release:
         """The lines that find the payload, which come before a document's own entries (A5)."""
         return self.dist.layout.preamble(graphics=self._has_graphics(kind))
 
+    def fixed_preamble(self, kind: Kind) -> PreambleSlots:
+        """What leads each preamble slot of every document of `kind`: the layout's lines, then the entries the base kind
+        locks (a profile's), then the kind's own (K020)."""
+        base = self.dist.base_kind(kind)
+        slots = [self.layout_preamble(kind), *([base.locked_preamble] if base else []), kind.locked_preamble]
+        return PreambleSlots(
+            before_class=tuple(e for s in slots for e in s.before_class),
+            before_package=tuple(e for s in slots for e in s.before_package),
+            after_package=tuple(e for s in slots for e in s.after_package),
+        )
+
     def plan(self, kind: Kind, tree: Node, variant: str | None, extras: Extras = Extras()) -> Plan:  # noqa: B008
         """The `.tex` of `tree` as lines with provenance: the kind's presets, then the variant's settings (L8), then the
-        document's own settings (D10).
+        document's own settings (D10); in each preamble slot the fixed entries, then the document's own.
 
         An exposed base kind is written by the base's package; the directory's layout is this distribution's."""
         body = tree if kind.expand is None else kind.expand(tree)
         package = self.dist.owner(kind.name).package
-        found, own = self.layout_preamble(kind), extras.preamble
+        found, own = self.fixed_preamble(kind), extras.preamble
         return package.plan(
             TexDocument(
                 body,
                 options=extras.options,
                 settings=(*self.settings(kind, variant), *extras.settings),
                 preamble=PreambleSlots(
-                    before_class=own.before_class,
+                    before_class=(*found.before_class, *own.before_class),
                     before_package=(*found.before_package, *own.before_package),
                     after_package=(*found.after_package, *own.after_package),
                 ),

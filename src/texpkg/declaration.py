@@ -19,7 +19,7 @@ from texmodel.components import AnyValue, Command, Environment, Node, Passthroug
 from texmodel.document import OPTION
 from texmodel.interface import Body, BodyKind
 from texmodel.package import Package
-from texmodel.preamble import Entry
+from texmodel.preamble import Entry, PreambleSlots
 
 from .assets import Asset, Resolved
 from .errors import DeclarationError
@@ -105,7 +105,8 @@ class Kind:
 
     A document may carry what the kind allows and nothing else: `settable` (values a document sets, after `presets`,
     which every document is written with), `options` (class options) and `preamble` (entry classes). A value is a preset
-    or settable, not both."""
+    or settable, not both. `locked_preamble` holds entries every document is written with, in the slots given, after
+    the layout's lines and before the document's own: a document may not carry an entry class that is locked."""
 
     name: str
     model: Model
@@ -120,6 +121,7 @@ class Kind:
     settable: tuple[type[Value[Any]], ...] = ()
     options: tuple[str, ...] = ()
     preamble: tuple[type[Entry], ...] = ()
+    locked_preamble: PreambleSlots = dataclasses.field(default_factory=PreambleSlots)
 
     def __post_init__(self) -> None:
         for field in ("presets", "migrations", "allow_raw", "variants", "settable", "options", "preamble"):
@@ -173,6 +175,7 @@ class Kind:
         """What a document may carry (D10): no name twice, real class options, nothing both written and settable."""
         self._unique("settable value", [c.__name__ for c in self.settable])
         self._unique("preamble entry", [c.__name__ for c in self.preamble])
+        self._check_locked()
         self._unique("option", list(self.options))
         if bad := next((o for o in self.options if not OPTION.fullmatch(o)), None):
             raise DeclarationError(
@@ -197,6 +200,34 @@ class Kind:
                 path=self.name,
                 hint="letters, digits, '_' and '-', e.g. stem='brand-deck' for brand-deck.tex",
             )
+
+    def locked_classes(self) -> tuple[str, ...]:
+        """The names of the entry classes the kind writes into every document."""
+        return tuple(type(item).__name__ for _, _, item in self.locked_preamble.items())
+
+    def _check_locked(self) -> None:
+        """Locked entries are typed, in a slot they fit, each class once, and not also allowed to a document (K020)."""
+        for slot, _, item in self.locked_preamble.items():
+            slots = getattr(item, "slots", ())
+            if slot not in slots:
+                raise self.locked_error(
+                    f"{type(item).__name__} cannot sit in {slot}" if slots else "is not a typed entry",
+                    f"a typed entry (RequireMetadata, PdfInfo, ...) in a slot it fits: {list(slots) or 'none'}",
+                    item,
+                )
+        names = self.locked_classes()
+        if twice := next((n for n in names if names.count(n) > 1), None):
+            raise self.locked_error("is locked twice", "lock each entry class once", twice)
+        if both := next((c for c in self.preamble if c.__name__ in names), None):
+            raise self.locked_error(
+                "is locked and also allowed to a document", "a class is locked or allowed, not both", both.__name__
+            )
+
+    def locked_error(self, what: str, hint: str, entry: object) -> DeclarationError:
+        name = entry if isinstance(entry, str) else type(entry).__name__
+        return DeclarationError(
+            f"kind {self.name}: locked preamble entry {name} {what}", code="TP-K020", path=self.name, hint=hint
+        )
 
     def _unique(self, what: str, names: list[str]) -> None:
         if twice := next((n for n in names if names.count(n) > 1), None):
@@ -347,6 +378,15 @@ class Distribution:
             )
         if problem := self.expansion_problem(kind, kind.example()):
             raise self._bad_expansion(kind, problem)
+        base = offered[kind.over]
+        if clash := next((n for n in kind.locked_classes() if n in base.locked_classes()), None):
+            raise kind.locked_error(
+                "is locked by the base kind too", "the base kind's locked entries are written first", clash
+            )
+        if clash := next((c for c in kind.preamble if c.__name__ in base.locked_classes()), None):
+            raise kind.locked_error(
+                "is locked by the base kind", "a profile cannot allow what its base locks", clash.__name__
+            )
 
     def expansion_problem(self, kind: Kind, tree: Node) -> str | None:
         """Why `tree` of a profile kind does not expand to a valid tree of the base kind (L3); `None` if it does."""

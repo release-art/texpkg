@@ -222,7 +222,12 @@ The surface is specified in §4a; the requirements behind it follow.
   its root node (`doc.tree`) and `doc.settings`, `doc.options`, `doc.preamble`. A kind lists what a document may set:
   `Kind(settable=(Ink,), options=("a4paper",), preamble=(PdfInfo,))`, none by default, and a document naming anything else
   is refused whole (`NotAllowedError`, `TP-D007`, at `create` and `replace`; at `load` it is an unresolved item). A value
-  is a preset or settable, not both (`TP-K017`): a preset (L8) stays written for every document and is in no data. A
+  is a preset or settable, not both (`TP-K017`): a preset (L8) stays written for every document and is in no data. Likewise
+  `Kind(locked_preamble=PreambleSlots(before_class=(RequireMetadata(lang="en"),)))` holds typed entries every document
+  is written with, in the slots given, after the layout's lines and the base kind's locked ones and before the document's
+  own; they are in no data, and a document naming a locked class is refused (`NotAllowedError`, `TP-D007`; unresolved at
+  load). An entry in a slot it does not fit, a `Raw`, a class locked twice or both locked and listed in `preamble`, and a
+  profile that locks or allows what its base kind locks, are `TP-K020`. A
   settable value is registered by the kind's package or a base of it (`TP-K018`); a profile kind's can be the base's. A distribution's
   `base` and its package's `base` name the same lineage (`TP-K019`). In the envelope
   they are `settings`, `options` and `preamble` beside `tree`, left out when empty, in texmodel's shapes, so every path
@@ -342,8 +347,9 @@ mode presets that a deck cannot set.
   (`TP-B012`), and a function that is not deterministic or returns a bad path (`TP-B013`), as it refuses a stale
   `contracts/next` (V12). The declaration imports the files like any module, so a consumer's pyright, a wheel, a zip and
   an editable install all see real classes, and the contracts are snapshotted from them (V11). The generator must not
-  import the declaring package, whose `__init__` imports what it writes; it may import anything else, the build
-  environment included. A class name is a TeX name (P11), so each series' root and parts need distinct names
+  import a module that imports what it writes, as the declaration does; the declaration may sit in a module of its package
+  (`distribution = "pkg.declaration:dist"`) with `pkg/__init__.py` free of imports, and the generator then shares the
+  package's pure modules. It may import anything else, the build environment included. A class name is a TeX name (P11), so each series' root and parts need distinct names
   (`ShortDeck`, `LongDeck`). Considered and not chosen: a `Kind` generator the build writes into the wheel, which needs
   the classes before the declaration has finished importing.
 - K5 Kinds are part of the `data` contract: adding one is compatible, removing or renaming one is breaking and needs a
@@ -459,7 +465,7 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 | Name | Signature | Status | Ref |
 |---|---|---|---|
 | distribution | `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=())`; `root` is the directory asset paths are relative to: a path relative to the module that calls `Distribution(...)` (default: its own directory) or absolute, inside the declaring package; its import name (`declared_in`) is read from the call. Symlinks are followed; outside the package: `TP-K013`, not a directory: `TP-K014` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
-| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="", settable=(), options=(), preamble=())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
+| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="", settable=(), options=(), preamble=(), locked_preamble=PreambleSlots())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
 | asset | `Asset(path, role: Role, why: str, kinds=())`; `Role`: `PACKAGE`, `GRAPHIC`, `FONT`, `BY_PATH`, `NOTE` | decided (`kinds=` spelling proposed) | A1, A6 |
 | embedded data | `Design(model: type[BaseModel], path: str)` | decided | L1 |
 | default policy | `DefaultChange.FOLLOW`, `.FREEZE`, `.ASK`: an `@enum.unique` enum (a `StrEnum`, so one package's value equals another's), passed by the consumer to `load(default_changes=...)`; the `FOLLOW` default and the per-path mapping are proposed | decided | V23 |
@@ -848,6 +854,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | A stored field the model no longer has is an unresolved item, never dropped; only a migration removes content | decided |
 | `Kind(stem=)` names the kind's `.tex` files; the default is the root class lower-cased | decided |
 | A document carries settings, options and preamble entries within what its kind lists (`settable`, `options`, `preamble`); in the tree in texmodel 0.5, beside `tree` in the envelope | decided |
+| A kind locks preamble entries every document is written with (`locked_preamble`, a `PreambleSlots`: the slot is written, not inferred); a document may not carry a locked class (`TP-K020`) | decided |
 | A derived package is `Package(base=)` (texmodel 0.7) and its distribution's `base` is that package's distribution (`TP-K019`); a settable value may be the base's, a profile kind's included | decided |
 | Kinds made from data are generated source: `[tool.texpkg] generate`, `texpkg-build generate`, committed and refused when stale by the build | decided |
 | A kind's document is a texmodel tree; a pydantic root with a render function is not supported, because `Plan`, hand edits, the defaults marks and the schemas need nodes | decided |

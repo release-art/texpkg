@@ -73,7 +73,7 @@ def pdm_build_update_files(context: Context, files: dict[str, pathlib.Path]) -> 
         loaded = load_declaration(f"{module}:{attr}", version=version)
         checks.module_satisfies_the_protocols(loaded)
         contracts, held = checks.contract_gate(context.root, dist, loaded._bound.RELEASE, version)  # pyright: ignore[reportAttributeAccessIssue]
-        module_files = generate.sources(dist, attr, version, contracts)
+        module_files = generate.sources(dist, f"{module}:{attr}", version, contracts)
         files.clear()  # a wheel holds the generated module, not the author's sources
         embed.embed(
             context.build_dir / dist.module, dist, declaration, module_files, held

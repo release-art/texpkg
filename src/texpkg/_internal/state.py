@@ -84,6 +84,7 @@ def not_allowed(kind: Kind, extras: Extras) -> list[dict[str, Any]]:
     data = extras_state(extras)
     settable = {c.__name__ for c in kind.settable}
     entries = {c.__name__ for c in kind.preamble}
+    locked = set(kind.locked_classes())
     found = [
         (f"/settings/{i}", f"{type(v).__name__} is not settable in kind {kind.name}", data["settings"][i])
         for i, v in enumerate(extras.settings)
@@ -97,7 +98,9 @@ def not_allowed(kind: Kind, extras: Extras) -> list[dict[str, Any]]:
     found += [
         (
             f"/preamble/{slot}/{i}",
-            f"{type(item).__name__} is not an allowed preamble entry in kind {kind.name}",
+            f"{type(item).__name__} is locked by kind {kind.name}"
+            if type(item).__name__ in locked
+            else f"{type(item).__name__} is not an allowed preamble entry in kind {kind.name}",
             data["preamble"][slot][i],
         )
         for slot, i, item in extras.preamble.items()

@@ -155,9 +155,11 @@ def _tuple(items: list[str]) -> str:
     return "(" + "".join(f"{item!r}, " for item in items).strip() + ")"
 
 
-def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Contracts) -> dict[str, str]:
-    """The generated files by path inside the module, for `dist` released at `version`. `pointer_attr` is the name
-    `[tool.texpkg] distribution` gives the declaration inside its package."""
+def sources(dist: Distribution, pointer: str, version: str, contracts: Contracts) -> dict[str, str]:
+    """The generated files by path inside the module, for `dist` released at `version`. `pointer` is the
+    `module:attribute` of `[tool.texpkg] distribution`: where the declaring package holds the declaration."""
+    module, _, pointer_attr = pointer.partition(":")
+    where = module.removeprefix(dist.declared_in)  # "" when the declaration is the package's `__init__`
     offered = dist.kinds_offered()
     names = [k.name for k in offered]
     sty = render_sty(dist, version)
@@ -233,7 +235,7 @@ def sources(dist: Distribution, pointer_attr: str, version: str, contracts: Cont
 
                 from texpkg._internal.release import Release
 
-                from ._declaration import {pointer_attr}
+                from ._declaration{where} import {pointer_attr}
                 from ._version import CONTRACTS, VERSION
                 {base_import}
 

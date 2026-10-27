@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-27
+
+### Added
+
+- `Kind(locked_preamble=PreambleSlots(...))`: typed preamble entries every document of the kind is written with (a `\DocumentMetadata` the `.sty`
+  cannot carry), in the slots given, after the layout's lines and before the document's own, and in no stored data. A document that
+  names a locked entry class is refused (`TP-D007`, unresolved at `load`); a misplaced, `Raw`, repeated or also-allowed entry, and a
+  profile that locks or allows what its base kind locks, are `TP-K020`.
+
+### Fixed
+
+- `[tool.texpkg] distribution = "pkg.declaration:dist"`, a declaration in a module of its package, works: `texpkg-build generate` and
+  the build find the generated files in the declaring package (not in a directory named after the module), and the generated module
+  imports the declaration from that module. The package's `__init__` can stay import-free, so a generator can share its pure modules.
+
 ## [0.2.0] - 2026-10-27
 
 ### Fixed

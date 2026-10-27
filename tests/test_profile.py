@@ -12,10 +12,11 @@ from hypothesis import (
     given,
     strategies as st,
 )
+from texmodel.preamble import PassOption, PreambleSlots, RequireMetadata
 from texmodel.types import CMYK
 
 from texpkg import Design, Kind
-from texpkg.errors import DeclarationError
+from texpkg.errors import DeclarationError, MigrationError, NotAllowedError
 from texpkg_build._internal import checks
 from texpkg_build.testing import check_expansion, load_declaration
 
@@ -205,3 +206,86 @@ def test_a_profile_kind_is_declared_whole(deck):
         with pytest.raises(DeclarationError) as raised:
             dataclasses.replace(deck_dist, kinds=(dataclasses.replace(brief, **changes),))
         assert raised.value.code == code
+
+
+# -- locked preamble entries (K020) ----------------------------------------------------------------------------------
+
+LOCK = PreambleSlots(before_class=(RequireMetadata(lang="en"),))
+BASE_LOCK = PreambleSlots(before_class=(PassOption("graphicx", "draft"),))  # what a base kind locks
+OWN = PreambleSlots(before_class=(PassOption("xcolor", "table"),))
+
+
+def test_a_kind_writes_its_locked_entries_before_the_documents_own(deck, tmp_path):
+    slide = deck.kinds.modules()["slide"]
+    lines = slide.create(tmp_path, slide.example(), preamble=OWN).render().splitlines()
+    wanted = ["\\DocumentMetadata{pdfversion=2.0}", "\\PassOptionsToPackage{table}{xcolor}"]
+    at = [lines.index(line) for line in wanted]
+    assert at == sorted(at) and at[1] < next(i for i, line in enumerate(lines) if "\\documentclass" in line)
+
+
+def test_a_document_may_not_carry_an_entry_class_the_kind_locks(deck, tmp_path):
+    slide = deck.kinds.modules()["slide"]
+    with pytest.raises(NotAllowedError) as raised:
+        slide.create(tmp_path, slide.example(), preamble=LOCK)
+    (item,) = raised.value.items
+    assert item["path"] == "/preamble/before_class/0" and "locked by kind slide" in item["reason"]
+
+
+def test_locked_entries_are_in_no_documents_data_and_a_stored_one_is_unresolved(deck, tmp_path):
+    slide = deck.kinds.modules()["slide"]
+    slide.create(tmp_path, slide.example(), preamble=OWN).save()
+    path = tmp_path / "_texpkg/state.json"
+    stored = json.loads(path.read_text())
+    assert [e["type"] for e in stored["preamble"]["before_class"]] == ["PassOption"]  # not the lock
+    stored["preamble"]["before_class"].append({"type": "RequireMetadata", "entries": {"lang": "en"}})
+    path.write_text(json.dumps(stored))
+    with pytest.raises(MigrationError) as raised:
+        slide.load(tmp_path)
+    assert raised.value.code == "TP-M003" and "locked by kind slide" in str(raised.value)
+
+
+def test_a_hand_edit_of_the_documents_own_entry_is_found_at_its_data_path(deck, tmp_path):
+    slide = deck.kinds.modules()["slide"]
+    doc = slide.create(tmp_path, slide.example(), preamble=OWN)
+    doc.save()
+    tex = tmp_path / "slide.tex"
+    tex.write_text(
+        tex.read_text().replace("{table}{xcolor}", "{x11names}{xcolor}").replace("pdfversion=2.0", "pdfversion=1.7")
+    )
+    paths = {e.path for e in doc.hand_edits()}
+    assert paths == {"/preamble/before_class/0", "preamble.before_class[0]"}  # the own entry, and the locked line
+
+
+@pytest.mark.tex
+@pytest.mark.timeout(300)
+def test_a_document_with_a_locked_entry_compiles(deck, compiler, tmp_path):
+    slide = deck.kinds.modules()["slide"]
+    slide.create(tmp_path / "doc", slide.example(), preamble=OWN).save()
+    compiler.compile(tmp_path / "doc/slide.tex", tmp_path / "out").raise_for_status()
+
+
+def locked_deck(deck, **changes):  # noqa: ANN001, ANN003, ANN201
+    """The deck declaration over a brand whose `expert` kind locks `LOCK`; `changes` go to its `brief` profile."""
+    import acme_deck  # noqa: PLC0415  # importable once the `deck` fixture has built the brand
+
+    expert = dataclasses.replace(acme_brand.dist.kinds[0], locked_preamble=BASE_LOCK)
+    base = dataclasses.replace(acme_brand.dist, kinds=(expert, *acme_brand.dist.kinds[1:]))
+    brief = dataclasses.replace(acme_deck.dist.kind("brief"), **changes)
+    return dataclasses.replace(acme_deck.dist, base=base, kinds=(acme_deck.dist.kinds[0], brief))
+
+
+def test_a_profile_writes_the_locked_entries_of_its_base_kind(deck):
+    wide = locked_deck(deck)
+    release = dataclasses.replace(deck._bound.RELEASE, dist=wide)  # noqa: SLF001
+    brief = wide.kind("brief")
+    text = release.plan(brief, brief.example(), None).text
+    assert text.index("\\PassOptionsToPackage{draft}{graphicx}") < text.index("\\documentclass")
+
+
+def test_a_profile_may_not_lock_or_allow_what_its_base_kind_locks(deck):
+    with pytest.raises(DeclarationError) as raised:
+        locked_deck(deck, locked_preamble=BASE_LOCK)
+    assert raised.value.code == "TP-K020" and "locked by the base kind too" in str(raised.value)
+    with pytest.raises(DeclarationError) as raised:
+        locked_deck(deck, preamble=(PassOption,))
+    assert raised.value.code == "TP-K020" and "locked by the base kind" in str(raised.value)

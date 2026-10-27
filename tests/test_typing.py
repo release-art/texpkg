@@ -64,7 +64,7 @@ nothing_settable = vocab.create("v", vocab.example(), settings=[expert.Ink(CMYK(
 def wheel_like(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
     root = tmp_path_factory.mktemp("typing")
     module = root / dist.module
-    for path, text in generate.sources(dist, "dist", "1.2.0", Contracts()).items():
+    for path, text in generate.sources(dist, "acme_brand:dist", "1.2.0", Contracts()).items():
         (module / path).parent.mkdir(parents=True, exist_ok=True)
         (module / path).write_text(text, encoding="utf-8")
     shutil.copytree(FIXTURES / "acme_brand", module / "_declaration", ignore=shutil.ignore_patterns("__pycache__"))

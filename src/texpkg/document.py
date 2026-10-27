@@ -169,7 +169,7 @@ class Document[T: Command | Environment]:
         own = handedits.extra_path(
             plan_path,
             locked=len(self._release.settings(self._kind, variant)),
-            layout=self._release.layout_preamble(self._kind),
+            leading=self._release.fixed_preamble(self._kind),
         )
         if own:
             return own
