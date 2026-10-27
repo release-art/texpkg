@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-27
+
 ### Fixed
 
 - A document of a kind with no graphic no longer gets `\graphicspath`, which a package that does not load `graphicx` cannot compile.
@@ -29,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to `{path: source}`; `texpkg-build generate [--check]` writes the files, and `pdm build` refuses one that is missing, stale,
   hand-edited or left over (`TP-B012`) and a generator that is not deterministic (`TP-B013`). Each generated file starts with
   `# fmt: off`, so a formatter leaves it as the generator wrote it.
+
+## [0.1.0] - 2026-10-26
+
+### Added
+
 - The package layout: `texpkg` (the run time) and `texpkg_build` (the build), with import contracts, the `build` extra
   and the `texpkg-build` entry point.
 - `Asset`, `Role`, the layout (`res/texpkg/`) and a payload that is written whole or not at all, compared by
@@ -74,4 +81,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A document directory places `.sty`, graphics and notes in `res/texpkg/` and fonts at its root; `Distribution(root=)` is the directory asset paths are relative to (default: the declaring module's), inside the declaring package.
 - `Kind(stem=)` names the kind's `.tex` files; the default is the root class lower-cased.
 - Loading a document whose stored state holds a field the model no longer has is a `MigrationError` (`TP-M003`, the field's path and value), never a silent loss; a migration removes it on purpose.
-- A wheel runs from a zip. Requires `texmodel>=0.6.0`.
+- A wheel runs from a zip. Requires `texmodel>=0.4.0`.
