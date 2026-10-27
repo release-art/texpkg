@@ -5,6 +5,7 @@ import pathlib
 import sys
 import zipfile
 
+import acme_brand
 import pytest
 from acme_brand import Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Mark, Term, Title, dist, expert_example
 from texmodel.components import Command, Environment, Passthrough, Value
@@ -145,6 +146,23 @@ def test_a_settable_value_may_be_the_bases():
     profile = Kind("short", Deck, (), expert_example, settable=(Ink,))
     assert distribution(base=dist, package=derived, kinds=(profile,)).kind("short").settable == (Ink,)
     assert code_of(distribution, package=pkg, kinds=(profile,)) == "TP-K018"  # a package without that base
+
+
+def test_a_settable_value_the_package_shadows_is_named_as_shadowed():
+    derived = Package("derived", prefix="dr", base=dist.package)
+
+    @derived.value
+    class Ink(Value[Length]):  # the base's name, another class
+        """Shadows the base's Ink."""
+
+        default = Length("1mm")
+
+    shadowed = Kind("short", Deck, (), expert_example, settable=(acme_brand.Ink,))
+    with pytest.raises(DeclarationError, match="shadowed by .*Ink") as raised:
+        distribution(base=dist, package=derived, kinds=(shadowed,))
+    assert raised.value.code == "TP-K018"
+    own = Kind("short", Deck, (), expert_example, settable=(Ink,))
+    assert distribution(base=dist, package=derived, kinds=(own,)).kind("short").settable == (Ink,)
 
 
 def test_a_distribution_lists_its_chain_assets_and_sty():

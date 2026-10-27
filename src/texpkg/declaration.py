@@ -401,12 +401,17 @@ class Distribution:
         of it, registers them."""
         for kind in self.kinds:
             if gone := next((c for c in kind.settable if c not in self.package.visible), None):
+                shadow = self.package.value_named(gone.__name__)
+                why = (
+                    f"is shadowed by {shadow.__module__}.{shadow.__qualname__}"
+                    if shadow
+                    else f"is not registered by package {self.package.name} or its base"
+                )
                 raise DeclarationError(
-                    f"kind {kind.name}: settable {gone.__name__} is not registered by package {self.package.name} "
-                    "or its base",
+                    f"kind {kind.name}: settable {gone.__name__} {why}",
                     code="TP-K018",
                     path=kind.name,
-                    hint="a document's settings are read back through the kind's own package: register the value there",
+                    hint="register it on the kind's package or its base, under a name the package does not reuse",
                 )
 
     def kinds_offered(self) -> tuple[Kind, ...]:
