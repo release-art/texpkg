@@ -307,6 +307,7 @@ class Distribution:
         names = [k.name for k in self.kinds]
         if twice := next((n for n in names if names.count(n) > 1), None):
             raise DeclarationError(f"kind {twice!r} is declared twice", code="TP-K002", path=self.name)
+        self._check_lineage()
         self._check_settable()
         base_offers = [k.name for k in self.base.kinds_offered()] if self.base else []
         if bad := next((n for n in self.expose if n not in base_offers), None):
@@ -382,12 +383,27 @@ class Distribution:
         """This distribution, then its base, then the base's base (P19, P20)."""
         return (self, *(self.base.chain() if self.base else ()))
 
+    def _check_lineage(self) -> None:
+        """The package derives from the base distribution's package, so a document reads the base's values (K019)."""
+        wanted = self.base.package if self.base else None
+        if self.package.base is not wanted:
+            have = self.package.base.name if self.package.base else "nothing"
+            raise DeclarationError(
+                f"package {self.package.name} derives from {have}, but the distribution's base is "
+                f"{self.base.name if self.base else 'none'}",
+                code="TP-K019",
+                path=self.name,
+                hint="declare Package(base=) and Distribution(base=) together, each the other's base",
+            )
+
     def _check_settable(self) -> None:
-        """A document's settings are read back through the package that renders its kind, so it registers them."""
+        """A document's settings are read back through the package that renders its kind, so that package, or a base
+        of it, registers them."""
         for kind in self.kinds:
-            if gone := next((c for c in kind.settable if c not in self.package.registered), None):
+            if gone := next((c for c in kind.settable if c not in self.package.visible), None):
                 raise DeclarationError(
-                    f"kind {kind.name}: settable {gone.__name__} is not registered by package {self.package.name}",
+                    f"kind {kind.name}: settable {gone.__name__} is not registered by package {self.package.name} "
+                    "or its base",
                     code="TP-K018",
                     path=kind.name,
                     hint="a document's settings are read back through the kind's own package: register the value there",

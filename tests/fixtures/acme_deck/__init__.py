@@ -5,7 +5,7 @@ import pathlib
 # The base is generated: see model.py. Its values are reached through its declaration (a package's values are not
 # exported by its kinds).
 import acme_brand_tex  # pyright: ignore[reportMissingImports]
-from acme_brand_tex._declaration.model import FactGap  # pyright: ignore[reportMissingImports]
+from acme_brand_tex._declaration.model import FactGap, Ink  # pyright: ignore[reportMissingImports]
 from texmodel.types import Length
 
 from texpkg import Asset, Distribution, Kind, Role
@@ -35,6 +35,7 @@ dist = Distribution(
             example=brief_example,
             expand=expand,
             over="expert",
+            settable=(Ink,),  # the base's own value
         ),
     ),
     base=acme_brand_tex.dist,

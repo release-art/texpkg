@@ -14,14 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Requires `texmodel>=0.6.0`, whose commands take keyword arguments (`Fact(text="a")`): a kind's classes, examples and a generator's source use them.
+- Requires `texmodel>=0.7.0`. Commands take keyword arguments (`Fact(text="a")`): a kind's classes, examples and a generator's source use them.
+  A derived package is declared `Package(base=)`, no longer `require()` of the base's package, and its `Distribution(base=)` must be
+  the distribution of that package (`TP-K019`).
+- A kind's `settable` values may be the base package's, a profile kind's included (`TP-K018` otherwise).
 
 ### Added
 
 - A document carries settings, options and preamble entries within what its kind lists: `Kind(settable=, options=, preamble=)`,
   `create(..., settings=, options=, preamble=)` typed per kind, `doc.settings`, `doc.options`, `doc.preamble` and `replace`. They
   are stored beside `tree` (texmodel's shapes), in the kind's schemas and contracts, in `state["$extras"]` for a migration, and a
-  hand edit of a line they wrote has a data path. `NotAllowedError` (`TP-D007`), `TP-K016` to `TP-K018`. Requires texmodel 0.6.0.
+  hand edit of a line they wrote has a data path. `NotAllowedError` (`TP-D007`), `TP-K016` to `TP-K018`.
 - Kinds generated from data (K4): `[tool.texpkg] generate = "module:function"` names a function from the declaring package's directory
   to `{path: source}`; `texpkg-build generate [--check]` writes the files, and `pdm build` refuses one that is missing, stale,
   hand-edited or left over (`TP-B012`) and a generator that is not deterministic (`TP-B013`). Each generated file starts with

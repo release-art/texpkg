@@ -7,10 +7,12 @@ from typing import Any
 
 import acme_brand
 import pytest
+from acme_brand import Ink
 from hypothesis import (
     given,
     strategies as st,
 )
+from texmodel.types import CMYK
 
 from texpkg import Design, Kind
 from texpkg.errors import DeclarationError
@@ -92,6 +94,16 @@ def test_a_profile_documents_hand_edits_are_found_by_the_plans_path(deck, tmp_pa
     (tmp_path / "brief.tex").write_text(text)
     (edit,) = doc.hand_edits()
     assert edit.path == "Deck[0]/Card[1]/Title[0]"  # a node of the expanded tree, not of the brief's data
+
+
+def test_a_profile_document_sets_a_value_of_the_base_and_reads_it_back(deck, tmp_path):
+    ink = Ink(CMYK(0, 0, 0, 0.5))
+    brief = deck.kinds.modules()["brief"]
+    doc = brief.create(tmp_path, brief.example(), settings=[ink])
+    assert "\\definecolor{ab-ink}{cmyk}{0,0,0,0.5}" in doc.render()
+    doc.save()
+    again = brief.load(tmp_path)
+    assert [type(v) for v in again.settings] == [Ink] and again.render() == doc.render()
 
 
 def test_the_loaded_profile_document_round_trips(deck, tmp_path):

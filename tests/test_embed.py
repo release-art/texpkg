@@ -324,8 +324,10 @@ def test_a_chain_of_three_flattens_to_one_copy_of_each(brand_site, tmp_path, mon
             from texmodel.package import Package
             from texmodel.types import Text
 
-            pkg = Package("acme-poster", prefix="ap", version="1.0.0", date="2026/10/22", description="Posters")
-            pkg.require(acme_deck_tex.dist.package)
+            pkg = Package(
+                "acme-poster", prefix="ap", version="1.0.0", date="2026/10/22", description="Posters",
+                base=acme_deck_tex.dist.package,
+            )
 
 
             @pkg.command

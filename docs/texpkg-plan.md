@@ -223,7 +223,8 @@ The surface is specified in §4a; the requirements behind it follow.
   `Kind(settable=(Ink,), options=("a4paper",), preamble=(PdfInfo,))`, none by default, and a document naming anything else
   is refused whole (`NotAllowedError`, `TP-D007`, at `create` and `replace`; at `load` it is an unresolved item). A value
   is a preset or settable, not both (`TP-K017`): a preset (L8) stays written for every document and is in no data. A
-  settable value is registered by the package that renders the kind (`TP-K018`), which reads it back. In the envelope
+  settable value is registered by the kind's package or a base of it (`TP-K018`); a profile kind's can be the base's. A distribution's
+  `base` and its package's `base` name the same lineage (`TP-K019`). In the envelope
   they are `settings`, `options` and `preamble` beside `tree`, left out when empty, in texmodel's shapes, so every path
   in `tree` is unchanged. A migration sees them in `state["$extras"]`, with `$unresolved`. `render` writes the kind's
   presets and the variant's settings first, then the document's; the layout's preamble lines lead each slot (A5). A hand
@@ -847,6 +848,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | A stored field the model no longer has is an unresolved item, never dropped; only a migration removes content | decided |
 | `Kind(stem=)` names the kind's `.tex` files; the default is the root class lower-cased | decided |
 | A document carries settings, options and preamble entries within what its kind lists (`settable`, `options`, `preamble`); in the tree in texmodel 0.5, beside `tree` in the envelope | decided |
+| A derived package is `Package(base=)` (texmodel 0.7) and its distribution's `base` is that package's distribution (`TP-K019`); a settable value may be the base's, a profile kind's included | decided |
 | Kinds made from data are generated source: `[tool.texpkg] generate`, `texpkg-build generate`, committed and refused when stale by the build | decided |
 | A kind's document is a texmodel tree; a pydantic root with a render function is not supported, because `Plan`, hand edits, the defaults marks and the schemas need nodes | decided |
 | A document does not carry its package's version as a field; the stack in `template.json` and the provenance command do | decided |

@@ -111,6 +111,8 @@ def distribution(**changes):  # noqa: ANN003, ANN201
         "module": "x_tex",
         "package": pkg,
     }
+    if base := changes.get("base"):
+        fields["package"] = Package("hole-derived", prefix="hd", base=base.package)
     return Distribution(**fields | changes)
 
 
@@ -129,6 +131,20 @@ def test_a_base_kind_is_exposed_by_name_and_only_if_it_exists_and_is_not_redecla
     assert code_of(distribution, base=dist, expose=("nope",)) == "TP-K007"
     assert code_of(distribution, base=dist, kinds=(own,), expose=("expert",)) == "TP-K007"
     assert distribution(base=dist, expose=("vocab",)).expose == ("vocab",)
+
+
+def test_a_package_derives_from_the_package_of_its_distributions_base():
+    derived = Package("derived", prefix="dr", base=dist.package)
+    assert code_of(distribution, base=dist, package=pkg) == "TP-K019"  # the package does not derive from the base's
+    assert code_of(distribution, package=derived) == "TP-K019"  # the distribution has no base
+    assert distribution(base=dist, package=derived).package.base is dist.package
+
+
+def test_a_settable_value_may_be_the_bases():
+    derived = Package("derived", prefix="dr", base=dist.package)
+    profile = Kind("short", Deck, (), expert_example, settable=(Ink,))
+    assert distribution(base=dist, package=derived, kinds=(profile,)).kind("short").settable == (Ink,)
+    assert code_of(distribution, package=pkg, kinds=(profile,)) == "TP-K018"  # a package without that base
 
 
 def test_a_distribution_lists_its_chain_assets_and_sty():
