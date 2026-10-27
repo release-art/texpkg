@@ -1,4 +1,4 @@
-"""Export (phase 6: E1): the payload in the layout, a template and a README per kind, the provenance file."""
+"""Export (E1): the payload in the layout, a template and a README per kind, the provenance file."""
 
 import datetime
 import pathlib

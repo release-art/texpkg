@@ -7,8 +7,7 @@ distribution: a package built on another writes into the same directory, which t
 import dataclasses
 import pathlib
 
-from texmodel.package import PreambleSlots
-from texmodel.preamble import GraphicsPath, InputPath
+from texmodel.preamble import GraphicsPath, InputPath, PreambleSlots
 
 from .assets import Role
 from .errors import DeclarationError
@@ -38,8 +37,13 @@ class Project:
             case Role.PACKAGE | Role.GRAPHIC | Role.NOTE:
                 return self.dir / path.name
 
-    def preamble(self) -> PreambleSlots:
-        return PreambleSlots(before_package=(InputPath(f"{self.dir}/"),), after_package=(GraphicsPath(f"{self.dir}/"),))
+    def preamble(self, *, graphics: bool) -> PreambleSlots:
+        """The lines that find the payload (A5). `\\graphicspath` is there only for a document that has a graphic: it
+        belongs to `graphicx`, which a package with no graphics need not load."""
+        return PreambleSlots(
+            before_package=(InputPath(f"{self.dir}/"),),
+            after_package=(GraphicsPath(f"{self.dir}/"),) if graphics else (),
+        )
 
     def owned(self) -> tuple[str, ...]:
         return (f"{self.dir}/**/*",)

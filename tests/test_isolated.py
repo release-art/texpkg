@@ -1,6 +1,7 @@
-"""The per-kind payload proved by compiling, and the font check (phase 6a: A7, A8)."""
+"""The per-kind payload proved by compiling, and the font check (A7, A8)."""
 
 import pathlib
+import sys
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -81,3 +82,14 @@ def test_a_font_from_outside_the_document_directory_makes_the_payload_not_whole(
     with pytest.raises(DeclarationError) as raised:
         check_isolated(acme_brand_tex, compiler, tmp_path / "w")
     assert "font read from outside the document directory: /usr/share/fonts/Other.otf" in str(raised.value)
+
+
+@pytest.mark.tex
+@pytest.mark.timeout(300)
+def test_every_kind_of_a_package_generated_from_data_compiles_with_only_its_own_payload(compiler, tmp_path):
+    module = load_declaration("acme_series:dist", version="0.1.0")
+    try:
+        check_isolated(module, compiler, tmp_path)
+    finally:
+        for name in [n for n in sys.modules if n.split(".")[0] == "acme_series_tex"]:
+            del sys.modules[name]

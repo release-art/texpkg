@@ -26,7 +26,7 @@ def standards_to_ticks(state: dict[str, Any]) -> Migrated:
 
 
 def example() -> Sheet:
-    return Sheet(Heading("Pump"), Ticks(met=(Standard.ISO9001,)))
+    return Sheet(Heading(text="Pump"), Ticks(met=(Standard.ISO9001,)))
 
 
 dist = Distribution(

@@ -63,6 +63,7 @@ def exported(kind: Kind) -> tuple[type, ...]:
         found[cls] = None
         for arg in cls.__tm_args__:
             found.update(dict.fromkeys(_types(arg.hint)))
+    found.update(dict.fromkeys(kind.settable))
     return tuple(found)
 
 
@@ -89,12 +90,18 @@ def _module(body: str) -> str:
 
 
 def _kind_source(dist: Distribution, kind: Kind) -> str:
-    imports = "\n        ".join(sorted({_import_from(dist, cls) for cls in exported(kind)}))  # the template's indent
+    lines = {_import_from(dist, cls) for cls in exported(kind)}
+    lines |= {f"from {cls.__module__} import {cls.__name__} as {cls.__name__}" for cls in kind.preamble}
+    imports = "\n        ".join(sorted(lines))  # the template's indent
+    settings = " | ".join(c.__name__ for c in kind.settable) or "Never"
+    options = f"Literal[{', '.join(repr(o) for o in kind.options)}]" if kind.options else "Never"
     root = kind.model.__name__
     return _module(f"""
         from collections.abc import Mapping, Sequence
         from pathlib import Path
-        from typing import Any, Final, Literal
+        from typing import Any, Final, Literal, Never
+
+        from texmodel.preamble import PreambleSlots
 
         from texpkg.contracts import Changes
         from texpkg.document import Document
@@ -116,8 +123,15 @@ def _kind_source(dist: Distribution, kind: Kind) -> str:
             return _api.load(path, migrations, default_changes)
 
 
-        def create(path: Path | str, tree: {root}) -> Document[{root}]:
-            return _api.create(path, tree)
+        def create(
+            path: Path | str,
+            tree: {root},
+            *,
+            settings: Sequence[{settings}] = (),
+            options: Sequence[{options}] = (),
+            preamble: PreambleSlots | None = None,
+        ) -> Document[{root}]:
+            return _api.create(path, tree, settings=settings, options=options, preamble=preamble)
 
 
         def schema(mode: Literal["validation", "serialization"] = "validation") -> dict[str, Any]:

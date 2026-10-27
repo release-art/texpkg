@@ -1,4 +1,4 @@
-"""Embedding (phase 3: P13-P21, B7, B10, 1.5): a wheel that needs only pydantic."""
+"""Embedding (P13-P21, B7, B10): a wheel that needs only pydantic."""
 
 import ast
 import pathlib
@@ -324,8 +324,10 @@ def test_a_chain_of_three_flattens_to_one_copy_of_each(brand_site, tmp_path, mon
             from texmodel.package import Package
             from texmodel.types import Text
 
-            pkg = Package("acme-poster", prefix="ap", version="1.0.0", date="2026/10/22", description="Posters")
-            pkg.require(acme_deck_tex.dist.package)
+            pkg = Package(
+                "acme-poster", prefix="ap", version="1.0.0", date="2026/10/22", description="Posters",
+                base=acme_deck_tex.dist.package,
+            )
 
 
             @pkg.command
@@ -361,7 +363,7 @@ def test_a_chain_of_three_flattens_to_one_copy_of_each(brand_site, tmp_path, mon
                 name="acme-poster-tex",
                 module="acme_poster_tex",
                 package=pkg,
-                kinds=(Kind("slide", Slide, (), lambda: Slide(Line("a"))),),
+                kinds=(Kind("slide", Slide, (), lambda: Slide(Line(text="a"))),),
                 base=acme_deck_tex.dist,
                 expose=("vocab",),
             )

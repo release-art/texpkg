@@ -50,10 +50,22 @@ def _compare_property(where: str, old: dict[str, Any], new: dict[str, Any]) -> l
         out.append(Change(Level.BREAKING if tighter else Level.COMPATIBLE, where, f"{key} {was} -> {now}"))
     if old.get("items") != new.get("items") and "items" in old:
         out += _compare_items(where, old["items"], new.get("items", {}))
+    out += _compare_inline(where, old.get("properties", {}), new.get("properties", {}))
     for key in ("default", "description", "title"):
         if old.get(key) != new.get(key):
             out.append(Change(Level.REVISION, where, f"{key} changed"))
     return out
+
+
+def _compare_inline(where: str, before: dict[str, Any], after: dict[str, Any]) -> list[Change]:
+    """The properties of an object written inline in a property, not as a class of its own."""
+    out: list[Change] = []
+    for name in before:
+        if name in after:
+            out += _compare_property(f"{where}.{name}", before[name], after[name])
+        else:
+            out.append(Change(Level.BREAKING, f"{where}.{name}", "removed"))
+    return out + [Change(Level.COMPATIBLE, f"{where}.{name}", "added") for name in sorted(after.keys() - before.keys())]
 
 
 def _compare_items(where: str, old: dict[str, Any], new: dict[str, Any]) -> list[Change]:

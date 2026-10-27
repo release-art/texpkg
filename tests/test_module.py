@@ -1,4 +1,4 @@
-"""The module a build generates, through its whole surface (phase 2: P6, P24, P26, K3, K6, V26, B11)."""
+"""The module a build generates, through its whole surface (P6, P24, P26, K3, K6, V26, B11)."""
 
 import pathlib
 import sys
@@ -56,7 +56,11 @@ def test_a_kind_module_exports_its_classes_and_value_types_never_the_packages_ot
 
 def test_the_two_schemas_of_a_kind(acme_brand_tex, expert):
     accepted, stored = expert.schema(), expert.schema(mode="serialization")
-    assert accepted == expert.schema("validation") and accepted["title"] == "Deck"
+    assert (
+        accepted == expert.schema("validation")
+        and accepted["title"] == "expert"
+        and accepted["properties"]["tree"] == {"$ref": "#/$defs/Deck"}
+    )
     fact_in, fact_out = accepted["$defs"]["Fact"], stored["$defs"]["Fact"]
     assert fact_in["required"] == ["text"] and "$defaults" not in fact_in["properties"]
     assert fact_out["required"] == ["accent", "text", "type"]
@@ -103,7 +107,7 @@ def test_a_document_refuses_an_unknown_variant_and_reports_every_violation_at_on
     with pytest.raises(DeclarationError) as raised:
         document.render("nope")
     assert raised.value.code == "TP-K004"
-    broken = document.replace(expert.Deck(expert.Card(expert.Title("x"))))
+    broken = document.replace(expert.Deck(expert.Card(expert.Title(text="x"))))
     with pytest.raises(ExceptionGroup) as grouped:
         broken.render()
     assert len(grouped.value.exceptions) >= 2  # no Mark, no Fact
@@ -111,7 +115,7 @@ def test_a_document_refuses_an_unknown_variant_and_reports_every_violation_at_on
 
 def test_replace_gives_another_document_in_the_same_directory(acme_brand_tex, tmp_path, expert):
     document = expert.create(tmp_path, expert.example())
-    other = document.replace(expert.Deck(expert.Mark(), expert.Card(expert.Title("Owl"), expert.Fact("x"))))
+    other = document.replace(expert.Deck(expert.Mark(), expert.Card(expert.Title(text="Owl"), expert.Fact(text="x"))))
     assert other.path == document.path and other.tree is not document.tree and "Owl" in other.render()
 
 

@@ -1,15 +1,17 @@
-"""The declaration is checked when it is built (phase 2: P25, K1, K2, K6, P20, P21)."""
+"""The declaration is checked when it is built (P25, K1, K2, K6, P20, P21)."""
 
 import dataclasses
 import pathlib
 import sys
 import zipfile
 
+import acme_brand
 import pytest
-from acme_brand import Card, Compact, Deck, Fact, FactGap, Glossary, Mark, Term, Title, dist, expert_example
-from texmodel.components import Command, Environment, Passthrough
+from acme_brand import Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Mark, Term, Title, dist, expert_example
+from texmodel.components import Command, Environment, Passthrough, Value
 from texmodel.package import Package
-from texmodel.types import Raw, Text
+from texmodel.preamble import PdfInfo
+from texmodel.types import Length, Raw, Text
 
 from texpkg import Asset, DefaultChange, Distribution, Kind, Migrated, Role, Variant, migration
 from texpkg.declaration import raw_holes, reachable
@@ -48,7 +50,7 @@ class Page(Environment):
 
 
 def page() -> Page:
-    return Page(Label("a"))
+    return Page(Label(text="a"))
 
 
 HERE = pathlib.Path(__file__).parent
@@ -77,19 +79,23 @@ def test_allow_raw_must_name_a_real_hole():
 
 
 def test_the_example_must_be_a_valid_tree_of_the_model():
-    assert code_of(Kind, "expert", Deck, (), lambda: Card(Title("x"), Fact("y"))) == "TP-K001"  # another model
+    assert (
+        code_of(Kind, "expert", Deck, (), lambda: Card(Title(text="x"), Fact(text="y"))) == "TP-K001"
+    )  # another model
     assert code_of(Kind, "expert", Deck, (), lambda: Deck(Mark())) == "TP-K001"  # breaks the grammar
 
 
 @pytest.mark.parametrize("name", ["Expert", "1x", "a-b", "", "class"])
 def test_a_kind_is_named_as_a_module(name):
-    assert code_of(Kind, name, Glossary, (), lambda: Glossary(Term("a", "b"))) == "TP-K005"
+    assert code_of(Kind, name, Glossary, (), lambda: Glossary(Term(word="a", meaning="b"))) == "TP-K005"
 
 
 def test_variant_names_are_file_name_parts_and_unique():
     assert code_of(Variant, "Fronts") == "TP-K005"
     twice = (Variant("a"), Variant("a"))
-    assert code_of(Kind, "vocab", Glossary, (), lambda: Glossary(Term("a", "b")), variants=twice) == "TP-K002"
+    assert (
+        code_of(Kind, "vocab", Glossary, (), lambda: Glossary(Term(word="a", meaning="b")), variants=twice) == "TP-K002"
+    )
 
 
 def test_a_kind_writes_its_presets_and_then_its_variant():
@@ -106,6 +112,8 @@ def distribution(**changes):  # noqa: ANN003, ANN201
         "module": "x_tex",
         "package": pkg,
     }
+    if base := changes.get("base"):
+        fields["package"] = Package("hole-derived", prefix="hd", base=base.package)
     return Distribution(**fields | changes)
 
 
@@ -124,6 +132,37 @@ def test_a_base_kind_is_exposed_by_name_and_only_if_it_exists_and_is_not_redecla
     assert code_of(distribution, base=dist, expose=("nope",)) == "TP-K007"
     assert code_of(distribution, base=dist, kinds=(own,), expose=("expert",)) == "TP-K007"
     assert distribution(base=dist, expose=("vocab",)).expose == ("vocab",)
+
+
+def test_a_package_derives_from_the_package_of_its_distributions_base():
+    derived = Package("derived", prefix="dr", base=dist.package)
+    assert code_of(distribution, base=dist, package=pkg) == "TP-K019"  # the package does not derive from the base's
+    assert code_of(distribution, package=derived) == "TP-K019"  # the distribution has no base
+    assert distribution(base=dist, package=derived).package.base is dist.package
+
+
+def test_a_settable_value_may_be_the_bases():
+    derived = Package("derived", prefix="dr", base=dist.package)
+    profile = Kind("short", Deck, (), expert_example, settable=(Ink,))
+    assert distribution(base=dist, package=derived, kinds=(profile,)).kind("short").settable == (Ink,)
+    assert code_of(distribution, package=pkg, kinds=(profile,)) == "TP-K018"  # a package without that base
+
+
+def test_a_settable_value_the_package_shadows_is_named_as_shadowed():
+    derived = Package("derived", prefix="dr", base=dist.package)
+
+    @derived.value
+    class Ink(Value[Length]):  # the base's name, another class
+        """Shadows the base's Ink."""
+
+        default = Length("1mm")
+
+    shadowed = Kind("short", Deck, (), expert_example, settable=(acme_brand.Ink,))
+    with pytest.raises(DeclarationError, match="shadowed by .*Ink") as raised:
+        distribution(base=dist, package=derived, kinds=(shadowed,))
+    assert raised.value.code == "TP-K018"
+    own = Kind("short", Deck, (), expert_example, settable=(Ink,))
+    assert distribution(base=dist, package=derived, kinds=(own,)).kind("short").settable == (Ink,)
 
 
 def test_a_distribution_lists_its_chain_assets_and_sty():
@@ -208,3 +247,35 @@ def test_a_distribution_declared_in_a_zipped_package_checks_its_root_through_the
         assert zpkg.dist.root == "data" and zpkg.dist.files.joinpath("note.txt").read_text() == "x"
     finally:
         sys.modules.pop("zpkg", None)
+
+
+# -- what a kind lets a document carry (D10) -------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("changes", "code"),
+    [
+        ({"options": ("a4paper", "a4paper")}, "TP-K002"),
+        ({"settable": (Ink, Ink)}, "TP-K002"),
+        ({"preamble": (PdfInfo, PdfInfo)}, "TP-K002"),
+        ({"options": ("two words",)}, "TP-K016"),
+        ({"options": ("!",)}, "TP-K016"),
+        ({"settable": (FactGap,)}, "TP-K017"),  # a preset of the kind
+        ({"settable": (Compact,)}, "TP-K017"),  # a variant's setting
+    ],
+)
+def test_what_a_kind_lets_a_document_carry_is_checked(changes, code):
+    assert code_of(dataclasses.replace, dist.kind("expert"), **changes) == code
+
+
+def test_a_settable_value_is_registered_by_the_package_that_reads_it_back():
+    other = Package("other", prefix="ot", version="1.0.0", date="2026/10/22", description="Another")
+
+    @other.value
+    class Gap(Value[Length]):
+        """A gap."""
+
+        default = Length("1mm")
+
+    kind = dataclasses.replace(dist.kind("expert"), settable=(Gap,))
+    assert code_of(dataclasses.replace, dist, kinds=(kind, *dist.kinds[1:])) == "TP-K018"

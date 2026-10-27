@@ -10,7 +10,7 @@ import typer
 from texpkg.declaration import Distribution
 from texpkg.errors import TexpkgError
 
-from ._internal import snapshot
+from ._internal import generated, snapshot
 from ._internal.isolate import author_source
 from .testing import load_declaration
 
@@ -29,6 +29,35 @@ def _project(root: pathlib.Path) -> tuple[str, pathlib.Path]:
 @app.callback()
 def main() -> None:
     """Build tools for texpkg packages."""
+
+
+@app.command()
+def generate(
+    root: Annotated[pathlib.Path, typer.Option(help="The project directory.")] = pathlib.Path(),
+    check: Annotated[bool, typer.Option(help="Only report what differs; exit 1 if anything does.")] = False,
+) -> None:
+    """Write the declaration modules that `[tool.texpkg] generate` produces from data (K4), and remove generated files
+    it no longer produces."""
+    root = root.resolve()
+    pointer, source = _project(root)
+    config = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    function = str(config.get("tool", {}).get("texpkg", {}).get("generate", ""))
+    if not all(function.partition(":")[::2]):
+        raise typer.BadParameter(f"{root / 'pyproject.toml'}: [tool.texpkg] generate is not module:function")
+    where = generated.package_directory(source, pointer.partition(":")[0])
+    try:
+        with author_source(source) as isolation:
+            produced = generated.produce(function, where, isolation)
+        if check:
+            if lines := generated.drift(where, produced):
+                typer.echo("\n".join(lines), err=True)
+                raise typer.Exit(1)
+            return
+        for path in generated.write(where, produced):
+            typer.echo(f"wrote {path}")
+    except TexpkgError as exc:
+        typer.echo(f"error {exc.code}: {exc}" + (f"\n  hint: {exc.hint}" if exc.hint else ""), err=True)
+        raise typer.Exit(1) from exc
 
 
 @app.command()

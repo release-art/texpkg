@@ -1,4 +1,4 @@
-"""Provenance (phase 4: V2-V4, V34): the command, the file, the PDF entry."""
+"""Provenance (V2-V4, V34): the command, the file, the PDF entry."""
 
 import datetime
 
@@ -57,7 +57,7 @@ def test_a_package_without_a_prefix_cannot_declare_provenance():
     from acme_brand import dist
     from texmodel.package import Package
 
-    bare = dataclasses.replace(dist, package=Package("bare", prefix="", builtin=False))
+    bare = dataclasses.replace(dist, package=Package("bare", prefix="", builtin=False), kinds=(), assets=())
     with pytest.raises(DeclarationError) as raised:
         generate.render_sty(bare, "1.0.0")
     assert raised.value.code == "TP-B011"

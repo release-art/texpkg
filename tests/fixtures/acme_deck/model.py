@@ -11,8 +11,14 @@ from texmodel.components import Command, Environment
 from texmodel.package import Package
 from texmodel.types import Choice, Text
 
-pkg = Package("acme-deck", prefix="ad", version="1.0.0", date="2026/10/22", description="Decks on the acme brand")
-pkg.require(acme_brand_tex.dist.package)
+pkg = Package(
+    "acme-deck",
+    prefix="ad",
+    version="1.0.0",
+    date="2026/10/22",
+    description="Decks on the acme brand",
+    base=acme_brand_tex.dist.package,
+)
 
 
 @pkg.command
@@ -70,7 +76,7 @@ def expand(brief: Any) -> Any:
     return expert.Deck(
         expert.Mark(),
         expert.Card(
-            expert.Title(headline.text),
-            *(expert.Fact(p.text, accent=expert.Accent[p.tint.name]) for p in points),
+            expert.Title(text=headline.text),
+            *(expert.Fact(text=p.text, accent=expert.Accent[p.tint.name]) for p in points),
         ),
     )

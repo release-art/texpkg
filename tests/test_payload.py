@@ -1,4 +1,4 @@
-"""Assets, layouts and payloads (phase 1: A1-A6, P10, P11)."""
+"""Assets, layouts and payloads (A1-A6, P10, P11)."""
 
 import io
 import pathlib
@@ -10,8 +10,7 @@ from hypothesis import (
     given,
     strategies as st,
 )
-from texmodel.package import PreambleSlots
-from texmodel.preamble import GraphicsPath, InputPath
+from texmodel.preamble import GraphicsPath, InputPath, PreambleSlots
 
 from texpkg._internal import payload
 from texpkg.assets import Asset, Resolved, Role
@@ -42,7 +41,8 @@ def test_each_role_has_a_place_in_the_layout(role, placed):
 
 
 def test_the_layout_gives_the_preamble_lines_that_find_its_files():
-    assert PROJECT.preamble() == PreambleSlots(
+    assert PROJECT.preamble(graphics=False) == PreambleSlots(before_package=(InputPath("res/texpkg/"),))
+    assert PROJECT.preamble(graphics=True) == PreambleSlots(
         before_package=(InputPath("res/texpkg/"),), after_package=(GraphicsPath("res/texpkg/"),)
     )
     assert PROJECT.owned() == ("res/texpkg/**/*",)

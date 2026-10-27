@@ -1,4 +1,4 @@
-"""Two synthetic wheels end to end (phase 7): `acme-brand-tex` and `acme-deck-tex` built on it.
+"""Two synthetic wheels end to end: `acme-brand-tex` and `acme-deck-tex` built on it.
 
 Each is built from its project and installed into environments that have only pydantic; documents are made, saved and
 compiled; then a new release of the brand is adopted by the documents the old one saved.
@@ -27,7 +27,7 @@ for module in (acme_brand_tex, acme_deck_tex):
     for name, kind in module.kinds.modules().items():
         tree = kind.example()
         if (module.__name__, name) == ("acme_brand_tex", "expert"):  # a colour the author chose, to be dropped later
-            pinned = kind.Card(kind.Title("Pinned"), kind.Fact("explicit", accent=kind.Accent.SLATE))
+            pinned = kind.Card(kind.Title(text="Pinned"), kind.Fact(text="explicit", accent=kind.Accent.SLATE))
             tree = kind.Deck(*tree.content, pinned)
         doc = kind.create(f"{sys.argv[1]}/{module.__name__}/{name}", tree)
         doc.save()

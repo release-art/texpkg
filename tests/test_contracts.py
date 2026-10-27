@@ -1,4 +1,4 @@
-"""Contract versions (phase 5b: V10-V13, V33, V35-V37)."""
+"""Contract versions (V10-V13, V33, V35-V37)."""
 
 import dataclasses
 import json
@@ -313,7 +313,7 @@ def test_a_dropped_palette_colour_is_a_break_of_the_data_contract(brand):
 
 def test_editing_an_example_is_not_an_output_change(brand):
     release(brand)
-    edit(brand, "src/acme_brand/__init__.py", 'Title("Fox")', 'Title("Fox again")')
+    edit(brand, "src/acme_brand/__init__.py", 'Title(text="Fox")', 'Title(text="Fox again")')
     result = contracts(brand)
     assert "output: changed" not in result.output and versions(brand).output == Pair(1, 0)
     assert "Fox again" in (brand / "contracts/next/examples/expert/deck.tex").read_text()
@@ -495,6 +495,8 @@ def test_a_base_that_no_longer_supports_the_interface_a_package_relies_on_is_ref
     zipfile.ZipFile(build(brand, tmp_path / "one")).extractall(first)
 
     edit(brand, "src/acme_brand/model.py", "    meaning: Text\n", "    gloss: Text\n")
+    edit(brand, "src/acme_brand/__init__.py", "meaning=", "gloss=")  # the keyword is the name now
+    edit(brand, "src/acme_brand/__init__.py", "meaning=", "gloss=")
     edit(brand, "src/acme_brand/model.py", r"#word}\quad #meaning\par", r"#word}\quad #gloss\par")
     contracts(brand)
     classify_output(brand, "current")
