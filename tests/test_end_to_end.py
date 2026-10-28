@@ -122,8 +122,8 @@ def test_two_wheels_are_installed_used_saved_compiled_and_a_new_release_is_adopt
     ]
     sources = sorted((tmp_path / "docs").rglob("*.tex"))
     assert (
-        len(sources) == 3 + 1 + 1 + 1 + 1
-    )  # expert and its two variants, vocab, then the deck's brief, slide and vocab
+        len(sources) == 3 + 1 + 1 + 2 + 1
+    )  # expert and its two variants, vocab, then the deck's brief, slide and its variant, and vocab
     for source in sources:
         compiler.compile(
             source, tmp_path / "out" / source.parent.parent.name / source.parent.name / source.stem

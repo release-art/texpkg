@@ -179,11 +179,14 @@ def test_the_declaration_must_be_a_package(tmp_path):
     assert raised.value.code == "TP-B004"
 
 
-def test_an_editable_install_is_refused(project, tmp_path, monkeypatch):
+def test_an_editable_install_links_the_sources_and_needs_texpkg(project, tmp_path, monkeypatch):
     monkeypatch.chdir(project)
-    with pytest.raises(DeclarationError) as raised:
-        pdm.backend.build_editable(str(tmp_path / "dist"))
-    assert raised.value.code == "TP-B008"
+    built = tmp_path / "dist" / pdm.backend.build_editable(str(tmp_path / "dist"))
+    names = projects.names(built)
+    assert not any("acme_brand_tex" in n and n.endswith(".py") for n in names)  # no generated module
+    with zipfile.ZipFile(built) as z:
+        metadata = z.read(next(n for n in names if n.endswith("METADATA"))).decode()
+    assert "Requires-Dist: texpkg" in metadata and "pydantic" not in metadata
 
 
 def test_a_generated_module_that_breaks_the_protocol_is_refused(tmp_path, monkeypatch):

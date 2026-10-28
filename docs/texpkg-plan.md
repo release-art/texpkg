@@ -227,7 +227,11 @@ The surface is specified in §4a; the requirements behind it follow.
   is written with, in the slots given, after the layout's lines and the base kind's locked ones and before the document's
   own; they are in no data, and a document naming a locked class is refused (`NotAllowedError`, `TP-D007`; unresolved at
   load). An entry in a slot it does not fit, a `Raw`, a class locked twice or both locked and listed in `preamble`, and a
-  profile that locks or allows what its base kind locks, are `TP-K020`. A
+  profile that locks or allows what its base kind locks, are `TP-K020`. `Kind(defaults=(Gap(...),))` is where a
+  document starts for a settable value (`TP-K021` for a class that is not settable): written after the presets and the
+  variant's settings and before the document's own, so a document that sets the value wins. The template state keeps
+  them; a changed one is followed, frozen (the document gets the old value as its own setting) or asked for (unresolved,
+  path `/defaults/Gap`) as `default_changes` says, keyed by the class name, unless the document sets the value. A
   settable value is registered by the kind's package or a base of it (`TP-K018`); a profile kind's can be the base's. A distribution's
   `base` and its package's `base` name the same lineage (`TP-K019`). In the envelope
   they are `settings`, `options` and `preamble` beside `tree`, left out when empty, in texmodel's shapes, so every path
@@ -355,7 +359,8 @@ mode presets that a deck cannot set.
 - K5 Kinds are part of the `data` contract: adding one is compatible, removing or renaming one is breaking and needs a
   consumer to migrate its data (V6). A profile can offer a subset of its base's kinds, narrow them, or add its own (**decided**).
 - K6 **A kind declares its variants; building them is the consumer's** (**decided**). A variant is a named set of settings
-  applied to the same document (the first consumer's `full`, `fronts`, `backs`, preview and technical builds):
+  and class options (`Variant("review", options=("nocrop",))`, written after the document's own, not repeating them, and
+  not limited to the kind's `options`) applied to the same document (the first consumer's `full`, `fronts`, `backs`, preview and technical builds):
   `Kind(..., variants=[Variant("fronts", settings=[...]), ...])`, and `doc.render(variant="fronts")` returns that
   variant's `.tex`, complete, with no hook files. Compiling each variant, and checking that the backs pair with the
   fronts page for page, stay with the consumer (N2); a kind may declare the pairing (`pairs=("fronts", "backs")`) so a
@@ -465,7 +470,7 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 | Name | Signature | Status | Ref |
 |---|---|---|---|
 | distribution | `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=())`; `root` is the directory asset paths are relative to: a path relative to the module that calls `Distribution(...)` (default: its own directory) or absolute, inside the declaring package; its import name (`declared_in`) is read from the call. Symlinks are followed; outside the package: `TP-K013`, not a directory: `TP-K014` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
-| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="", settable=(), options=(), preamble=(), locked_preamble=PreambleSlots())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
+| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="", settable=(), options=(), preamble=(), locked_preamble=PreambleSlots(), defaults=())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
 | asset | `Asset(path, role: Role, why: str, kinds=())`; `Role`: `PACKAGE`, `GRAPHIC`, `FONT`, `BY_PATH`, `NOTE` | decided (`kinds=` spelling proposed) | A1, A6 |
 | embedded data | `Design(model: type[BaseModel], path: str)` | decided | L1 |
 | default policy | `DefaultChange.FOLLOW`, `.FREEZE`, `.ASK`: an `@enum.unique` enum (a `StrEnum`, so one package's value equals another's), passed by the consumer to `load(default_changes=...)`; the `FOLLOW` default and the per-path mapping are proposed | decided | V23 |
@@ -854,6 +859,8 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | A stored field the model no longer has is an unresolved item, never dropped; only a migration removes content | decided |
 | `Kind(stem=)` names the kind's `.tex` files; the default is the root class lower-cased | decided |
 | A document carries settings, options and preamble entries within what its kind lists (`settable`, `options`, `preamble`); in the tree in texmodel 0.5, beside `tree` in the envelope | decided |
+| An editable install of a texpkg project links the sources and makes no module (it depends on `texpkg`); only a wheel is generated | decided |
+| A kind gives a settable value its own start (`defaults`, `TP-K021`): written after the presets and the variant, before the document's settings; the template state keeps them, so `default_changes` (key: the class name) follows, freezes or asks for a changed one the document does not set | decided |
 | A kind locks preamble entries every document is written with (`locked_preamble`, a `PreambleSlots`: the slot is written, not inferred); a document may not carry a locked class (`TP-K020`) | decided |
 | A derived package is `Package(base=)` (texmodel 0.7) and its distribution's `base` is that package's distribution (`TP-K019`); a settable value may be the base's, a profile kind's included | decided |
 | Kinds made from data are generated source: `[tool.texpkg] generate`, `texpkg-build generate`, committed and refused when stale by the build | decided |

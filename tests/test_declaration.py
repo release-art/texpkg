@@ -272,6 +272,15 @@ def test_what_a_kind_lets_a_document_carry_is_checked(changes, code):
     assert code_of(dataclasses.replace, dist.kind("expert"), **changes) == code
 
 
+def test_a_variants_options_follow_the_documents_without_repeating_them():
+    expert = dist.kind("expert")
+    review = dataclasses.replace(expert, variants=(Variant("review", options=("draft", "a4paper")),))
+    assert review.class_options(("a4paper",), "review") == ("a4paper", "draft")
+    assert review.class_options(("a4paper",)) == ("a4paper",) and review.class_options((), "missing") == ()
+    assert code_of(Variant, "x", options=("two words",)) == "TP-K016"
+    assert code_of(Variant, "x", options=("draft", "draft")) == "TP-K002"
+
+
 def test_a_kind_locks_entries_of_classes_it_does_not_also_allow():
     locked = PreambleSlots(before_class=(PassOption("xcolor", "table"),), before_package=(PassOption("a", "b"),))
     assert code_of(dataclasses.replace, dist.kind("expert"), locked_preamble=locked) == "TP-K020"  # twice, in two slots

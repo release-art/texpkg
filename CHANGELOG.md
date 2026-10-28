@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Variant(name, settings, options=())`: class options a variant's `.tex` is written with, after the document's own and without repeating
+  them; they need not be among the kind's `options`.
+- `Kind(defaults=(Gap(...),))`: where a document of the kind starts for a settable value, written after the presets and the variant's settings and
+  before the document's own, which win. The template state keeps them: when a release changes one, a document that does not set the value
+  follows, keeps the old value as its own setting, or is asked about it (`default_changes`, keyed by the value's class name, path
+  `/defaults/<class>`). `TP-K021`: a default for a value that is not settable.
+
+### Fixed
+
+- An editable install of a texpkg project (`pdm install` with the project in a dev group) is no longer refused: the hook makes no module for it
+  and the project depends on `texpkg`, so tooling can import the declaration and the generator from the checkout. `TP-B008` is retired.
+
 ## [0.2.1] - 2026-10-27
 
 ### Added
