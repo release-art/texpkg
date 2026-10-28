@@ -251,8 +251,10 @@ class Document[T: Command | Environment]:
         )
 
 
-def _flat(template: dict[str, Any]) -> dict[str, object]:
-    """The parts of a template state a release can change for a document, one entry each."""
+def _flat(template: dict[str, Any]) -> dict[str, Any]:
+    """The parts of a template state a release can change for a document, one entry each: the settings it writes, the
+    defaults, the `.sty` files, and each package of the stack with its release and `output` pair (a layout change
+    shows there when nothing else does)."""
     return (
         {
             f"setting {file} {value}": line
@@ -261,4 +263,8 @@ def _flat(template: dict[str, Any]) -> dict[str, object]:
         }
         | {f"default {name}": value for name, value in template["defaults"].items()}
         | {f"sty {name}": digest for name, digest in template["sty"].items()}
+        | {
+            f"package {e['package']}": f"{e['release']} (output {e['output'][0]}.{e['output'][1]})"
+            for e in template["stack"]
+        }
     )

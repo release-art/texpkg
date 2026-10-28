@@ -182,7 +182,8 @@ The surface is specified in §4a; the requirements behind it follow.
   moves each marked value whose default changed, as the consumer's `DefaultChange` says (`FOLLOW`, `FREEZE`, `ASK`, V23).
   A design change (a preset or lock that differs, or the `.sty`'s hash, D6) leaves the user's state alone and is reported
   per document by `doc.template_changes()` ("title colour: slate → moss"), the per-document form of an `output` change
-  (V10) (**decided**).
+  (V10); the stack's releases and `output` pairs are compared too, so a layout change with no other difference shows
+  (**decided**).
 - D5 **Layout: one visible `_texpkg/` folder** (**decided**): not hidden, and named so that nothing TeX-side treats it as
   its own; the file names inside are **decided**:
 
@@ -872,6 +873,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | A document carries settings, options and preamble entries within what its kind lists (`settable`, `options`, `preamble`); in the tree in texmodel 0.5, beside `tree` in the envelope | decided |
 | An editable install of a texpkg project links the sources and makes no module (it depends on `texpkg`); only a wheel is generated | decided |
 | A kind gives a settable value its own start (`defaults`, `TP-K021`): written after the presets and the variant, before the document's settings; the template state keeps them, so `default_changes` (key: the class name) follows, freezes or asks for a changed one the document does not set | decided |
+| A hand edit is a line of the `.tex` against the plan saved with it, indentation included (texmodel 0.8 indents a body by depth): a document saved by an earlier release is not hand-edited, `check` lists its files as changed and `save` rewrites them | decided |
 | A package publishes JSON-like, dataclass or pydantic constants (`public=`, `acme_tex.public`, `TP-K022`, `TP-B014`): part of the `interface` snapshot, a removal breaks | decided |
 | A kind locks preamble entries every document is written with (`locked_preamble`, a `PreambleSlots`: the slot is written, not inferred); a document may not carry a locked class (`TP-K020`) | decided |
 | A derived package is `Package(base=)` (texmodel 0.7) and its distribution's `base` is that package's distribution (`TP-K019`); a settable value may be the base's, a profile kind's included | decided |

@@ -17,6 +17,7 @@ from texmodel.package import Package
 from texmodel.types import Raw, Text
 
 from texpkg._internal import directory, handedits, state
+from texpkg.contracts import Contracts, Pair
 from texpkg.document import FileState, HandEditKind
 from texpkg.errors import (
     DocumentExistsError,
@@ -370,7 +371,7 @@ def test_a_hand_edited_tex_is_given_back_and_not_overwritten(expert, doc):
         HandEditKind.CHANGED,
         None,
     )
-    assert (edit.expected, edit.found) == ("\\abTitle{Fox}", "\\abTitle{Fox!}")
+    assert (edit.expected, edit.found) == ("    \\abTitle{Fox}", "    \\abTitle{Fox!}")
     changed = doc.replace(Deck(Mark(), Card(Title(text="Other"), Fact(text="x"))))
     with pytest.raises(HandEditError) as raised:
         changed.save()
@@ -392,9 +393,9 @@ def test_check_reports_a_hand_edit_as_changed_and_lists_it(doc):
 
 def test_removed_and_added_lines_are_edits_too(doc):
     doc.save()
-    edit_file(doc.path, "deck.tex", "\\abFact[ab-moss]{50\\% of \\$5}\n", "")
+    edit_file(doc.path, "deck.tex", "    \\abFact[ab-moss]{50\\% of \\$5}\n", "")
     (edit,) = doc.hand_edits()
-    assert (edit.kind, edit.expected, edit.found) == (HandEditKind.REMOVED, "\\abFact[ab-moss]{50\\% of \\$5}", "")
+    assert (edit.kind, edit.expected, edit.found) == (HandEditKind.REMOVED, "    \\abFact[ab-moss]{50\\% of \\$5}", "")
     assert edit.path == "/content/1/content/2"
 
 
@@ -446,9 +447,17 @@ def test_a_new_release_changes_the_template_not_the_data(expert, doc):
     assert "setting deck-wide.tex FactGap" not in changes  # the variant sets it itself
     assert [k for k in changes if k.startswith("sty ")] == ["sty acme-brand.sty"]  # the version is in the .sty's header
     assert not [k for k in changes if k.startswith("default ")]
+    assert changes["package acme-brand-tex"][1].startswith("1.3.0")
     assert list(changes) == sorted(changes)
     loaded.save()  # adopting the release rewrites the template and keeps the old pair
     assert loaded.template_changes() == () and (doc.path / "_texpkg/history/1/template.json").is_file()
+
+
+def test_a_release_that_changes_only_the_output_shows_in_the_stack(expert, doc):
+    doc.save()
+    newer = load_declaration("acme_brand:dist", version="1.2.1", contracts=Contracts(output=Pair(1, 1)))
+    changes = {c.setting: (c.old, c.new) for c in newer.kinds.modules()["expert"].load(doc.path).template_changes()}
+    assert changes["package acme-brand-tex"] == ("1.2.0 (output 1.0)", "1.2.1 (output 1.1)")
 
 
 def test_template_changes_need_a_saved_template(doc):

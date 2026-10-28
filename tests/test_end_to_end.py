@@ -151,6 +151,6 @@ def test_two_wheels_are_installed_used_saved_compiled_and_a_new_release_is_adopt
     assert report["accents"] == ["MOSS", "MOSS", "MOSS", "MOSS"]
     assert report["defaults"] == ["/content/1/content/1/accent", "/content/2/content/1/accent"]
     assert report["changes"] and any(c.startswith("default Fact.accent") for c in report["changes"])
-    assert report["hand_edits"] == [["/content/1/content/0", "\\abTitle{Fox, edited}"]]
+    assert report["hand_edits"] == [["/content/1/content/0", "    \\abTitle{Fox, edited}"]]
     assert report["refused"] == 1 and report["data"] == 2 and report["history"] == 1
     compiler.compile(tmp_path / "docs/acme_brand_tex/expert/deck.tex", tmp_path / "out" / "after").raise_for_status()

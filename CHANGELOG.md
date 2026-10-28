@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-10-28
+
+### Added
+
+- `doc.template_changes()` also reports each package of the stack with its release and `output` pair (`package acme-brand-tex: 1.2.0 (output 1.0) -> 1.2.1
+  (output 1.1)`), so a release that changes only the layout is visible for a saved document.
+
+### Changed
+
+- Requires `texmodel>=0.8.0`, which indents a document's body by depth (two spaces per level). A saved document written by an earlier release is
+  not reported as hand-edited: its `.tex` agrees with the plan saved beside it, `check` lists the files as changed and `save` rewrites them. The
+  plan's column spans move with the indent; a plan saved by an earlier texmodel must still be readable by it.
+  Packages classify the rebuilt `output` as `revision`: the typeset result is the same.
+
 ## [0.2.4] - 2026-10-28
 
 ### Added
