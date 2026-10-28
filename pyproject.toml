@@ -1,7 +1,7 @@
 [project]
 name = "texpkg"
 dynamic = ["version"]
-description = "LaTeX package management."
+description = "TeX packages as Python packages: a typed texmodel API and the TeX it compiles against in one wheel, with versioned data, migrations and static linking between packages."
 authors = [{name = "Ilja Orlovs", email = "ilja@release.art"}]
 license = "MIT"
 license-files = ["LICENSE"]

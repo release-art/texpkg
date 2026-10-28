@@ -143,7 +143,7 @@ The surface is specified in §4a; the requirements behind it follow.
   old release fails pyright on upgrade. Unresolved items therefore carry data, not trees, and their paths are data paths
   (V15). Going back from a tree to stored state is `doc.save()` (P29).
 - P24 **What the module exports** (**decided**): the fixed surface (P6); each kind's classes (`acme_tex.kinds.expert.Deck`
-  and the classes its tree is made of); the value types those use (a palette `Choice`, bounded lengths). **Not** the
+  and the classes its tree is made of); the value types those use (a palette `Choice`, bounded lengths); the kind's `settable` values. **Not** the
   package's low-level components, which would bypass the kinds' narrowing and make locks meaningless; not embedded
   packages (P15).
 - P25 **`Raw` is refused in a kind unless declared** (**decided**): a field typed `Raw`, or a `Passthrough`, is a hole in
@@ -481,7 +481,7 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 | Name | Signature | Status | Ref |
 |---|---|---|---|
 | distribution | `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=(), public="")`; `root` is the directory asset paths are relative to: a path relative to the module that calls `Distribution(...)` (default: its own directory) or absolute, inside the declaring package; its import name (`declared_in`) is read from the call. Symlinks are followed; outside the package: `TP-K013`, not a directory: `TP-K014`; `public`: a module of that package, `TP-K022` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
-| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="", settable=(), options=(), preamble=(), locked_preamble=PreambleSlots(), defaults=())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
+| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="", settable=(), options=(), preamble=(), locked_preamble=PreambleSlots(), defaults=())`; `Variant(name, settings=(), options=())` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
 | asset | `Asset(path, role: Role, why: str, kinds=())`; `Role`: `PACKAGE`, `GRAPHIC`, `FONT`, `BY_PATH`, `NOTE` | decided (`kinds=` spelling proposed) | A1, A6 |
 | embedded data | `Design(model: type[BaseModel], path: str)` | decided | L1 |
 | default policy | `DefaultChange.FOLLOW`, `.FREEZE`, `.ASK`: an `@enum.unique` enum (a `StrEnum`, so one package's value equals another's), passed by the consumer to `load(default_changes=...)`; the `FOLLOW` default and the per-path mapping are proposed | decided | V23 |

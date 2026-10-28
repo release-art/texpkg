@@ -1,6 +1,6 @@
 # texpkg
 
-TeX packages published as Python packages. A texpkg package is one wheel: a [texmodel](https://github.com/release-art/texmodel)
+TeX packages published as Python packages. A texpkg package is one wheel: a typed [texmodel](https://github.com/release-art/texmodel)
 API and the TeX it compiles against, at one version. Installed, it is a Python module with a fixed API to load, render,
 save and check document directories, with versioned data and migrations; packages can build on each other, the base
 embedded in the dependent at build time.

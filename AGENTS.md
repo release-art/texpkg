@@ -70,7 +70,6 @@ TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the 
 
 - Errors carry a new, stable code `TP-<area><nnn>`: `A` assets, `D` document, `K` kinds, `M` migration, `B` build,
   `C` contracts, `E` embedding. `grep -rhoE "TP-[A-Z][0-9]+" src | sort -u` for the next free one; a code is never reused.
-
 - Mark every `Enum`/`StrEnum` `@enum.unique`.
 - Values are frozen dataclasses; output is a pure function of its inputs: no clocks, hashes, set or dict order in what is
   written. Pydantic only at the data boundary.
@@ -88,5 +87,5 @@ TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the 
 ## Development environment
 
 - `pdm install`; run tools as `pdm run ...`. Python is 3.15 only.
-- texmodel is the released one (`texmodel>=0.6.0`). To try a change in the sibling checkout, `pdm add -e ../texmodel --dev` locally
+- texmodel is the released one (`texmodel>=0.7.0`). To try a change in the sibling checkout, `pdm add -e ../texmodel --dev` locally
   and do not commit that.
