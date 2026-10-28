@@ -15,7 +15,7 @@ from hypothesis import (
 from texmodel.preamble import PassOption, PreambleSlots, RequireMetadata
 from texmodel.types import CMYK
 
-from texpkg import Design, Kind
+from texpkg import DefaultChange, Design, Kind
 from texpkg.errors import DeclarationError, MigrationError, NotAllowedError
 from texpkg_build._internal import checks
 from texpkg_build.testing import check_expansion, load_declaration
@@ -223,6 +223,15 @@ def test_a_kind_writes_its_locked_entries_before_the_documents_own(deck, tmp_pat
     assert at == sorted(at) and at[1] < next(i for i, line in enumerate(lines) if "\\documentclass" in line)
 
 
+def test_a_variant_writes_its_class_options_into_its_own_tex(deck, tmp_path):
+    slide = deck.kinds.modules()["slide"]
+    doc = slide.create(tmp_path, slide.example())
+    assert "\\documentclass{" in doc.render() and "\\documentclass[draft]{" in doc.render("review")
+    doc.save()
+    assert "\\documentclass[draft]{" in (tmp_path / "slide-review.tex").read_text()
+    assert "\\documentclass{" in (tmp_path / "slide.tex").read_text()
+
+
 def test_a_document_may_not_carry_an_entry_class_the_kind_locks(deck, tmp_path):
     slide = deck.kinds.modules()["slide"]
     with pytest.raises(NotAllowedError) as raised:
@@ -261,7 +270,8 @@ def test_a_hand_edit_of_the_documents_own_entry_is_found_at_its_data_path(deck, 
 def test_a_document_with_a_locked_entry_compiles(deck, compiler, tmp_path):
     slide = deck.kinds.modules()["slide"]
     slide.create(tmp_path / "doc", slide.example(), preamble=OWN).save()
-    compiler.compile(tmp_path / "doc/slide.tex", tmp_path / "out").raise_for_status()
+    for name in ("slide", "slide-review"):  # the variant passes `draft` to the class
+        compiler.compile(tmp_path / f"doc/{name}.tex", tmp_path / "out" / name).raise_for_status()
 
 
 def locked_deck(deck, **changes):  # noqa: ANN001, ANN003, ANN201
@@ -289,3 +299,91 @@ def test_a_profile_may_not_lock_or_allow_what_its_base_kind_locks(deck):
     with pytest.raises(DeclarationError) as raised:
         locked_deck(deck, preamble=(PassOption,))
     assert raised.value.code == "TP-K020" and "locked by the base kind" in str(raised.value)
+
+
+# -- a kind's own defaults for what a document may set (V21) -------------------------------------------------------
+
+OLD_INK = {"type": "Ink", "value": {"c": 0.0, "m": 0.0, "y": 0.0, "k": 0.9}}
+GREY = "\\definecolor{ab-ink}{cmyk}{0,0,0,0.3}"
+BLACK = "\\definecolor{ab-ink}{cmyk}{0,0,0,0.9}"
+
+
+def slide_saved_with(deck, tmp_path, *, settings=(), old=OLD_INK):  # noqa: ANN001, ANN002, ANN201
+    """A slide document whose saved template says the kind's default for `Ink` used to be `old`."""
+    slide = deck.kinds.modules()["slide"]
+    slide.create(tmp_path, slide.example(), settings=settings).save()
+    path = tmp_path / "_texpkg/template.json"
+    template = json.loads(path.read_text())
+    assert template["kind_defaults"] == {"Ink": {"type": "Ink", "value": {"c": 0.0, "m": 0.0, "y": 0.0, "k": 0.3}}}
+    template["kind_defaults"]["Ink"] = old
+    path.write_text(json.dumps(template))
+    return slide
+
+
+def test_a_kinds_default_is_written_before_what_the_document_sets(deck, tmp_path):
+    slide = deck.kinds.modules()["slide"]
+    lines = slide.create(tmp_path / "a", slide.example()).render().splitlines()
+    assert GREY in lines
+    own = slide.create(tmp_path / "b", slide.example(), settings=[Ink(CMYK(0, 0, 0, 0.6))])
+    lines = own.render().splitlines()
+    assert lines.index(GREY) < lines.index(
+        "\\definecolor{ab-ink}{cmyk}{0,0,0,0.6}"
+    )  # the document's comes last: it wins
+    own.save()
+    (tmp_path / "b/slide.tex").write_text((tmp_path / "b/slide.tex").read_text().replace("{0,0,0,0.6}", "{0,0,0,0.7}"))
+    assert {e.path for e in own.hand_edits()} == {"/settings/0"}  # the default is not mistaken for it
+
+
+def test_a_changed_default_is_followed_frozen_or_asked_for_when_the_document_sets_nothing(deck, tmp_path):
+    slide = slide_saved_with(deck, tmp_path)
+    followed = slide.load(tmp_path)
+    assert followed.settings == () and GREY in followed.render()
+    frozen = slide.load(tmp_path, default_changes=DefaultChange.FREEZE)
+    assert [type(v) for v in frozen.settings] == [Ink]
+    lines = frozen.render().splitlines()
+    assert lines.index(GREY) < lines.index(BLACK)  # the old value is written after the new default, so it wins
+    by_class = slide.load(tmp_path, default_changes={"Ink": DefaultChange.FREEZE})
+    assert [v.value for v in by_class.settings] == [v.value for v in frozen.settings]
+    with pytest.raises(MigrationError) as raised:
+        slide.load(tmp_path, default_changes=DefaultChange.ASK)
+    (item,) = raised.value.unresolved
+    assert item.path == "/defaults/Ink" and "changed from" in item.reason and item.boundary == "defaults"
+
+
+def test_a_value_the_document_sets_is_not_a_changed_default(deck, tmp_path):
+    slide = slide_saved_with(deck, tmp_path, settings=[Ink(CMYK(0, 0, 0, 0.6))])
+    kept = slide.load(tmp_path, default_changes=DefaultChange.ASK)
+    assert BLACK not in kept.render() and "{0,0,0,0.6}" in kept.render()
+    again = slide.load(tmp_path, default_changes=DefaultChange.FREEZE)
+    assert [v.value for v in again.settings] == [v.value for v in kept.settings]
+
+
+def test_a_default_that_did_not_change_or_was_not_saved_asks_nothing(deck, tmp_path):
+    slide = slide_saved_with(deck, tmp_path, old={"type": "Ink", "value": {"c": 0.0, "m": 0.0, "y": 0.0, "k": 0.3}})
+    assert slide.load(tmp_path, default_changes=DefaultChange.ASK).settings == ()
+    path = tmp_path / "_texpkg/template.json"
+    template = json.loads(path.read_text())
+    del template["kind_defaults"]  # saved before the kind had a default
+    path.write_text(json.dumps(template))
+    assert slide.load(tmp_path, default_changes=DefaultChange.ASK).settings == ()
+
+
+def test_a_frozen_default_the_class_no_longer_reads_is_unresolved(deck, tmp_path):
+    slide = slide_saved_with(deck, tmp_path, old={"type": "Ink", "value": "not a colour"})
+    with pytest.raises(MigrationError) as raised:
+        slide.load(tmp_path, default_changes=DefaultChange.FREEZE)
+    (item,) = raised.value.unresolved
+    assert item.path == "/defaults" and item.boundary == "defaults"
+
+
+def test_a_default_is_for_a_settable_value_once(acme_brand_tex):
+    from acme_brand import Compact, Ink  # noqa: PLC0415
+
+    expert = acme_brand.dist.kind("expert")
+    twice = (Ink(CMYK(0, 0, 0, 0.1)), Ink(CMYK(0, 0, 0, 0.2)))
+    with pytest.raises(DeclarationError) as raised:
+        dataclasses.replace(expert, defaults=twice)
+    assert raised.value.code == "TP-K002"
+    with pytest.raises(DeclarationError) as raised:
+        dataclasses.replace(expert, defaults=(Compact(True),))
+    assert raised.value.code == "TP-K021" and "Compact" in str(raised.value)

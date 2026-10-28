@@ -200,6 +200,7 @@ def test_a_wheel_installs_into_a_fresh_environment_that_has_only_pydantic(brand_
     report = json.loads(venvs.run(python, SCRIPT, tmp_path / "out", cwd=tmp_path))
     assert report["names"] == ["slide", "brief", "vocab"] and report["version"] == "0.1.0"
     assert report["slide"] == [
+        "_texpkg/plan-review.json",
         "_texpkg/plan.json",
         "_texpkg/state.json",
         "_texpkg/template.json",
@@ -210,6 +211,7 @@ def test_a_wheel_installs_into_a_fresh_environment_that_has_only_pydantic(brand_
         "res/texpkg/acme-brand.sty",
         "res/texpkg/acme-deck-provenance.sty",
         "res/texpkg/acme-deck.sty",
+        "slide-review.tex",
         "slide.tex",
     ]
     assert "res/texpkg/acme-brand.sty" in report["vocab"] and "glossary.tex" in report["vocab"]

@@ -7,6 +7,7 @@ left aborts with the report.
 """
 
 import copy
+import dataclasses
 import re
 from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, cast
@@ -110,6 +111,39 @@ def _extras_problems(kind: Kind, package: Package, data: dict[str, Any]) -> tupl
     return extras, state.not_allowed(kind, extras)
 
 
+def kind_default_changes(
+    package: Package,
+    extras: Extras,
+    saved: Mapping[str, Any],
+    current: Mapping[str, Any],
+    policy: DefaultChange | Mapping[str, DefaultChange],
+) -> tuple[Extras, list[dict[str, Any]]]:
+    """Apply the consumer's policy to every kind default this release changed (V22), for a value the document does
+    not set itself: following needs nothing (the kind writes the new default); a frozen one becomes a setting of the
+    document with the old value; one that asks is returned as unresolved. The key is the value's class name, the path
+    `/defaults/<class>`."""
+    own = {type(v).__name__ for v in extras.settings}
+    frozen: list[Any] = []
+    asked: list[dict[str, Any]] = []
+    for name in sorted(saved.keys() & current.keys()):
+        if saved[name] == current[name] or name in own:
+            continue
+        action = _policy(policy, f"/defaults/{name}", name)
+        if action is DefaultChange.FREEZE:
+            frozen.append(saved[name])
+        elif action is DefaultChange.ASK:
+            reason = f"the default of {name} changed from {saved[name]!r} to {current[name]!r}"
+            asked.append({"path": f"/defaults/{name}", "reason": reason, "value": saved[name], "boundary": "defaults"})
+    if not frozen:
+        return extras, asked
+    try:
+        kept = state.extras_from(package, {"settings": frozen}).settings
+    except ExceptionGroup as group:
+        reason = "; ".join(str(e) for e in group.exceptions)
+        return extras, [*asked, {"path": "/defaults", "reason": reason, "value": frozen, "boundary": "defaults"}]
+    return dataclasses.replace(extras, settings=(*extras.settings, *kept)), asked
+
+
 def adopt(
     *,
     kind: Kind,
@@ -120,6 +154,8 @@ def adopt(
     consumer: Sequence[Migration],
     policy: DefaultChange | Mapping[str, DefaultChange],
     saved_defaults: Mapping[str, Any] | None,
+    saved_kind_defaults: Mapping[str, Any] | None = None,
+    kind_defaults: Mapping[str, Any] | None = None,
     base_data: Mapping[int, int] | None = None,
 ) -> tuple[Node, Extras]:
     """The tree and extras of `kind` that `envelope` describes at `data` version `current`, or a `MigrationError` naming
@@ -141,6 +177,9 @@ def adopt(
     schema = state.tree_schema(kind.model, "validation")
     extras, found = _extras_problems(kind, package, extras_data)
     left += [{**p, "boundary": "validation"} for p in found]
+    if saved_kind_defaults is not None and not found:
+        extras, asked = kind_default_changes(package, extras, saved_kind_defaults, kind_defaults or {}, policy)
+        left += asked
     left += [{**p, "boundary": "validation"} for p in unplaced(tree, schema)]
     left += [{**p, "boundary": "validation"} for p in problems(kind.model, state.given(tree), schema)]
     if left:

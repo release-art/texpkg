@@ -36,10 +36,13 @@ type Model = type[Command] | type[Environment]
 
 @dataclasses.dataclass(frozen=True)
 class Variant:
-    """A named set of settings applied to the same document (K6): `doc.render(variant="compact")`."""
+    """A named set of settings and class options applied to the same document (K6): `doc.render(variant="compact")`.
+    The options are written after the document's own, and need not be among the kind's `options`: the variant is the
+    author's choice, not the document's."""
 
     name: str
     settings: tuple[AnyValue, ...] = ()
+    options: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not _VARIANT.fullmatch(self.name):
@@ -50,6 +53,18 @@ class Variant:
                 hint="it is part of a file name: deck-<variant>.tex",
             )
         object.__setattr__(self, "settings", tuple(self.settings))
+        object.__setattr__(self, "options", tuple(self.options))
+        if bad := next((o for o in self.options if not OPTION.fullmatch(o)), None):
+            raise DeclarationError(
+                f"variant {self.name}: option {bad!r} is not a class option",
+                code="TP-K016",
+                path=self.name,
+                hint="letters, digits, '=', '.' and '-', starting with a letter or digit",
+            )
+        if twice := next((o for o in self.options if self.options.count(o) > 1), None):
+            raise DeclarationError(
+                f"variant {self.name}: option {twice!r} is declared twice", code="TP-K002", path=self.name
+            )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -105,7 +120,9 @@ class Kind:
 
     A document may carry what the kind allows and nothing else: `settable` (values a document sets, after `presets`,
     which every document is written with), `options` (class options) and `preamble` (entry classes). A value is a preset
-    or settable, not both. `locked_preamble` holds entries every document is written with, in the slots given, after
+    or settable, not both. `defaults` are the kind's own start values for settable ones: written after the presets and
+    the variant's settings and before the document's own, so a document that sets the value overrides them (V21).
+    `locked_preamble` holds entries every document is written with, in the slots given, after
     the layout's lines and before the document's own: a document may not carry an entry class that is locked."""
 
     name: str
@@ -122,9 +139,10 @@ class Kind:
     options: tuple[str, ...] = ()
     preamble: tuple[type[Entry], ...] = ()
     locked_preamble: PreambleSlots = dataclasses.field(default_factory=PreambleSlots)
+    defaults: tuple[AnyValue, ...] = ()
 
     def __post_init__(self) -> None:
-        for field in ("presets", "migrations", "allow_raw", "variants", "settable", "options", "preamble"):
+        for field in ("presets", "migrations", "allow_raw", "variants", "settable", "options", "preamble", "defaults"):
             object.__setattr__(self, field, tuple(getattr(self, field)))
         if not _KIND.fullmatch(self.name) or keyword.iskeyword(self.name):
             raise DeclarationError(
@@ -192,6 +210,14 @@ class Kind:
                 path=self.name,
                 hint="a value is written for every document or set by a document, not both",
             )
+        self._unique("default", [type(v).__name__ for v in self.defaults])
+        if loose := next((v for v in self.defaults if type(v) not in self.settable), None):
+            raise DeclarationError(
+                f"kind {self.name}: a default for {type(loose).__name__}, which is not settable",
+                code="TP-K021",
+                path=self.name,
+                hint="a default is where a document starts for a value it may set: add the class to settable",
+            )
         object.__setattr__(self, "stem", self.stem or self.model.__name__.lower())
         if not _STEM.fullmatch(self.stem):
             raise DeclarationError(
@@ -238,6 +264,11 @@ class Kind:
     def documents(self) -> tuple[tuple[str | None, str], ...]:
         """The `.tex` a save writes, as `(variant, file name)`: the kind's own, then one per variant (K7)."""
         return ((None, f"{self.stem}.tex"), *((v.name, f"{self.stem}-{v.name}.tex") for v in self.variants))
+
+    def class_options(self, own: tuple[str, ...], variant: str | None = None) -> tuple[str, ...]:
+        """The class options of a `.tex` (K6): the document's `own`, then the variant's that are not among them."""
+        found = next((v for v in self.variants if v.name == variant), None)
+        return (*own, *(o for o in (found.options if found else ()) if o not in own))
 
     def settings(self, variant: str | None = None) -> tuple[AnyValue, ...]:
         """What a document of the kind is written with (L8): the presets, then the settings of `variant`, if named."""

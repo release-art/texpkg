@@ -36,22 +36,17 @@ def _pointer(context: Context) -> tuple[str, str]:
 
 
 def pdm_build_initialize(context: Context) -> None:
-    """A wheel needs pydantic and nothing else: texmodel, texpkg and the bases are embedded in it (B7)."""
+    """A wheel needs pydantic and nothing else: texmodel, texpkg and the bases are embedded in it (B7). An editable
+    install embeds nothing, so it needs texpkg itself, which brings texmodel and pydantic."""
     metadata = context.config.metadata
-    metadata["dependencies"] = [PYDANTIC]
+    metadata["dependencies"] = ["texpkg"] if context.target == "editable" else [PYDANTIC]
     if "dynamic" in metadata and "dependencies" in metadata["dynamic"]:
         metadata["dynamic"].remove("dependencies")
 
 
 def pdm_build_update_files(context: Context, files: dict[str, pathlib.Path]) -> None:
-    if context.target == "sdist":
-        return
     if context.target != "wheel":
-        raise DeclarationError(
-            f"a {context.target} build of a texpkg package",
-            code="TP-B008",
-            hint="the module is generated from the declaration: test it with texpkg_build.testing.load_declaration",
-        )
+        return  # the sdist holds the sources, an editable install links them: the module is made for a wheel (B6)
     module, attr = _pointer(context)
     source = context.root / (context.config.build_config.package_dir or ".")
     with author_source(source) as isolation:

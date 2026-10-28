@@ -69,7 +69,19 @@ class Release:
         """What a document of `kind` is written with (L8): for a profile kind, the base kind's presets first, then
         its own locks, then the variant's."""
         base = self.dist.base_kind(kind)
-        return (*(base.presets if base else ()), *kind.settings(variant))
+        return (*(base.presets if base else ()), *kind.settings(variant), *self.kind_defaults(kind))
+
+    def kind_defaults(self, kind: Kind) -> tuple[AnyValue, ...]:
+        """Where a document of `kind` starts for the values it may set: a profile's base kind's, then its own (V21)."""
+        base = self.dist.base_kind(kind)
+        return (*(base.defaults if base else ()), *kind.defaults)
+
+    def kind_defaults_state(self, kind: Kind) -> dict[str, Any]:
+        """The settable ones among them, by class name, in the data shape of a setting: what the template state keeps
+        to tell, at `load`, a default the kind has changed."""
+        found = tuple(v for v in self.kind_defaults(kind) if type(v) in kind.settable)
+        data = state.extras_state(Extras(settings=found)).get("settings", [])
+        return json.loads(dumps({type(v).__name__: d for v, d in zip(found, data, strict=True)}))
 
     def _has_graphics(self, kind: Kind) -> bool:
         kinds = (kind.name, *([kind.over] if kind.over else []))
@@ -101,7 +113,7 @@ class Release:
         return package.plan(
             TexDocument(
                 body,
-                options=extras.options,
+                options=kind.class_options(extras.options, variant),
                 settings=(*self.settings(kind, variant), *extras.settings),
                 preamble=PreambleSlots(
                     before_class=(*found.before_class, *own.before_class),
@@ -163,6 +175,7 @@ class Release:
                 for variant, name in kind.documents()
             },
             "defaults": state.defaults_table(kind.model),
+            "kind_defaults": self.kind_defaults_state(kind),
             "sty": state.sty_hashes(self.sty),
             "stack": self.stack(),
         }
@@ -300,6 +313,8 @@ class KindApi[T: Command | Environment]:
             consumer=migrations,
             policy=default_changes,
             saved_defaults=template.get("defaults"),
+            saved_kind_defaults=template.get("kind_defaults"),
+            kind_defaults=self.release.kind_defaults_state(self.kind),
             base_data=dict(self.release.contracts.base_data) if self.kind.name in self.release.dist.expose else None,
         )
         return Document(cast("T", tree), path, self.release, self.kind, extras)
