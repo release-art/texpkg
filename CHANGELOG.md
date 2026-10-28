@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-28
+
+### Added
+
+- A published constant (`Distribution(public=)`) may also be a dataclass or pydantic instance. The `interface` snapshot writes it as
+  `{"$class": name, ...fields}`; a value of another class is breaking, a new value of the same class a revision.
+
 ## [0.2.3] - 2026-10-28
 
 ### Added

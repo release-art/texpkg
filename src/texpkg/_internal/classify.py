@@ -7,7 +7,7 @@ JSON Schema and plain dicts, and only the triples of texpkg.
 
 import dataclasses
 import enum
-from typing import Any
+from typing import Any, cast
 
 from ..contracts import Pair, Triple
 
@@ -128,13 +128,20 @@ def interface_changes(old: dict[str, Any], new: dict[str, Any]) -> list[Change]:
     return out + _public_changes(old.get("public", {}), new.get("public", {}))
 
 
+def _shape(value: object) -> object:
+    """What a published value is the type of: its Python type, or the class of an instance (`$class`)."""
+    if isinstance(value, dict):
+        return cast("dict[str, object]", value).get("$class", dict)
+    return type(value)
+
+
 def _public_changes(old: dict[str, Any], new: dict[str, Any]) -> list[Change]:
     """The published constants (P31): a name that went, or a value of another type, breaks the code that reads it; a
     new name is an addition; a new value of the same type is a revision, as the contracts it feeds show the rest."""
     out = [Change(Level.BREAKING, f"public {n}", "removed") for n in sorted(old.keys() - new.keys())]
     out += [Change(Level.COMPATIBLE, f"public {n}", "added") for n in sorted(new.keys() - old.keys())]
     for name in sorted(old.keys() & new.keys()):
-        same = type(old[name]) is type(new[name])  # 1 == True, so equal values still differ by type
+        same = _shape(old[name]) == _shape(new[name])  # 1 == True, so equal values still differ by type
         if same and old[name] == new[name]:
             continue
         out.append(Change(Level.REVISION if same else Level.BREAKING, f"public {name}", "value changed"))

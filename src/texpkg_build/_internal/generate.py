@@ -6,12 +6,15 @@ declaration is imported from `acme_tex._declaration`, so its classes are real cl
 """
 
 import copy
+import dataclasses
 import importlib
 import inspect
 import textwrap
 import typing
 from collections.abc import Iterator, Sequence
 from typing import Annotated, Any, cast
+
+from pydantic import BaseModel, TypeAdapter
 
 from texpkg import errors
 from texpkg._internal import provenance_tex
@@ -152,19 +155,26 @@ def _kind_source(dist: Distribution, kind: Kind) -> str:
     """)
 
 
-def _json_like(value: object) -> bool:
-    """Exactly the types JSON holds, so a snapshot of the value is the value (an enum member is not one)."""
+def _plain(value: object) -> object | None:
+    """`value` as JSON: what JSON holds, and a dataclass or pydantic instance as `{"$class": name, ...fields}`, or
+    `{"$class": name, "value": text}` when it has a text form (a `Length`). An enum member is refused unless it is a
+    field. `NotImplemented` for anything else."""
     if type(value) in (type(None), bool, int, float, str):
-        return True
+        return value
     if isinstance(value, list | tuple):
-        return all(_json_like(v) for v in cast("Sequence[object]", value))
+        items = [_plain(v) for v in cast("Sequence[object]", value)]
+        return NotImplemented if NotImplemented in items else items
     if isinstance(value, dict):
-        return all(type(k) is str and _json_like(v) for k, v in cast("dict[object, object]", value).items())
-    return False
+        pairs = {k: _plain(v) for k, v in cast("dict[object, object]", value).items()}
+        return NotImplemented if NotImplemented in pairs.values() or not all(type(k) is str for k in pairs) else pairs
+    if isinstance(value, BaseModel) or (dataclasses.is_dataclass(value) and not isinstance(value, type)):
+        dumped = TypeAdapter(type(value)).dump_python(value, mode="json")
+        return {"$class": type(value).__qualname__, **(dumped if isinstance(dumped, dict) else {"value": dumped})}
+    return NotImplemented
 
 
 def public_values(dist: Distribution) -> dict[str, Any]:
-    """The constants of `dist.public`, by name in `__all__` order (P31)."""
+    """The constants of `dist.public` as JSON, by name in `__all__` order (P31)."""
 
     def refuse(what: str, hint: str) -> DeclarationError:
         return DeclarationError(f"{dist.public} {what}", code="TP-B014", path=dist.public, hint=hint)
@@ -178,12 +188,12 @@ def public_values(dist: Distribution) -> dict[str, Any]:
         if not hasattr(module, name):
             raise refuse(f"lists {name!r}, which it does not define", "define it or remove it from __all__")
         value = getattr(module, name)
-        if not _json_like(value):
+        if (plain := _plain(value)) is NotImplemented:
             raise refuse(
-                f"publishes {name!r}, a {type(value).__name__}, which is not JSON-like",
-                "publish strings, numbers, booleans, None, and lists or dicts of those",
+                f"publishes {name!r}, a {type(value).__name__}, which cannot be written as JSON",
+                "publish JSON-like values, or dataclass or pydantic instances",
             )
-        out[name] = value
+        out[name] = plain
     return out
 
 

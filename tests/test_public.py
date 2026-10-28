@@ -1,11 +1,13 @@
 """The constants a package publishes to its consumers (P31): declared, re-exported, in the interface contract."""
 
 import dataclasses
+import enum
 import importlib
 import sys
 import types
 
 import pytest
+from pydantic import BaseModel
 
 from texpkg._internal import classify
 from texpkg._internal.classify import Level
@@ -19,8 +21,9 @@ def test_the_generated_module_republishes_the_constants_of_the_declared_module(s
     acme_sheet_tex = importlib.import_module("acme_sheet_tex")
     public = importlib.import_module("acme_sheet_tex.public")
 
-    assert public.__all__ == ["DEFAULT_FONT", "MAX_TICKS", "STANDARD_NAMES"]
+    assert public.__all__ == ["BLEED", "DEFAULT_FONT", "MARGIN", "MAX_TICKS", "STANDARD_NAMES"]
     assert (public.MAX_TICKS, public.STANDARD_NAMES, public.DEFAULT_FONT) == (3, ("ISO9001", "ISO14001"), "Acme Sans")
+    assert str(public.MARGIN.top) == str(public.BLEED) == "3mm"
     assert "public" in acme_sheet_tex.__all__
 
 
@@ -33,7 +36,10 @@ def test_the_interface_snapshot_holds_the_values():
     from acme_sheet import dist
 
     assert snapshot.interface_of(dist)["public"] == generate.public_values(dist)
-    assert generate.public_values(dist)["STANDARD_NAMES"] == ("ISO9001", "ISO14001")
+    values = generate.public_values(dist)
+    assert values["STANDARD_NAMES"] == ["ISO9001", "ISO14001"]
+    assert values["MARGIN"] == {"$class": "Margin", "top": "3mm", "bottom": "5mm"}
+    assert values["BLEED"] == {"$class": "Length", "value": "3mm"}
 
 
 def test_public_must_be_a_module_of_the_declaring_package():
@@ -42,6 +48,24 @@ def test_public_must_be_a_module_of_the_declaring_package():
     with pytest.raises(DeclarationError) as raised:
         dataclasses.replace(dist, public="elsewhere.consts")
     assert raised.value.code == "TP-K022"
+
+
+class Color(enum.StrEnum):
+    RED = "red"
+
+
+@dataclasses.dataclass(frozen=True)
+class Holder:
+    color: Color
+
+
+@dataclasses.dataclass(frozen=True)
+class Item:
+    n: int
+
+
+class Model(BaseModel):
+    x: int
 
 
 def module(monkeypatch, name, **attrs):  # noqa: ANN001, ANN201
@@ -56,9 +80,13 @@ def module(monkeypatch, name, **attrs):  # noqa: ANN001, ANN201
     [
         ({"A": 1}, "no __all__"),
         ({"__all__": ["A"]}, "does not define"),
-        ({"__all__": ["A"], "A": object()}, "not JSON-like"),
-        ({"__all__": ["A"], "A": {1: "x"}}, "not JSON-like"),
+        ({"__all__": ["A"], "A": object()}, "cannot be written as JSON"),
+        ({"__all__": ["A"], "A": {1: "x"}}, "cannot be written as JSON"),
         ({"__all__": ["A"], "A": ["ok", (1, {"k": None}), 2.5, True]}, None),
+        ({"__all__": ["A"], "A": {"k": object()}}, "cannot be written as JSON"),
+        ({"__all__": ["A"], "A": [object()]}, "cannot be written as JSON"),
+        ({"__all__": ["A"], "A": Item(1)}, None),
+        ({"__all__": ["A"], "A": Model(x=1)}, None),
     ],
 )
 def test_what_may_be_published(monkeypatch, attrs, text):  # noqa: ANN001, ANN201
@@ -74,17 +102,16 @@ def test_what_may_be_published(monkeypatch, attrs, text):  # noqa: ANN001, ANN20
     assert raised.value.code == "TP-B014" and text in str(raised.value)
 
 
-def test_an_enum_member_is_not_json_like(monkeypatch):  # noqa: ANN001, ANN201
-    import enum
-
+def test_an_enum_member_is_refused_but_a_field_of_one_is_written(monkeypatch):  # noqa: ANN001, ANN201
     from acme_sheet import dist
-
-    class Color(enum.StrEnum):
-        RED = "red"
 
     module(monkeypatch, "acme_sheet.fake", __all__=["A"], A=Color.RED)
     with pytest.raises(DeclarationError, match="Color"):
         generate.public_values(dataclasses.replace(dist, public="acme_sheet.fake"))
+    module(monkeypatch, "acme_sheet.fake", __all__=["A"], A=Holder(Color.RED))
+    assert generate.public_values(dataclasses.replace(dist, public="acme_sheet.fake")) == {
+        "A": {"$class": "Holder", "color": "red"}
+    }
 
 
 def test_the_levels_of_a_change_to_the_published_constants():
@@ -97,6 +124,8 @@ def test_the_levels_of_a_change_to_the_published_constants():
     assert levels({"A": 1}, {"A": 2}) == [("public A", Level.REVISION)]
     assert levels({"A": 1}, {"A": "1"}) == [("public A", Level.BREAKING)]
     assert levels({"A": 1}, {"A": True}) == [("public A", Level.BREAKING)]
+    assert levels({"A": {"$class": "X", "n": 1}}, {"A": {"$class": "X", "n": 2}}) == [("public A", Level.REVISION)]
+    assert levels({"A": {"$class": "X", "n": 1}}, {"A": {"$class": "Y", "n": 1}}) == [("public A", Level.BREAKING)]
     assert classify.interface_changes({"public": {"A": 1}}, {}) == [
         classify.Change(Level.BREAKING, "public A", "removed")
     ]
