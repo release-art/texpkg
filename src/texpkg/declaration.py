@@ -325,7 +325,8 @@ def _declared_in(name: str, root: str) -> tuple[str, str]:
 @dataclasses.dataclass(frozen=True)
 class Distribution:
     """What a package author declares (B1): the texmodel `package` whose `.sty` is shipped, its `kinds`, its `assets`,
-    the `base` it is built on (P20) and which of the base's kinds it `expose`s (P21).
+    the `base` it is built on (P20) and which of the base's kinds it `expose`s (P21). `public` names a module of the
+    declaring package whose `__all__` lists constants the generated module re-exports as `public` (P31).
 
     `root` is the directory an asset's `path` is relative to: a path relative to the module that calls
     `Distribution(...)`, or absolute, and inside the package that holds it (the wheel carries that package, P22).
@@ -342,6 +343,7 @@ class Distribution:
     kinds: tuple[Kind, ...] = ()
     base: "Distribution | None" = None
     expose: tuple[str, ...] = ()
+    public: str = ""
     declared_in: str = ""
 
     @property
@@ -369,6 +371,7 @@ class Distribution:
         names = [k.name for k in self.kinds]
         if twice := next((n for n in names if names.count(n) > 1), None):
             raise DeclarationError(f"kind {twice!r} is declared twice", code="TP-K002", path=self.name)
+        self._check_public()
         self._check_lineage()
         self._check_settable()
         base_offers = [k.name for k in self.base.kinds_offered()] if self.base else []
@@ -393,6 +396,15 @@ class Distribution:
                 code="TP-K002",
                 path=self.name,
                 hint=f"the kinds are {[*names, *self.expose]}",
+            )
+
+    def _check_public(self) -> None:
+        if self.public and self.public != self.declared_in and not self.public.startswith(self.declared_in + "."):
+            raise DeclarationError(
+                f"public module {self.public!r} is not inside {self.declared_in}",
+                code="TP-K022",
+                path=self.name,
+                hint=f"name a module of {self.declared_in}, which the wheel carries, e.g. '{self.declared_in}.consts'",
             )
 
     def _check_profile(self, kind: Kind) -> None:

@@ -376,6 +376,16 @@ Every name a consumer or an author touches, with its status. **decided**: agreed
 and not yet agreed (the name or the shape may change); **open**: the question is in §10. `acme_tex` stands for any built
 package, `expert` for any of its kinds, `Deck` for that kind's root class.
 
+- P31 **A package publishes constants** (**decided**): `Distribution(public="acme_tex_decl.public")` names a module of the
+  declaring package (`TP-K022` otherwise) whose `__all__` lists the constants (bleed, icon names, palette names) code that
+  uses the package reads. The generator writes `acme_tex/public.py`, static source re-exporting each name from the
+  embedded declaration (`from ._declaration.public import BLEED as BLEED`), so a type checker reads the declared types
+  and no private path is imported. Values are JSON-like only: strings, numbers, booleans, `None`, lists and dicts of
+  those (`TP-B014`, also for a missing `__all__` or name). Opt-in; a base's constants are not re-published. They are part of
+  the `interface` snapshot (`public` in `interface.json`, absent when nothing is published): a name removed, or a value
+  of another type, is breaking; a name added is compatible; a new value of the same type is a revision, since what the
+  value drives shows in `data` and `output`. A migration cannot repair a removal: it rewrites stored documents, not code.
+
 ### Consumer side: the package module (`acme_tex`)
 
 | Name | Signature | Status | Ref |
@@ -387,6 +397,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | release version | `acme_tex.__version__: str` | decided | V1 |
 | contract versions | `acme_tex.CONTRACTS: Contracts` (`.data`, `.interface`: `Triple(current, revision, age)`; `.output`: `Pair(current, revision)`) | decided | V10 |
 | errors | `acme_tex.errors`: this package's error classes | decided | §4a errors |
+| published constants | `acme_tex.public`: the names of `Distribution(public=)`; present only when declared | decided | P31 |
 
 ### Consumer side: a kind module (`acme_tex.kinds.expert`)
 
@@ -469,7 +480,7 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 
 | Name | Signature | Status | Ref |
 |---|---|---|---|
-| distribution | `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=())`; `root` is the directory asset paths are relative to: a path relative to the module that calls `Distribution(...)` (default: its own directory) or absolute, inside the declaring package; its import name (`declared_in`) is read from the call. Symlinks are followed; outside the package: `TP-K013`, not a directory: `TP-K014` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
+| distribution | `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=(), public="")`; `root` is the directory asset paths are relative to: a path relative to the module that calls `Distribution(...)` (default: its own directory) or absolute, inside the declaring package; its import name (`declared_in`) is read from the call. Symlinks are followed; outside the package: `TP-K013`, not a directory: `TP-K014`; `public`: a module of that package, `TP-K022` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
 | kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="", settable=(), options=(), preamble=(), locked_preamble=PreambleSlots(), defaults=())`; `Variant(name, settings)` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
 | asset | `Asset(path, role: Role, why: str, kinds=())`; `Role`: `PACKAGE`, `GRAPHIC`, `FONT`, `BY_PATH`, `NOTE` | decided (`kinds=` spelling proposed) | A1, A6 |
 | embedded data | `Design(model: type[BaseModel], path: str)` | decided | L1 |
@@ -861,6 +872,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | A document carries settings, options and preamble entries within what its kind lists (`settable`, `options`, `preamble`); in the tree in texmodel 0.5, beside `tree` in the envelope | decided |
 | An editable install of a texpkg project links the sources and makes no module (it depends on `texpkg`); only a wheel is generated | decided |
 | A kind gives a settable value its own start (`defaults`, `TP-K021`): written after the presets and the variant, before the document's settings; the template state keeps them, so `default_changes` (key: the class name) follows, freezes or asks for a changed one the document does not set | decided |
+| A package publishes JSON-like constants (`public=`, `acme_tex.public`, `TP-K022`, `TP-B014`): part of the `interface` snapshot, a removal breaks | decided |
 | A kind locks preamble entries every document is written with (`locked_preamble`, a `PreambleSlots`: the slot is written, not inferred); a document may not carry a locked class (`TP-K020`) | decided |
 | A derived package is `Package(base=)` (texmodel 0.7) and its distribution's `base` is that package's distribution (`TP-K019`); a settable value may be the base's, a profile kind's included | decided |
 | Kinds made from data are generated source: `[tool.texpkg] generate`, `texpkg-build generate`, committed and refused when stale by the build | decided |

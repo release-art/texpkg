@@ -62,13 +62,15 @@ def _component(cls: type) -> dict[str, Any]:
 
 
 def interface_of(dist: Distribution) -> dict[str, Any]:
-    """The public TeX names with their signatures, and the kinds with their variants (V11): from the declaration."""
+    """The public TeX names with their signatures, the kinds with their variants and the published constants (V11,
+    P31): from the declaration."""
     components = {cls.__name__: _component(cls) for cls in dist.package.registered}
     kinds = {
         k.name: {"variants": [v.name for v in k.variants], "over": k.over or "", "exposed": k.name in dist.expose}
         for k in dist.kinds_offered()
     }
-    return {"components": components, "kinds": kinds}
+    published = {"public": generate.public_values(dist)} if dist.public else {}  # absent when nothing is published
+    return {"components": components, "kinds": kinds, **published}
 
 
 def build(dist: Distribution, release: Release, sty: Mapping[str, str]) -> dict[str, str]:
