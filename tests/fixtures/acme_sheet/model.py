@@ -2,11 +2,20 @@
 
 import enum
 
+from texmodel.body import Comment
 from texmodel.components import Command, Environment
 from texmodel.package import Package
 from texmodel.types import Choice, Text
 
-pkg = Package("acme-sheet", prefix="as", version="5.0.0", date="2026/10/25", description="Datasheets")
+
+class Audit(Comment):
+    """Who checked the sheet: a comment in the `.tex`, kept in the data."""
+
+    template = "audited by #who"
+    who: str
+
+
+pkg = Package("acme-sheet", prefix="as", version="5.0.0", date="2026/10/25", description="Datasheets", comments=[Audit])
 
 
 @enum.unique

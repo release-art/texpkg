@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-10-28
+
+### Fixed
+
+- A kind module also exports the texmodel classes a consumer builds values with: those a field is annotated with (`Length`, `CMYK`, `Raw`, ...), the
+  payload type of a value (`Ink(CMYK(...))`) and `Passthrough` where a grammar accepts it. They are the embedded texmodel's; an instance of the
+  consumer's own texmodel is refused by the tree.
+- A kind module exports `Comment` and the comment classes its package declares (`Package(comments=[...])`). A consumer's own `Comment` was a
+  different class from the embedded texmodel's, so the tree was refused ("Comment is not allowed here"). Declaring a comment class needs no
+  field on `Distribution`: it is the texmodel `Package`'s, and it round-trips through `save` and `load`.
+
 ## [0.2.5] - 2026-10-28
 
 ### Added

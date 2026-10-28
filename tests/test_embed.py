@@ -154,6 +154,11 @@ def test_a_wheel_embeds_texmodel_texpkg_and_one_copy_of_each_base(brand_site, tm
         assert re.search(r"^GENERATOR_VERSION: str \| None = '\d+\.\d+\.\d+", package_py, re.MULTILINE)
         imports = z.read("acme_deck_tex/_declaration/model.py").decode()
         assert "from .._embedded.acme_brand_tex" in imports and "from .._embedded.texmodel" in imports
+        kind_py = z.read("acme_deck_tex/kinds/slide.py").decode()
+        assert (
+            "from .._embedded.texmodel.body import Comment as Comment" in kind_py
+        )  # the consumer's Comment is the embedded texmodel's, the one the grammar checks against
+        assert "from .._embedded.texmodel.types import CMYK as CMYK" in kind_py  # so is a value's class
         for name in inside:
             if name.endswith(".py"):
                 tree = ast.parse(z.read(name))
