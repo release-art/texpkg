@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-28
+
+### Added
+
+- `Distribution(public="pkg.module")`: constants the package publishes. The module's `__all__` names them; the generated module re-exports them as
+  `acme_tex.public`, typed, so consumers import no private path. Values are JSON-like (`TP-B014` otherwise; `TP-K022`: not a module of the declaring
+  package). They are part of the `interface` snapshot: a name removed or a value of another type is breaking, a name added compatible, a new value
+  of the same type a revision.
+
 ## [0.2.2] - 2026-10-28
 
 ### Added

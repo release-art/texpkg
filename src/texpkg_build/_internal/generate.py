@@ -6,11 +6,12 @@ declaration is imported from `acme_tex._declaration`, so its classes are real cl
 """
 
 import copy
+import importlib
 import inspect
 import textwrap
 import typing
-from collections.abc import Iterator
-from typing import Annotated
+from collections.abc import Iterator, Sequence
+from typing import Annotated, Any, cast
 
 from texpkg import errors
 from texpkg._internal import provenance_tex
@@ -151,6 +152,48 @@ def _kind_source(dist: Distribution, kind: Kind) -> str:
     """)
 
 
+def _json_like(value: object) -> bool:
+    """Exactly the types JSON holds, so a snapshot of the value is the value (an enum member is not one)."""
+    if type(value) in (type(None), bool, int, float, str):
+        return True
+    if isinstance(value, list | tuple):
+        return all(_json_like(v) for v in cast("Sequence[object]", value))
+    if isinstance(value, dict):
+        return all(type(k) is str and _json_like(v) for k, v in cast("dict[object, object]", value).items())
+    return False
+
+
+def public_values(dist: Distribution) -> dict[str, Any]:
+    """The constants of `dist.public`, by name in `__all__` order (P31)."""
+
+    def refuse(what: str, hint: str) -> DeclarationError:
+        return DeclarationError(f"{dist.public} {what}", code="TP-B014", path=dist.public, hint=hint)
+
+    module = importlib.import_module(dist.public)
+    listed: object = getattr(module, "__all__", None)
+    if not isinstance(listed, list | tuple) or not all(isinstance(n, str) for n in cast("Sequence[object]", listed)):
+        raise refuse("has no __all__ listing the names to publish", "write __all__ = ['BLEED', ...]")
+    out: dict[str, Any] = {}
+    for name in cast("Sequence[str]", listed):
+        if not hasattr(module, name):
+            raise refuse(f"lists {name!r}, which it does not define", "define it or remove it from __all__")
+        value = getattr(module, name)
+        if not _json_like(value):
+            raise refuse(
+                f"publishes {name!r}, a {type(value).__name__}, which is not JSON-like",
+                "publish strings, numbers, booleans, None, and lists or dicts of those",
+            )
+        out[name] = value
+    return out
+
+
+def _public_source(dist: Distribution) -> str:
+    names = list(public_values(dist))
+    where = dist.public.removeprefix(dist.declared_in)
+    imports = "".join(f"from ._declaration{where} import {n} as {n}\n" for n in names)
+    return _module(imports + "\n__all__ = [" + ", ".join(repr(n) for n in names) + "]")
+
+
 def _tuple(items: list[str]) -> str:
     return "(" + "".join(f"{item!r}, " for item in items).strip() + ")"
 
@@ -165,14 +208,17 @@ def sources(dist: Distribution, pointer: str, version: str, contracts: Contracts
     sty = render_sty(dist, version)
     c = contracts
     imports = f"from . import {', '.join(names)}" if names else ""
+    all_public = '\n                    "public",' if dist.public else ""  # the template's indent
+    public = {"public.py": _public_source(dist)} if dist.public else {}
     base = dist.base
     base_import = f"from ._embedded.{base.module} import _bound as _base" if base else ""
     base_sty = "**_base.STY, " if base else ""
     base_release = "(_base.RELEASE,), " if base else "(), "
     return (
         {f"_sty/{name}": text for name, text in sty.items()}
+        | public
         | {
-            "__init__.py": _module("""
+            "__init__.py": _module(f"""
                 import datetime
                 from collections.abc import Mapping, Sequence
                 from pathlib import Path
@@ -181,7 +227,7 @@ def sources(dist: Distribution, pointer: str, version: str, contracts: Contracts
                 from texpkg.document import Document
                 from texpkg.migration import DefaultChange, Migrated, Migration, Unresolved, migration
 
-                from . import errors, kinds
+                from . import errors, kinds{", public" if dist.public else ""}
                 from ._bound import RELEASE
                 from ._version import CONTRACTS, VERSION
 
@@ -198,7 +244,7 @@ def sources(dist: Distribution, pointer: str, version: str, contracts: Contracts
                     "export",
                     "kinds",
                     "load",
-                    "migration",
+                    "migration",{all_public}
                 ]
 
 

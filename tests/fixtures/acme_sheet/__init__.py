@@ -34,6 +34,7 @@ dist = Distribution(
     module="acme_sheet_tex",
     package=pkg,
     kinds=(Kind("datasheet", Sheet, (), example, migrations=(standards_to_ticks,)),),
+    public="acme_sheet.public",
 )
 
 __all__ = ["Heading", "Sheet", "Standard", "Ticks", "dist", "example", "standards_to_ticks"]
