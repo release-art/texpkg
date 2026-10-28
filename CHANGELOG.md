@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `acme_tex.texmodel.{body,components,errors,preamble,types}`: every public name of those texmodel modules, imported from the copy the package embeds,
+  as generated static source. A consumer's own texmodel is another copy, and a tree refuses its instances; this is the one place to take any texmodel
+  class a document is built with. The names are those of the texmodel the package was built with.
+
 ## [0.2.6] - 2026-10-28
 
 ### Fixed

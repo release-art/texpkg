@@ -36,6 +36,12 @@ MODULE = [
     "kinds/__init__.py",
     "kinds/expert.py",
     "kinds/vocab.py",
+    "texmodel/__init__.py",
+    "texmodel/body.py",
+    "texmodel/components.py",
+    "texmodel/errors.py",
+    "texmodel/preamble.py",
+    "texmodel/types.py",
     *DECLARATION,
 ]
 

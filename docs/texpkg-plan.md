@@ -143,7 +143,7 @@ The surface is specified in §4a; the requirements behind it follow.
   old release fails pyright on upgrade. Unresolved items therefore carry data, not trees, and their paths are data paths
   (V15). Going back from a tree to stored state is `doc.save()` (P29).
 - P24 **What the module exports** (**decided**): the fixed surface (P6); each kind's classes (`acme_tex.kinds.expert.Deck`
-  and the classes its tree is made of); the value types those use (a palette `Choice`, bounded lengths) and texmodel's own (`Length`, `CMYK`, `Raw`, `Passthrough` where a field or a grammar names them, and a value's payload type), which are the embedded copy's: an instance of a consumer's own texmodel is refused; the kind's `settable` values; `Comment` and the comment classes of the packages its components belong to (`Package(comments=[...])`), which are the embedded texmodel's, the ones the grammar checks. **Not** the
+  and the classes its tree is made of); the value types those use (a palette `Choice`, bounded lengths) and texmodel's own (`Length`, `CMYK`, `Raw`, `Passthrough` where a field or a grammar names them, and a value's payload type), which are the embedded copy's: an instance of a consumer's own texmodel is refused (`acme_tex.texmodel` mirrors the rest); the kind's `settable` values; `Comment` and the comment classes of the packages its components belong to (`Package(comments=[...])`), which are the embedded texmodel's, the ones the grammar checks. **Not** the
   package's low-level components, which would bypass the kinds' narrowing and make locks meaningless; not embedded
   packages (P15).
 - P25 **`Raw` is refused in a kind unless declared** (**decided**): a field typed `Raw`, or a `Passthrough`, is a hole in
@@ -398,6 +398,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | release version | `acme_tex.__version__: str` | decided | V1 |
 | contract versions | `acme_tex.CONTRACTS: Contracts` (`.data`, `.interface`: `Triple(current, revision, age)`; `.output`: `Pair(current, revision)`) | decided | V10 |
 | errors | `acme_tex.errors`: this package's error classes | decided | §4a errors |
+| texmodel's public names | `acme_tex.texmodel.{body,components,errors,preamble,types}`: every name of that texmodel module's `__all__`, the embedded copy's (a consumer's own texmodel is another copy, whose instances a tree refuses); the names are those of the texmodel the package was built with | decided | P24 |
 | published constants | `acme_tex.public`: the names of `Distribution(public=)`; present only when declared | decided | P31 |
 
 ### Consumer side: a kind module (`acme_tex.kinds.expert`)

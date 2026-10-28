@@ -180,6 +180,8 @@ assert importlib.util.find_spec("texmodel") is None and importlib.util.find_spec
 assert importlib.util.find_spec("acme_brand_tex") is None
 import acme_deck_tex as m
 from acme_deck_tex.kinds import slide, vocab
+from acme_deck_tex.texmodel import body, components, errors, preamble, types
+from acme_deck_tex._embedded.texmodel import body as e_body, components as e_components, types as e_types
 root = pathlib.Path(sys.argv[1])
 a = slide.create(root / "slide", slide.example()); a.save()
 b = vocab.create(root / "vocab", vocab.example()); b.save()
@@ -191,6 +193,14 @@ print(json.dumps({
     "stack": [e.package + " " + e.release for e in a.stack.entries],
     "tex": a.render(), "again": m.load(root / "vocab").kind,
     "texmodel": m.kinds.slide.Slide.__module__,
+    "mirror": [
+        types.Length is e_types.Length,
+        body.Comment is e_body.Comment,
+        components.Command is e_components.Command,
+        slide.Comment is body.Comment,
+        errors.ValidationError.__module__,
+        preamble.PreambleSlots.__module__,
+    ],
     "generator": __import__("acme_deck_tex._embedded.texmodel.package", fromlist=["x"]).generator_version(),
 }))
 """
@@ -222,6 +232,11 @@ def test_a_wheel_installs_into_a_fresh_environment_that_has_only_pydantic(brand_
     assert "res/texpkg/acme-brand.sty" in report["vocab"] and "glossary.tex" in report["vocab"]
     assert report["stack"] == ["acme-deck-tex 0.1.0", "acme-brand-tex 1.2.0"]
     assert report["generator"].count(".") == 2
+    assert report["mirror"][:4] == [True] * 4  # the public names are the embedded copy's
+    assert report["mirror"][4:] == [
+        "acme_deck_tex._embedded.texmodel.errors",
+        "acme_deck_tex._embedded.texmodel.preamble",
+    ]
 
 
 def retarget(project: pathlib.Path, old: str, new: str) -> None:
