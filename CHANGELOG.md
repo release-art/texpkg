@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-28
+
 ### Added
 
 - `Distribution(public="pkg.module")`: constants the package publishes. The module's `__all__` names them; the generated module re-exports them as
