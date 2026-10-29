@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-29
+
+### Changed
+
+- Requires `texmodel>=0.10.0`. Generated output and the goldens are unchanged by it. Wheels built from now on depend on `texmodel~=0.10.0`.
+- The plan records that `Document`, errors and enums are texpkg's classes, shared by every package.
+
 ## [0.3.0] - 2026-10-29
 
 ### Added

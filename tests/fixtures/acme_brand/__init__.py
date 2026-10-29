@@ -69,8 +69,6 @@ misdeclared = dataclasses.replace(
 )
 clash = dataclasses.replace(dist, assets=(*dist.assets, Asset("other/lockup.pdf", Role.GRAPHIC, "another lock-up")))
 
-clash = dataclasses.replace(dist, assets=(*dist.assets, Asset("other/lockup.pdf", Role.GRAPHIC, "another lock-up")))
-
 __all__ = [
     "Accent",
     "Card",

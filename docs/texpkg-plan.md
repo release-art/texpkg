@@ -441,7 +441,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | `HandEditError` | raised by `save` when a `.tex` differs from its saved plan; `.edits: tuple[HandEdit, ...]` | decided | D8 |
 | `NotAllowedError` | raised by `create` and `replace` for a setting, option or preamble entry the kind does not allow; `.items`, each with its data `path`, `reason` and `value` | decided | D10 |
 | `NotADocumentError`, `PayloadError` | no state in the directory; a payload that cannot be written whole | decided | P27, A3 |
-| shared types across packages | **none** (decided): each package's classes are its own (B7). Every error subclasses a built-in and carries a stable `.code`, so `except ValueError` plus the code works across packages: `MigrationError`, `KindMismatchError`, `NewerDataError`, `HandEditError` subclass `ValueError`; `NotADocumentError` and `PayloadError` subclass `FileNotFoundError` (**proposed**: the bases and the code scheme, e.g. `TP-M001`) | decided | B7, B11 |
+| shared types across packages | `Document`, errors and enums are texpkg's classes, one set for every package (`texpkg.errors`). Every error subclasses `TexpkgError` and a built-in and carries a stable `.code` (`TP-M001`): `MigrationError`, `KindMismatchError`, `NewerDataError`, `HandEditError` subclass `ValueError`; `NotADocumentError` and `PayloadError` subclass `FileNotFoundError` | decided | B11 |
 
 ### Migrations (written by a kind's author or a consumer)
 
@@ -842,7 +842,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | A compile's "does not fit" stays a texmodel_build diagnostic, separate from the migration report | decided |
 | The `output` fingerprint renders the previous release's example data with the new package; one hash per file; every byte counts | decided |
 | The versions file is its own file inside each contract snapshot, not `pyproject.toml` or the declaration | decided |
-| No types are shared between packages: errors subclass built-ins with a stable `.code`; enums are `StrEnum`s | decided |
+| `Document`, errors and enums are texpkg's classes, shared by every package; errors subclass `TexpkgError` and a built-in with a stable `.code`; enums are `StrEnum`s | decided |
 | The template state records the kind's settings, its defaults and the `.sty`'s hash, not the design file | decided |
 | `save` keeps a plan of each `.tex`; a hand-edited `.tex` raises `HandEditError`, `doc.hand_edits()` gives the edits to the consumer, `save(force=True)` overwrites | decided |
 | Adopting a release is atomic: all migrations succeed whole or `load` raises, asking the consumer to extend the process | decided |
