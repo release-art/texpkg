@@ -7,24 +7,22 @@ from acme_sheet.model import (
     Heading,
     Sheet,
 )
-from texmodel.body import Comment as TexmodelComment
+from texmodel.body import Comment
 
 from texpkg._internal import state
 
 from .test_migration import sheet  # noqa: F401
 
 
-def test_a_kind_module_exports_comment_and_the_packages_comment_classes(sheet):  # noqa: ANN001, ANN201, F811
+def test_a_kind_module_exports_the_packages_comment_classes(sheet):  # noqa: ANN001, ANN201, F811
     module = importlib.import_module(sheet.__name__)
-    assert module.Comment is TexmodelComment and module.Audit is DeclaredAudit
+    assert module.Audit is DeclaredAudit
     assert module.Heading is Heading
 
 
 def test_a_comment_class_is_accepted_and_round_trips(sheet, tmp_path):  # noqa: ANN001, ANN201, F811
     module = importlib.import_module(sheet.__name__)
-    tree = Sheet(
-        module.Heading(text="Pump"), module.Ticks(met=()), module.Audit(who="Ana"), module.Comment("checked twice")
-    )
+    tree = Sheet(module.Heading(text="Pump"), module.Ticks(met=()), module.Audit(who="Ana"), Comment("checked twice"))
     sheet.create(tmp_path / "d", tree).save()
     text = next((tmp_path / "d").glob("*.tex")).read_text()
     assert "audited by Ana" in text and "checked twice" in text

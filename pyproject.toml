@@ -1,7 +1,7 @@
 [project]
 name = "texpkg"
 dynamic = ["version"]
-description = "TeX packages as Python packages: a typed texmodel API and the TeX it compiles against in one wheel, with versioned data, migrations and static linking between packages."
+description = "TeX packages as Python packages: a typed texmodel API and the TeX it compiles against in one wheel, with versioned data, migrations and dependencies between packages."
 authors = [{name = "Ilja Orlovs", email = "ilja@release.art"}]
 license = "MIT"
 license-files = ["LICENSE"]
@@ -12,10 +12,10 @@ classifiers = [
     "Typing :: Typed",
 ]
 requires-python = ">=3.15,<3.16"
-dependencies = ["texmodel>=0.8.0", "pydantic>=2.14.1"]
+dependencies = ["texmodel>=0.9.0", "pydantic>=2.14.1"]
 
 [project.optional-dependencies]
-build = ["typer>=0.27.3", "pdm-backend>=2.4"]  # the author's build (texpkg_build); a built wheel embeds only the run time (B7, B8)
+build = ["typer>=0.27.3", "pdm-backend>=2.4"]  # the author's build (texpkg_build); a built wheel depends on `texpkg`, not on this (B7, B8)
 
 [project.scripts]
 texpkg-build = "texpkg_build.cli:app"

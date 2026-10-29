@@ -40,7 +40,7 @@ ADOPT = textwrap.dedent(
     import json, sys
     import acme_brand_tex
     from acme_brand_tex import Migrated, migration
-    from acme_brand_tex.errors import HandEditError, MigrationError
+    from texpkg.errors import HandEditError, MigrationError
     from acme_brand_tex.kinds import expert
 
     root = sys.argv[1] + "/acme_brand_tex/expert"

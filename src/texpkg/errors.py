@@ -1,7 +1,7 @@
 """The errors of a package: a built-in base and a stable `.code` each (B11).
 
-No class is shared between packages (each wheel embeds its own copy of this module), so a consumer catches the built-in
-base (`ValueError`, `FileNotFoundError`) and reads `.code`, which is `TP-<area><nnn>` and never reused.
+A consumer catches the built-in base (`ValueError`, `FileNotFoundError`) or the class, and reads `.code`, which is
+`TP-<area><nnn>` and never reused.
 """
 
 from typing import TYPE_CHECKING, Any

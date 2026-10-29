@@ -9,7 +9,6 @@ import hashlib
 import importlib
 import json
 import pathlib
-import re
 import shutil
 from collections.abc import Mapping
 from typing import Any
@@ -29,7 +28,6 @@ from . import generate
 CONTRACTS = "contracts"
 NEXT = "next"
 VERSIONS = "versions.toml"
-_RELEASE = re.compile(r"\d+\.\d+\.\d+")
 
 
 def _dumps(value: object) -> str:
@@ -103,7 +101,7 @@ def build(dist: Distribution, release: Release, sty: Mapping[str, str]) -> dict[
 def frozen(root: pathlib.Path) -> list[pathlib.Path]:
     """The frozen snapshots under `root/contracts`, oldest first."""
     base = root / CONTRACTS
-    found = [p for p in base.iterdir() if p.is_dir() and _RELEASE.fullmatch(p.name)] if base.is_dir() else []
+    found = [p for p in base.iterdir() if p.is_dir() and classify.RELEASE.fullmatch(p.name)] if base.is_dir() else []
     return sorted(found, key=lambda p: classify.parse_version(p.name))
 
 
@@ -148,6 +146,30 @@ def output_changes(
     return changed, not_compared
 
 
+def _schemas(directory: pathlib.Path) -> dict[str, str]:
+    """The input schema of each kind in a snapshot, by kind name."""
+    return {
+        p.name.removesuffix(".input.schema.json"): p.read_text(encoding="utf-8")
+        for p in sorted((directory / "kinds").glob("*.input.schema.json"))
+    }
+
+
+def _data_changes(was: Mapping[str, str], now: Mapping[str, str]) -> list[classify.Change]:
+    """What changed in the data the kinds accept (V12): each kind's schema diff, kinds added and kinds removed."""
+    out: list[classify.Change] = []
+    for name, text in now.items():
+        if name in was:
+            out += [
+                dataclasses.replace(c, where=f"{name}: {c.where}")
+                for c in classify.schema_changes(json.loads(was[name]), json.loads(text))
+            ]
+        else:
+            out.append(classify.Change(classify.Level.COMPATIBLE, f"kind {name}", "added"))
+    return out + [
+        classify.Change(classify.Level.BREAKING, f"kind {n}", "removed") for n in sorted(was.keys() - now.keys())
+    ]
+
+
 @dataclasses.dataclass(frozen=True)
 class Proposal:
     files: dict[str, str]  # the snapshot, with the versions file as `versions.toml`
@@ -186,24 +208,9 @@ def propose(
     last = previous[-1]
     old = read_versions(last)
     assert old is not None
-    data_changes: list[classify.Change] = []
-    for kind in dist.kinds_offered():
-        was = last / "kinds" / f"{kind.name}.input.schema.json"
-        if was.is_file():
-            data_changes += [
-                dataclasses.replace(c, where=f"{kind.name}: {c.where}")
-                for c in classify.schema_changes(
-                    json.loads(was.read_text(encoding="utf-8")),
-                    json.loads(files[f"kinds/{kind.name}.input.schema.json"]),
-                )
-            ]
-        else:
-            data_changes.append(classify.Change(classify.Level.COMPATIBLE, f"kind {kind.name}", "added"))
-    kinds_before = {p.name.removesuffix(".input.schema.json") for p in (last / "kinds").glob("*.input.schema.json")}
-    data_changes += [
-        classify.Change(classify.Level.BREAKING, f"kind {n}", "removed")
-        for n in sorted(kinds_before - {k.name for k in dist.kinds_offered()})
-    ]
+    data_changes = _data_changes(
+        _schemas(last), {k.name: files[f"kinds/{k.name}.input.schema.json"] for k in dist.kinds_offered()}
+    )
     interface_changes = classify.interface_changes(
         json.loads((last / "interface.json").read_text(encoding="utf-8")), json.loads(files["interface.json"])
     )
@@ -300,21 +307,7 @@ def required_for(previous: pathlib.Path | None, this: pathlib.Path) -> str:
         return after.release
     before = read_versions(previous)
     assert before is not None
-    data: list[classify.Change] = []
-    for path in sorted((this / "kinds").glob("*.input.schema.json")):
-        old = previous / "kinds" / path.name
-        data += (
-            classify.schema_changes(
-                json.loads(old.read_text(encoding="utf-8")), json.loads(path.read_text(encoding="utf-8"))
-            )
-            if old.is_file()
-            else [classify.Change(classify.Level.COMPATIBLE, path.name, "added")]
-        )
-    data += [
-        classify.Change(classify.Level.BREAKING, path.name, "removed")
-        for path in (previous / "kinds").glob("*.input.schema.json")
-        if not (this / "kinds" / path.name).is_file()
-    ]
+    data = _data_changes(_schemas(previous), _schemas(this))
     interface = classify.interface_changes(
         json.loads((previous / "interface.json").read_text(encoding="utf-8")),
         json.loads((this / "interface.json").read_text(encoding="utf-8")),

@@ -9,8 +9,7 @@ import pytest
 
 from texpkg._internal import state
 from texpkg.contracts import Changes, Contracts, Pair, Triple
-from texpkg.declaration import Kind
-from texpkg.errors import DeclarationError, TexpkgError
+from texpkg.errors import DeclarationError
 from texpkg.protocol import KindModule, KindsModule, PackageModule
 from texpkg_build._internal import generate
 from texpkg_build.testing import load_declaration
@@ -29,12 +28,6 @@ def test_the_module_has_the_fixed_surface(acme_brand_tex: ModuleType, expert, vo
         "expert": True,
         "vocab": True,
     }
-
-
-def test_the_errors_are_the_packages_own(acme_brand_tex: ModuleType):
-    errors = acme_brand_tex.errors
-    assert errors.DeclarationError is DeclarationError and errors.TexpkgError is TexpkgError
-    assert set(generate.error_names()) == {n for n in dir(errors) if n.endswith("Error")}
 
 
 def test_a_kind_module_exports_its_classes_and_value_types_never_the_packages_other_components(
@@ -166,21 +159,3 @@ def test_the_stored_schema_leaves_what_has_no_properties_alone():
     validation = {"properties": {"a": {"default": 1}}, "$defs": {"Colour": {"enum": ["a"]}}}
     assert state.stored(validation)["$defs"] == {"Colour": {"enum": ["a"]}}
     assert validation["properties"] == {"a": {"default": 1}}  # the input is not changed
-
-
-def test_a_kind_module_exports_the_texmodel_values_a_consumer_builds_with(expert):
-    from texmodel.types import CMYK, RGB, Gray
-
-    assert (expert.CMYK, expert.RGB, expert.Gray) == (CMYK, RGB, Gray)  # in a wheel, the embedded texmodel's own
-
-
-def test_passthrough_and_raw_are_exported_when_a_kind_holds_them():
-    from texmodel.components import Passthrough
-    from texmodel.types import Raw
-
-    from .test_declaration import Page, page
-
-    kind = Kind("page", Page, (), page, allow_raw=("Page.Passthrough", "Label.marks", "Free.tex"))
-    exported = generate.exported(kind)
-    assert Passthrough in exported and Raw in exported
-    assert generate._import_from(__import__("acme_brand").dist, Raw) == "from texmodel.types import Raw as Raw"

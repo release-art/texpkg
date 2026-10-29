@@ -1,1 +1,1 @@
-"""The build of a texpkg package (never embedded in a wheel, B8)."""
+"""The build of a texpkg package (a wheel does not depend on it, B8)."""

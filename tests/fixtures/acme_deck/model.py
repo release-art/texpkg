@@ -1,6 +1,6 @@
 """The synthetic acme deck: a package built on the brand, with a kind of its own."""
 
-# The base is generated: installed for the build, embedded in the wheel, so a type checker cannot see it here.
+# The base is generated: installed for the build and a dependency of the wheel, so a type checker cannot see it here.
 import enum
 from typing import Any
 

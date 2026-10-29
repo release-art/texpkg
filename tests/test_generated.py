@@ -177,19 +177,6 @@ def test_the_declaration_may_be_a_module_of_its_package_and_the_package_import_f
     assert "acme_series_tex/kinds/short.py" in projects.names(projects.wheel(project, tmp_path / "dist"))
 
 
-def test_a_base_no_module_holds_is_refused_by_name(tmp_path):
-    import dataclasses  # noqa: PLC0415
-
-    import acme_brand  # noqa: PLC0415
-
-    from texpkg_build import testing  # noqa: PLC0415
-
-    copy = dataclasses.replace(acme_brand.dist)  # equal, but no module holds this one
-    with pytest.raises(DeclarationError) as raised:
-        testing._pointer_of(copy)  # noqa: SLF001
-    assert raised.value.code == "TP-B003" and "acme-brand-tex" in str(raised.value)
-
-
 def test_generate_reports_a_bad_pointer_and_a_failing_generator(project):
     pyproject = project / "pyproject.toml"
     pyproject.write_text(pyproject.read_text().replace('generate = "acme_series_gen:sources"', 'generate = "nothing"'))

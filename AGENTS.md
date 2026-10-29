@@ -6,8 +6,8 @@ Guidance for AI coding agents working in this repository.
 
 `texpkg`: TeX packages published as Python packages, in Python 3.15. A texpkg package is a wheel that carries a texmodel
 API and the TeX it compiles against at one version. Installed, it is a Python module with one fixed, strictly defined API
-for emitting LaTeX from versioned (migratable) data; packages can depend on each other, the base embedded in the
-dependent at build time (static linking), texmodel and texpkg's run time embedded too. texpkg builds that module from
+for emitting LaTeX from versioned (migratable) data; packages can depend on each other: a wheel requires the texpkg it was
+built with (same `X.Y`) and its base's wheel. texpkg builds that module from
 the author's declaration at wheel build time (`texpkg-build`, a pdm build hook) and defines the API behind it: load a
 document directory, render it, save it with the files it needs, check it later.
 [docs/texpkg-plan.md](docs/texpkg-plan.md) is the spec, the API reference (§4a), what is not built yet (§8), the decisions log (§9)
@@ -56,9 +56,9 @@ TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the 
 
 ## Package layout (pydantic pattern)
 
-- One distribution, two import packages. `src/texpkg` is the run time: it is what every built wheel embeds (B7), so it
+- One distribution, two import packages. `src/texpkg` is the run time: it is what every built wheel depends on (B7), so it
   imports only the standard library, texmodel and pydantic. `src/texpkg_build` is the author's build (hook, generation,
-  snapshots, embedding) and is never embedded; its dependencies sit in the `build` extra.
+  snapshots, assembling the module) and is never a wheel's dependency; its dependencies sit in the `build` extra.
 - Public modules sit at the top level of each package; `_internal/` is what we deliberately hide. A new module goes in
   `_internal` unless users should import it; then add it to `PUBLIC` in `tests/test_public_api.py` and document it.
 - `texpkg` never imports `texpkg_build`; nothing starts a process (tests do, through `tests/spawn.py`); only
@@ -69,7 +69,7 @@ TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the 
 ## Conventions
 
 - Errors carry a new, stable code `TP-<area><nnn>`: `A` assets, `D` document, `K` kinds, `M` migration, `B` build,
-  `C` contracts, `E` embedding. `grep -rhoE "TP-[A-Z][0-9]+" src | sort -u` for the next free one; a code is never reused.
+  `C` contracts, `E` the declaration copied into a wheel. `grep -rhoE "TP-[A-Z][0-9]+" src | sort -u` for the next free one; a code is never reused.
 - Mark every `Enum`/`StrEnum` `@enum.unique`.
 - Values are frozen dataclasses; output is a pure function of its inputs: no clocks, hashes, set or dict order in what is
   written. Pydantic only at the data boundary.
@@ -87,5 +87,5 @@ TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the 
 ## Development environment
 
 - `pdm install`; run tools as `pdm run ...`. Python is 3.15 only.
-- texmodel is the released one (`texmodel>=0.7.0`). To try a change in the sibling checkout, `pdm add -e ../texmodel --dev` locally
+- texmodel is the released one (`texmodel>=0.9.0`). To try a change in the sibling checkout, `pdm add -e ../texmodel --dev` locally
   and do not commit that.
