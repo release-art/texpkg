@@ -365,12 +365,12 @@ def test_a_hand_edited_tex_is_given_back_and_not_overwritten(expert, doc):
     doc.save()
     edit_file(doc.path, "deck.tex", "\\abTitle{Fox}", "\\abTitle{Fox!}")
     (edit,) = doc.hand_edits()
-    assert (edit.file, edit.path, edit.kind, edit.value) == (
+    assert (edit.file, edit.path, edit.kind) == (
         doc.path / "deck.tex",
         "/content/1/content/0",
         HandEditKind.CHANGED,
-        None,
     )
+    assert [(f.arg, f.found) for f in edit.fields] == [("text", "Fox!")]
     assert (edit.expected, edit.found) == ("    \\abTitle{Fox}", "    \\abTitle{Fox!}")
     changed = doc.replace(Deck(Mark(), Card(Title(text="Other"), Fact(text="x"))))
     with pytest.raises(HandEditError) as raised:
@@ -381,6 +381,21 @@ def test_a_hand_edited_tex_is_given_back_and_not_overwritten(expert, doc):
     )
     changed.save(force=True)
     assert "Fox!" not in (doc.path / "deck.tex").read_text() and changed.hand_edits() == ()
+
+
+def test_a_hand_edits_path_walks_the_loaded_tree_and_its_fields_name_the_argument(expert, doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fox}", "\\abTitle{Fox!}")
+    (edit,) = expert.load(doc.path).hand_edits()
+    node = expert.load(doc.path).tree
+    for part in edit.path.strip("/").split("/"):
+        node = node[int(part)] if part.isdigit() else getattr(node, part)
+    assert isinstance(node, Title) and node.text == "Fox"
+    assert [(f.arg, f.found) for f in edit.fields] == [("text", "Fox!")]
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fox!}", "\\abHeading{Fox!}")
+    assert [e.fields for e in expert.load(doc.path).hand_edits()] == [
+        ()
+    ]  # the command's name changed: the line says it
 
 
 def test_check_reports_a_hand_edit_as_changed_and_lists_it(doc):

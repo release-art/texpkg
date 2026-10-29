@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from texmodel import drift
 from texmodel.components import AnyValue, Command, Environment
+from texmodel.plan import FieldEdit
 from texmodel.preamble import PreambleSlots
 
 from . import provenance
@@ -40,16 +41,20 @@ class HandEditKind(enum.StrEnum):
 
 @dataclasses.dataclass(frozen=True)
 class HandEdit:
-    """One line of a `.tex` that is not what `save` wrote (D8). `path` is the node's data path (`/content/1/content/0`),
-    or the plan's own for a line no node wrote; `value` is the typed value when texmodel can read the edit back (D9),
-    else `None`: it is never guessed."""
+    """One line of a `.tex` that is not what `save` wrote (D8). `path` is the data path of the node that wrote it
+    (`/content/1/content/0`: `.content[1].content[0]` of `Document.tree`, after `load`); a line of a setting or a
+    preamble entry the document set has its place in the data (`/settings/0`), and one no node wrote, or any line of a
+    profile kind, keeps the plan's own path (`header`, `settings[0]`, `Deck[0]/Card[1]`).
+
+    `fields` are the arguments of the node a `CHANGED` line changes (texmodel's `FieldEdit`: `arg`, `found`, and the
+    typed `value` when texmodel reads it back); empty when the change is not inside one argument's text (D9)."""
 
     file: pathlib.Path
     path: str
     expected: str
     found: str
     kind: HandEditKind
-    value: object = None
+    fields: tuple[FieldEdit, ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -185,6 +190,7 @@ class Document[T: Command | Environment]:
                 edit.expected,
                 edit.found,
                 HandEditKind(edit.kind.value),
+                edit.fields,
             )
             for name, edit in handedits.edits(self.path, self._kind.documents())
         )

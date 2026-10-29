@@ -1,8 +1,6 @@
 """Helpers for an author's tests: the declaration loaded in memory, the L3 law, the isolated compile (1.4, L7, A7)."""
 
 import importlib
-import importlib.abc
-import importlib.machinery
 import importlib.util
 import pathlib
 import pkgutil
@@ -37,7 +35,7 @@ def _declared_modules(declared_in: str) -> dict[str, ModuleType]:
 
 def load_declaration(pointer: str, *, version: str = "0.0.0", contracts: Contracts | None = None) -> ModuleType:
     """The module a wheel built from `pointer` (`"acme_decl:dist"`, as `[tool.texpkg] distribution` writes it) would
-    contain, made from the same generated source (1.4): no wheel, no embedding. The files are written to a temporary
+    contain, made from the same generated source (1.4): no wheel. The files are written to a temporary
     directory that lives as long as the module; the declaration is the one already imported, shown as
     `<module>._declaration`, so its classes are the ones the author's own tests use. Loading again replaces the
     module."""
@@ -61,77 +59,18 @@ def load_declaration(pointer: str, *, version: str = "0.0.0", contracts: Contrac
     assert spec is not None and spec.loader is not None  # a file we just wrote
     module = importlib.util.module_from_spec(spec)
     sys.modules[dist.module] = module
-    place, aliases = dist.module, dict[str, str]()
-    for member in dist.chain():
-        for name, real in _declared_modules(member.declared_in).items():
-            sys.modules[f"{place}._declaration{name.removeprefix(member.declared_in)}"] = real
-        if member.base:
-            nested = f"{place}._embedded.{member.base.module}"
-            if place != dist.module:
-                aliases[f"{dist.module}._embedded.{member.base.module}"] = nested
-            place = nested
+    for name, real in _declared_modules(dist.declared_in).items():
+        sys.modules[f"{dist.module}._declaration{name.removeprefix(dist.declared_in)}"] = real
     module._scratch = scratch  # pyright: ignore[reportAttributeAccessIssue]  # the files go when the module does
-    finder = _Flatten(aliases)
-    sys.meta_path.insert(0, finder)
-    try:
-        spec.loader.exec_module(module)
-    finally:
-        sys.meta_path.remove(finder)
+    spec.loader.exec_module(module)
     return module
 
 
-class _Flatten(importlib.abc.MetaPathFinder, importlib.abc.Loader):
-    """In a wheel the bases of a chain are siblings under `_embedded` (P19); written in memory each sits inside the one
-    above it. This makes `<module>._embedded.<grand base>` the same module as the nested one."""
-
-    def __init__(self, aliases: dict[str, str]) -> None:
-        self.aliases = aliases
-
-    def find_spec(
-        self, fullname: str, path: object = None, target: object = None
-    ) -> importlib.machinery.ModuleSpec | None:
-        if any(fullname == flat or fullname.startswith(flat + ".") for flat in self.aliases):
-            return importlib.util.spec_from_loader(fullname, self)
-        return None
-
-    def create_module(self, spec: importlib.machinery.ModuleSpec) -> ModuleType:
-        flat = next(f for f in self.aliases if spec.name == f or spec.name.startswith(f + "."))
-        return importlib.import_module(self.aliases[flat] + spec.name.removeprefix(flat))
-
-    def exec_module(self, module: ModuleType) -> None:
-        """The module is the nested one, already running."""
-
-
-def _pointer_of(dist: Distribution) -> str:
-    """The `module:attribute` a base's declaration is imported by: the module of its package that holds it."""
-    for name, module in sorted(sys.modules.items()):
-        if _is_under(name, dist.declared_in):
-            if attr := next((n for n, value in vars(module).items() if value is dist), None):
-                return f"{name}:{attr}"
-    raise DeclarationError(
-        f"{dist.name} is not held by a module of {dist.declared_in}",
-        code="TP-B003",
-        path=dist.name,
-        hint="declare the distribution at the top level of a module of its package",
-    )
-
-
 def _write(dist: Distribution, pointer: str, version: str, contracts: Contracts, root: pathlib.Path) -> None:
-    """The generated module of `dist` in `root`, and in `root/_embedded/<base>` that of each base: embedding without
-    copying, since the declarations are the modules already imported."""
+    """The generated module of `dist` in `root`: the declaration is the module already imported."""
     for path, text in generate.sources(dist, pointer, version, contracts).items():
         (root / path).parent.mkdir(parents=True, exist_ok=True)
         (root / path).write_text(text, encoding="utf-8")
-    if dist.base:
-        (root / "_embedded").mkdir(exist_ok=True)
-        (root / "_embedded" / "__init__.py").write_text("", encoding="utf-8")
-        _write(
-            dist.base,
-            _pointer_of(dist.base),
-            dist.base.package.version,
-            contracts,
-            root / "_embedded" / dist.base.module,
-        )
 
 
 def check_expansion(dist: Distribution, kind: str, examples: Iterable[Node] = ()) -> None:

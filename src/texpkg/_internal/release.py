@@ -41,7 +41,7 @@ from .state import Extras
 @dataclasses.dataclass(frozen=True)
 class Release:
     """A distribution at the release it was built as. `sty` holds the `.sty` of every package in the chain, as the build
-    rendered them (P4): what is shipped is what `save` writes. `bases` are the releases embedded in it (P13)."""
+    rendered them (P4): what is shipped is what `save` writes. `bases` are the releases it is built on (P13)."""
 
     dist: Distribution
     version: str
@@ -50,8 +50,22 @@ class Release:
     bases: tuple["Release", ...] = ()
     snapshots: importlib.resources.abc.Traversable | None = None  # `_contracts`: the frozen snapshots a wheel carries
 
+    def __post_init__(self) -> None:
+        """A base is checked like a library by its soname (V17): the installed one must still support the `interface`
+        this package was built on, `current - age` up to `current`."""
+        for base in self.bases:
+            relied, held = self.contracts.base_interface, base.contracts.interface
+            if relied and not held.current - held.age <= relied <= held.current:
+                raise DeclarationError(
+                    f"{self.dist.name} was built on {base.dist.name} interface {relied}, but the installed "
+                    f"{base.version} supports {held.current - held.age} to {held.current}",
+                    code="TP-C007",
+                    path=base.dist.name,
+                    hint=f"install a {base.dist.name} that supports interface {relied}, or rebuild {self.dist.name}",
+                )
+
     def releases(self) -> tuple["Release", ...]:
-        """This release and the ones embedded in it, this one first."""
+        """This release and the ones it is built on, this one first."""
         return (self, *(r for base in self.bases for r in base.releases()))
 
     def stack(self) -> list[dict[str, Any]]:

@@ -169,9 +169,15 @@ def test_the_stored_schema_leaves_what_has_no_properties_alone():
 
 
 def test_a_kind_module_exports_the_texmodel_values_a_consumer_builds_with(expert):
+    from texmodel.plan import FieldEdit
     from texmodel.types import CMYK, RGB, Gray
 
-    assert (expert.CMYK, expert.RGB, expert.Gray) == (CMYK, RGB, Gray)  # in a wheel, the embedded texmodel's own
+    assert (expert.CMYK, expert.RGB, expert.Gray, expert.FieldEdit) == (
+        CMYK,
+        RGB,
+        Gray,
+        FieldEdit,
+    )
 
 
 def test_passthrough_and_raw_are_exported_when_a_kind_holds_them():
@@ -184,18 +190,3 @@ def test_passthrough_and_raw_are_exported_when_a_kind_holds_them():
     exported = generate.exported(kind)
     assert Passthrough in exported and Raw in exported
     assert generate._import_from(__import__("acme_brand").dist, Raw) == "from texmodel.types import Raw as Raw"
-
-
-def test_the_texmodel_mirror_holds_every_public_name_of_the_modules_it_mirrors(acme_brand_tex):
-    import importlib
-
-    files = generate.texmodel_mirror()
-    assert sorted(files) == ["texmodel/__init__.py", *(f"texmodel/{n}.py" for n in generate.MIRRORED)]
-    assert files == generate.texmodel_mirror()  # the same bytes every time
-    for name in generate.MIRRORED:
-        mirrored = importlib.import_module(f"acme_brand_tex.texmodel.{name}")
-        original = importlib.import_module(f"texmodel.{name}")
-        assert mirrored.__all__ == sorted(original.__all__)
-        assert all(
-            getattr(mirrored, n) is getattr(original, n) for n in mirrored.__all__
-        )  # in a wheel: the embedded copy

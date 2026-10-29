@@ -54,6 +54,7 @@ def test_documents_saved_by_an_installed_dependent_compile_with_nothing_else(bra
         projects.author_project(tmp_path / "deck", declaration="acme_deck", project="acme-deck-tex"), tmp_path / "dist"
     )
     python = venvs.clean_venv(tmp_path / "venv")
+    venvs.install(python, brand_site)
     venvs.install(python, built)
     venvs.run(python, SAVE, tmp_path / "docs", cwd=tmp_path)
     for name in ("slide/slide.tex", "vocab/glossary.tex"):

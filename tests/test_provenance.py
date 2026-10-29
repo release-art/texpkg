@@ -121,5 +121,5 @@ def test_a_dependent_writes_one_file_per_package_of_its_stack(tmp_path, acme_bra
     document.save(now=NOW)
     brand = (tmp_path / "res/texpkg/acme-brand-provenance.sty").read_text()
     assert (tmp_path / "res/texpkg/acme-deck-provenance.sty").is_file()
-    assert "acme-brand 1.0.0, stamp 2.0.0, materialised 2026-10-25T12:30:05Z" in brand
+    assert "acme-brand 1.2.0, stamp 2.0.0, materialised 2026-10-25T12:30:05Z" in brand
     assert document.check().current and not document.check(stamp="other").current

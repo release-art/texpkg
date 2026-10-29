@@ -9,9 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `acme_tex.texmodel.{body,components,errors,preamble,types}`: every public name of those texmodel modules, imported from the copy the package embeds,
-  as generated static source. A consumer's own texmodel is another copy, and a tree refuses its instances; this is the one place to take any texmodel
-  class a document is built with. The names are those of the texmodel the package was built with.
+- `HandEdit.fields`: texmodel's `FieldEdit`s (`arg`, `found`, the typed `value` where it is read) of a line changed inside one argument, `()`
+  otherwise. Every kind module exports `FieldEdit`.
+  `HandEdit.path` is documented as a data path into `Document.tree`.
+
+### Changed
+
+- Importing a dependent checks the installed base: the `interface` current the dependent was built on (`Contracts.base_interface`, `[base] interface`
+  in `versions.toml`) must lie in the base's `current - age` to `current`, else `TP-C007`.
+- A wheel no longer embeds texmodel, texpkg or its base. It depends on what its code imports, each named explicitly: `texpkg~=X.Y.Z` and `texmodel~=X.Y.Z` (`X.Y.Z` the release it was built with, so the same
+  `X.Y`), `pydantic>=2,<3` and, for a dependent, its base's wheel from the release it was built on up to the next breaking one (`>=1.2.0,<2`; before 1.0, `>=0.1.0,<0.2`).
+  One texmodel is installed, so a consumer's own `Length`, `Comment` or `FieldEdit` is the class a
+  tree checks. The build needs texpkg, texmodel and the base installed to name the releases (`TP-B015` otherwise).
+- The `.tex` header names the texmodel installed, not the package's release: a texmodel upgrade changes every document's header, which `check`
+  reports and `save` rewrites.
+- A dependent in memory (`load_declaration`) imports its base as a module: the base's wheel, or its own `load_declaration` first.
+
+### Removed
+
+- Embedding and rewriting imports: `texpkg_build._internal.embed`, `TP-E001`, `TP-E003` and `TP-E006` are retired, and `TP-E004` now says a wheel
+  depends on texpkg and its bases. A declaration may read distribution metadata.
+- Two dependents on different releases of one base can no longer be installed side by side: one base is installed.
+- `HandEdit.value`, which was never set: read `HandEdit.fields[i].value`.
 
 ## [0.2.6] - 2026-10-28
 

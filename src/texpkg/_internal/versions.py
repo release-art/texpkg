@@ -25,7 +25,9 @@ class Versions:
     base_interface: int = 0  # the base `interface` current relied on (V17); 0 without a base
 
     def contracts(self) -> Contracts:
-        return Contracts(self.data, self.interface, self.output, tuple(sorted(self.base_data.items())))
+        return Contracts(
+            self.data, self.interface, self.output, tuple(sorted(self.base_data.items())), self.base_interface
+        )
 
     def to_text(self) -> str:
         def table(name: str, values: Mapping[int, Any]) -> str:
