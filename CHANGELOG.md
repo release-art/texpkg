@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-29
+
 ### Added
 
 - `HandEdit.fields`: texmodel's `FieldEdit`s (`arg`, `found`, the typed `value` where it is read) of a line changed inside one argument, `()`
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Requires `texmodel>=0.9.0`. Generated output and the goldens are unchanged by it.
 - Kind modules no longer re-export texmodel's classes (`Comment`, `Length`, `CMYK`, `Raw`, `Passthrough`): import them from texmodel, now one copy. The
   package's own comment classes are still exported. The generated `acme_tex.errors` is removed: import from `texpkg.errors`.
   `Distribution.layout` is removed (`texpkg.layout.LAYOUT`).
