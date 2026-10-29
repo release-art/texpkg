@@ -7,6 +7,7 @@ JSON Schema and plain dicts, and only the triples of texpkg.
 
 import dataclasses
 import enum
+import re
 from typing import Any, cast
 
 from ..contracts import Pair, Triple
@@ -202,6 +203,9 @@ def bump_output(previous: Pair, change: str) -> Pair:
 
 
 Version = tuple[int, int, int]
+
+
+RELEASE = re.compile(r"\d+\.\d+\.\d+")  # `X.Y.Z` as the start of a version string
 
 
 def parse_version(text: str) -> Version:

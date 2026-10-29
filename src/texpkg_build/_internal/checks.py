@@ -3,7 +3,6 @@
 import importlib
 import importlib.resources
 import pathlib
-import re
 from types import ModuleType
 from typing import Any
 
@@ -15,6 +14,7 @@ from texpkg._internal.release import Release
 from texpkg.contracts import Contracts
 from texpkg.declaration import Distribution
 from texpkg.errors import DeclarationError
+from texpkg.layout import LAYOUT
 from texpkg.protocol import KindModule, KindsModule, PackageModule
 
 from . import snapshot
@@ -44,7 +44,7 @@ def assets_are_there(dist: Distribution) -> None:
             path=gone[0],
             hint=f"they are read from the package {dist.declared_in}",
         )
-    payload.build({f"{d.package.name}.sty": "" for d in dist.chain()}, tuple(dist.resolved_assets()), dist.layout)
+    payload.build({f"{d.package.name}.sty": "" for d in dist.chain()}, tuple(dist.resolved_assets()), LAYOUT)
 
 
 def module_satisfies_the_protocols(module: ModuleType) -> None:
@@ -101,9 +101,6 @@ def design_is_valid(dist: Distribution) -> None:
         ) from exc
 
 
-_RELEASE = re.compile(r"\d+\.\d+\.\d+")
-
-
 def contract_gate(
     root: pathlib.Path, dist: Distribution, release: Release, version: str
 ) -> tuple[Contracts, list[pathlib.Path]]:
@@ -116,7 +113,7 @@ def contract_gate(
     held = snapshot.frozen(root)
     current = snapshot.base_current(dist)
     proposal = snapshot.propose(root, dist, release, snapshot.sty_of(dist), base_current=current)
-    if _RELEASE.fullmatch(version):
+    if classify.RELEASE.fullmatch(version):
         if not held or held[-1].name != version:
             raise DeclarationError(
                 f"release {version}: contracts/{version} is not the newest frozen snapshot",

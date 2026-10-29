@@ -141,7 +141,7 @@ The surface is specified in §4a; the requirements behind it follow.
   old release fails pyright on upgrade. Unresolved items therefore carry data, not trees, and their paths are data paths
   (V15). Going back from a tree to stored state is `doc.save()` (P29).
 - P24 **What the module exports** (**decided**): the fixed surface (P6); each kind's classes (`acme_tex.kinds.expert.Deck`
-  and the classes its tree is made of); the value types those use (a palette `Choice`, bounded lengths) and texmodel's own (`Length`, `CMYK`, `Raw`, `Passthrough` where a field or a grammar names them, and a value's payload type); the kind's `settable` values; `Comment` and the comment classes of the packages its components belong to (`Package(comments=[...])`). **Not** the
+  and the classes its tree is made of); the value types those use (a palette `Choice`, bounded lengths); the kind's `settable` values; the comment classes of the packages its components belong to (`Package(comments=[...])`). texmodel's own classes (`Length`, `Comment`, `FieldEdit`) are imported from texmodel: one is installed (B7). **Not** the
   package's low-level components, which would bypass the kinds' narrowing and make locks meaningless; not a base's classes (its
   own module exports them).
 - P25 **`Raw` is refused in a kind unless declared** (**decided**): a field typed `Raw`, or a `Passthrough`, is a hole in
@@ -216,7 +216,7 @@ The surface is specified in §4a; the requirements behind it follow.
   was added or removed) and the edit carries the node's data path and the raw text, never a guess. `HandEdit.path` is a
   data path into `Document.tree` after `load` (`/content/1/content/0` is `.content[1].content[0]`); a line of the
   document's own setting or preamble entry has its place in the data (`/settings/0`), and a line no node wrote, or any
-  line of a profile kind, keeps the plan's path. `FieldEdit` is exported by every kind module. texpkg reads no TeX itself (N1); applying an edit back to the document stays with the consumer.
+  line of a profile kind, keeps the plan's path. texpkg reads no TeX itself (N1); applying an edit back to the document stays with the consumer.
 
 - D10 **A document carries its own settings, options and preamble entries, within what its kind allows** (**decided**).
   texmodel 0.5 holds them in the tree (`Document(*content, options=, settings=, preamble=)`), so a document of a kind is
@@ -390,7 +390,6 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | any kind | `acme_tex.load(path: Path \| str, *, migrations: Sequence[Migration] = (), default_changes: DefaultChange \| Mapping[str, DefaultChange] = DefaultChange.FOLLOW) -> Document[Any]` | decided as a nice-to-have | P26, V23 |
 | release version | `acme_tex.__version__: str` | decided | V1 |
 | contract versions | `acme_tex.CONTRACTS: Contracts` (`.data`, `.interface`: `Triple(current, revision, age)`; `.output`: `Pair(current, revision)`) | decided | V10 |
-| errors | `acme_tex.errors`: this package's error classes | decided | §4a errors |
 | published constants | `acme_tex.public`: the names of `Distribution(public=)`; present only when declared | decided | P31 |
 
 ### Consumer side: a kind module (`acme_tex.kinds.expert`)

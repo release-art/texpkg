@@ -34,7 +34,6 @@ MODULE = [
     "_bound.py",
     "_sty/acme-brand.sty",
     "_version.py",
-    "errors.py",
     "kinds/__init__.py",
     "kinds/expert.py",
     "kinds/vocab.py",

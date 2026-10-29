@@ -13,10 +13,8 @@ from collections.abc import Iterator, Sequence
 from texpkg.declaration import Distribution
 from texpkg.errors import DeclarationError
 
-# What a declaration may import besides the standard library, its own relative modules and its bases: what texpkg
-# depends on.
-ALLOWED = frozenset({"pydantic", "pydantic_core", "annotated_types", "typing_extensions", "typing_inspection"})
-RUN_TIME = ("texmodel", "texpkg")
+# What a declaration may import besides the standard library, its own relative modules, texpkg, texmodel and its bases.
+ALLOWED = frozenset({"pydantic"})  # the wheel's other direct dependency (B7)
 
 
 def _fail(code: str, message: str, where: str, hint: str) -> DeclarationError:
@@ -80,7 +78,7 @@ def assemble(
 ) -> None:
     """Write the module of `dist` into `out` (`<build dir>/<module>`): the generated files, the declaration copied to
     `_declaration` and the frozen snapshots to `_contracts`."""
-    installed = {*RUN_TIME, *(d.module for d in dist.chain()[1:])}
+    installed = {"texmodel", "texpkg", *(d.module for d in dist.chain()[1:])}
     own = {dist.declared_in.split(".")[0], dist.module}
     copy_tree(declaration, out / "_declaration")
     for snapshot in frozen:

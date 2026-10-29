@@ -86,7 +86,7 @@ SCRIPT = """
 import importlib.util, json, pathlib, sys
 import acme_deck_tex as m
 from acme_deck_tex.kinds import slide, vocab
-from texmodel import body, plan
+from texmodel import components
 root = pathlib.Path(sys.argv[1])
 a = slide.create(root / "slide", slide.example()); a.save()
 b = vocab.create(root / "vocab", vocab.example()); b.save()
@@ -97,7 +97,7 @@ print(json.dumps({
     "names": m.kinds.names(), "version": m.__version__, "slide": files("slide"), "vocab": files("vocab"),
     "stack": [e.package + " " + e.release for e in a.stack.entries],
     "tex": a.render(), "again": m.load(root / "vocab").kind,
-    "shared": [slide.Comment is body.Comment, slide.FieldEdit is plan.FieldEdit],
+    "shared": issubclass(slide.Slide, components.Environment),
 }))
 """
 
@@ -126,7 +126,7 @@ def test_wheels_install_into_an_environment_with_texpkg_and_run(brand_site, tmp_
     ]
     assert "res/texpkg/acme-brand.sty" in report["vocab"] and "glossary.tex" in report["vocab"]
     assert report["stack"] == ["acme-deck-tex 0.1.0", "acme-brand-tex 1.2.0"]
-    assert report["shared"] == [True, True]  # one texmodel: a consumer's classes are the tree's own
+    assert report["shared"] is True  # one texmodel: the consumer's classes are the tree's own
 
 
 def retarget(project: pathlib.Path, old: str, new: str) -> None:

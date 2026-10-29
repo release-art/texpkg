@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `HandEdit.fields`: texmodel's `FieldEdit`s (`arg`, `found`, the typed `value` where it is read) of a line changed inside one argument, `()`
-  otherwise. Every kind module exports `FieldEdit`.
-  `HandEdit.path` is documented as a data path into `Document.tree`.
+  otherwise. `HandEdit.path` is documented as a data path into `Document.tree`.
 
 ### Changed
 
+- Kind modules no longer re-export texmodel's classes (`Comment`, `Length`, `CMYK`, `Raw`, `Passthrough`): import them from texmodel, now one copy. The
+  package's own comment classes are still exported. The generated `acme_tex.errors` is removed: import from `texpkg.errors`.
+  `Distribution.layout` is removed (`texpkg.layout.LAYOUT`).
 - Importing a dependent checks the installed base: the `interface` current the dependent was built on (`Contracts.base_interface`, `[base] interface`
   in `versions.toml`) must lie in the base's `current - age` to `current`, else `TP-C007`.
 - A wheel no longer embeds texmodel, texpkg or its base. It depends on what its code imports, each named explicitly: `texpkg~=X.Y.Z` and `texmodel~=X.Y.Z` (`X.Y.Z` the release it was built with, so the same

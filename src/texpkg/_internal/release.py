@@ -31,6 +31,7 @@ from ..errors import (
     NotADocumentError,
     NotAllowedError,
 )
+from ..layout import LAYOUT
 from ..migration import DefaultChange, Migration
 from . import directory, export, payload, snapshots, state
 from .adopt import adopt
@@ -77,7 +78,7 @@ class Release:
 
     def layout_path(self, name: str) -> str:
         """Where the layout puts the package file `name` in a document directory."""
-        return str(self.dist.layout.place(Role.PACKAGE, pathlib.PurePosixPath(name)))
+        return str(LAYOUT.place(Role.PACKAGE, pathlib.PurePosixPath(name)))
 
     def settings(self, kind: Kind, variant: str | None) -> tuple[AnyValue, ...]:
         """What a document of `kind` is written with (L8): for a profile kind, the base kind's presets first, then
@@ -103,7 +104,7 @@ class Release:
 
     def layout_preamble(self, kind: Kind) -> PreambleSlots:
         """The lines that find the payload, which come before a document's own entries (A5)."""
-        return self.dist.layout.preamble(graphics=self._has_graphics(kind))
+        return LAYOUT.preamble(graphics=self._has_graphics(kind))
 
     def fixed_preamble(self, kind: Kind) -> PreambleSlots:
         """What leads each preamble slot of every document of `kind`: the layout's lines, then the entries the base kind
@@ -145,7 +146,7 @@ class Release:
         root = pathlib.Path(destination)
         wanted = provenance.stamp_of(stamp, self)
         files = provenance.files(self, wanted, provenance.time_of(now))
-        everything = payload.build({**self.sty, **files}, tuple(self.dist.resolved_assets()), self.dist.layout, None)
+        everything = payload.build({**self.sty, **files}, tuple(self.dist.resolved_assets()), LAYOUT, None)
         everything.complete()
         names = sorted(everything.expected())
         texts: dict[str, str] = {}
@@ -162,7 +163,7 @@ class Release:
         """The payload of a document of `kind`: the `.sty` files, the provenance files if given, the assets."""
         kinds = (kind.name, *([kind.over] if kind.over else []))
         files = {**self.sty, **(provenance or {})}
-        return payload.build(files, tuple(self.dist.resolved_assets()), self.dist.layout, kinds)
+        return payload.build(files, tuple(self.dist.resolved_assets()), LAYOUT, kinds)
 
     def rendered(self, kind: Kind, tree: Node, extras: Extras = Extras()) -> dict[str, str]:  # noqa: B008
         """Every `.tex` of the kind with the plan of it that `save` keeps (D7), by path in the directory."""

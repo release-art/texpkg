@@ -2,20 +2,20 @@
 
 import importlib.resources.abc
 import json
-import re
 
 from ..contracts import Changes
 from . import classify
 from .versions import Versions
 
-_RELEASE = re.compile(r"\d+\.\d+\.\d+")
 VERSIONS = "versions.toml"
 
 
 def releases(root: importlib.resources.abc.Traversable | None) -> list[str]:
     """The frozen releases a wheel carries, oldest first."""
     found = (
-        [p.name for p in root.iterdir() if p.is_dir() and _RELEASE.fullmatch(p.name)] if root and root.is_dir() else []
+        [p.name for p in root.iterdir() if p.is_dir() and classify.RELEASE.fullmatch(p.name)]
+        if root and root.is_dir()
+        else []
     )
     return sorted(found, key=classify.parse_version)
 

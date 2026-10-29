@@ -11,10 +11,10 @@ the declaration copied into it; the sdist holds the author's sources and builds 
 import importlib
 import importlib.metadata
 import pathlib
-import re
 
 from pdm.backend.hooks import Context
 
+from texpkg._internal import classify
 from texpkg.declaration import Distribution
 from texpkg.errors import DeclarationError
 
@@ -23,7 +23,6 @@ from ._internal.isolate import author_source
 from .testing import load_declaration
 
 PYDANTIC = "pydantic>=2,<3"
-_RELEASE = re.compile(r"\d+\.\d+\.\d+")
 
 
 def _installed(name: str) -> str:
@@ -37,14 +36,14 @@ def _installed(name: str) -> str:
             path=name,
             hint=f"add {name} to [build-system] requires, so the wheel can depend on the release it was built with",
         ) from None
-    return match[0] if (match := _RELEASE.match(found)) else found
+    return found if (match := classify.RELEASE.match(found)) is None else match[0]
 
 
 def _base_requirement(name: str) -> str:
     """`name>=X.Y.Z,<N`: from the release the build runs against up to the next breaking one (V13): the next major, or
     the next minor before 1.0."""
     version = _installed(name)
-    major, minor, _ = (int(part) for part in version.split("."))
+    major, minor, _ = classify.parse_version(version)
     return f"{name}>={version},<{major + 1 if major else f'0.{minor + 1}'}"
 
 

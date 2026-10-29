@@ -19,6 +19,7 @@ from ._internal.state import Extras
 from .contracts import Pair
 from .declaration import Kind
 from .errors import HandEditError, NotADocumentError
+from .layout import LAYOUT
 
 if TYPE_CHECKING:
     from ._internal.release import Release
@@ -231,7 +232,7 @@ class Document[T: Command | Environment]:
         wanted = provenance.stamp_of(stamp, self._release)
         saved = provenance.saved(self.path, self._release)
         expected = self._expected(wanted, saved.time if saved else provenance.time_of(None))
-        report = drift.check_drift(expected, self.path, self._release.dist.layout.owned())
+        report = drift.check_drift(expected, self.path, LAYOUT.owned())
         files: dict[pathlib.Path, FileState] = {}
         for rel in expected:
             files[self.path / rel] = (

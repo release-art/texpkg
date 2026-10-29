@@ -23,7 +23,6 @@ from texmodel.preamble import Entry, PreambleSlots
 
 from .assets import Asset, Resolved
 from .errors import DeclarationError
-from .layout import LAYOUT, Project
 from .migration import Migration
 
 _STEM = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")  # a `.tex` file name without its suffix
@@ -345,10 +344,6 @@ class Distribution:
     expose: tuple[str, ...] = ()
     public: str = ""
     declared_in: str = ""
-
-    @property
-    def layout(self) -> Project:
-        return LAYOUT
 
     def __post_init__(self) -> None:
         if not self.declared_in:  # stored, so `dataclasses.replace` keeps both
