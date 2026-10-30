@@ -99,10 +99,12 @@ def _kind_source(dist: Distribution, kind: Kind) -> str:
         from pathlib import Path
         from typing import Any, Final, Literal, Never
 
+        from texmodel.plan import Edit as Edit, EditKind as EditKind, FieldEdit as FieldEdit
         from texmodel.preamble import PreambleSlots
+        from texmodel.restore import Reason as Reason, Restored as Restored, Unapplied as Unapplied
 
         from texpkg.contracts import Changes
-        from texpkg.document import Document
+        from texpkg.document import Document, HandEdit as HandEdit
         from texpkg.migration import DefaultChange, Migration
 
         from .. import _bound

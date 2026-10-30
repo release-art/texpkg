@@ -48,6 +48,21 @@ def test_a_kind_module_exports_its_classes_and_value_types_never_the_packages_ot
     assert expert.NAME == "expert" and vocab.NAME == "vocab"
 
 
+def test_a_kind_module_exports_the_types_of_its_documents_hand_edits(expert, vocab):
+    from texmodel import plan, restore
+
+    from texpkg.document import HandEdit
+
+    for kind in (expert, vocab):
+        assert (kind.HandEdit, kind.Edit, kind.EditKind, kind.FieldEdit) == (
+            HandEdit,
+            plan.Edit,
+            plan.EditKind,
+            plan.FieldEdit,
+        )
+        assert (kind.Reason, kind.Restored, kind.Unapplied) == (restore.Reason, restore.Restored, restore.Unapplied)
+
+
 def test_the_two_schemas_of_a_kind(acme_brand_tex, expert):
     accepted, stored = expert.schema(), expert.schema(mode="serialization")
     assert (
@@ -159,3 +174,10 @@ def test_the_stored_schema_leaves_what_has_no_properties_alone():
     validation = {"properties": {"a": {"default": 1}}, "$defs": {"Colour": {"enum": ["a"]}}}
     assert state.stored(validation)["$defs"] == {"Colour": {"enum": ["a"]}}
     assert validation["properties"] == {"a": {"default": 1}}  # the input is not changed
+
+
+def test_a_fit_declares_its_lengths_where_the_adoption_scanner_reads_them():
+    from texmodel.package import declared
+
+    sty = load_declaration("acme_sheet:dist", version="5.0.0")._bound.RELEASE.sty["acme-sheet.sty"]
+    assert {"asTitleSize", "asTitleLineSize", "asTitleTarget"} <= declared(sty)

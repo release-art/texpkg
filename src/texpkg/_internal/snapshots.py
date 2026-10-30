@@ -3,6 +3,8 @@
 import importlib.resources.abc
 import json
 
+from texmodel import history
+
 from ..contracts import Changes
 from . import classify
 from .versions import Versions
@@ -43,14 +45,14 @@ def changes(root: importlib.resources.abc.Traversable | None, kind: str, old: in
         return out
     before = json.loads(root.joinpath(first, *name.split("/")).read_text(encoding="utf-8"))
     after = json.loads(root.joinpath(last, *name.split("/")).read_text(encoding="utf-8"))
-    found = classify.schema_changes(before, after)
+    found = history.schema_changes(before, after)
     gone = {"removed", "no longer part of the kind"}
     added = [c.where for c in found if c.what.startswith("added") or c.what.endswith("added to the kind")]
     removed = [c.where for c in found if c.what in gone]
     tightened = [
         c.where
         for c in found
-        if c.level is classify.Level.BREAKING and c.what not in gone and not c.what.startswith("added")
+        if c.level is history.Level.BREAKING and c.what not in gone and not c.what.startswith("added")
     ]
     return Changes(
         added=tuple(dict.fromkeys(added)),

@@ -14,7 +14,7 @@ from typing import Any, cast
 
 from texmodel.components import AnyValue, Command, Environment, Node
 from texmodel.document import Document as TexDocument
-from texmodel.package import setting_line
+from texmodel.package import Package, setting_line
 from texmodel.plan import Plan
 from texmodel.preamble import PreambleSlots
 
@@ -117,26 +117,28 @@ class Release:
             after_package=tuple(e for s in slots for e in s.after_package),
         )
 
-    def plan(self, kind: Kind, tree: Node, variant: str | None, extras: Extras = Extras()) -> Plan:  # noqa: B008
-        """The `.tex` of `tree` as lines with provenance: the kind's presets, then the variant's settings (L8), then the
-        document's own settings (D10); in each preamble slot the fixed entries, then the document's own.
+    def package(self, kind: Kind) -> Package:
+        """The package that writes `kind`: an exposed base kind is written by the base's package."""
+        return self.dist.owner(kind.name).package
 
-        An exposed base kind is written by the base's package; the directory's layout is this distribution's."""
-        body = tree if kind.expand is None else kind.expand(tree)
-        package = self.dist.owner(kind.name).package
+    def texdocument(self, kind: Kind, tree: Node, variant: str | None, extras: Extras = Extras()) -> TexDocument:  # noqa: B008
+        """`tree` as texmodel's document: the kind's presets, then the variant's settings (L8), then the document's own
+        settings (D10); in each preamble slot the fixed entries, then the document's own."""
         found, own = self.fixed_preamble(kind), extras.preamble
-        return package.plan(
-            TexDocument(
-                body,
-                options=kind.class_options(extras.options, variant),
-                settings=(*self.settings(kind, variant), *extras.settings),
-                preamble=PreambleSlots(
-                    before_class=(*found.before_class, *own.before_class),
-                    before_package=(*found.before_package, *own.before_package),
-                    after_package=(*found.after_package, *own.after_package),
-                ),
-            )
+        return TexDocument(
+            tree if kind.expand is None else kind.expand(tree),
+            options=kind.class_options(extras.options, variant),
+            settings=(*self.settings(kind, variant), *extras.settings),
+            preamble=PreambleSlots(
+                before_class=(*found.before_class, *own.before_class),
+                before_package=(*found.before_package, *own.before_package),
+                after_package=(*found.after_package, *own.after_package),
+            ),
         )
+
+    def plan(self, kind: Kind, tree: Node, variant: str | None, extras: Extras = Extras()) -> Plan:  # noqa: B008
+        """The `.tex` of `tree` as lines with provenance. The directory's layout is this distribution's."""
+        return self.package(kind).plan(self.texdocument(kind, tree, variant, extras))
 
     def export(
         self, destination: pathlib.Path | str, now: datetime.datetime | None, stamp: str | None

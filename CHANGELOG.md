@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Document.restore()`: for each `.tex` with hand edits, texmodel's `Restored` (the data that writes the edits it could
+  restore, the `applied` edits, and the `unapplied` ones with their `Reason`). A profile kind is refused (`TP-D008`).
+- Every generated kind module exports the types of its documents' hand edits: `HandEdit` and texmodel's `Edit`,
+  `EditKind`, `FieldEdit`, `Reason`, `Restored` and `Unapplied` (`expert.FieldEdit`), so a consumer's importer of edits
+  types its code against the kind module alone. Rebuild a package to get them.
+
+### Changed
+
+- Needs the next texmodel release (`texmodel.run`, `texmodel.history`, `texmodel.restore`); `texmodel>=` is raised when it is out.
+- `HandEdit(edit, path)` holds texmodel's `Edit`: `kind`, `expected`, `found`, `fields`, `line` are `edit.kind` and so
+  on (`file` is still `HandEdit.file`), and `HandEditKind` is removed (use `EditKind`, which also has `UNREAD`). `path` is still the data path.
+- `texpkg_build.testing.check_isolated` is `async`, and the compile tests are too (`pytest-asyncio`): texmodel's driver is
+  `texmodel.run`, not `texmodel_build`.
+- `Level`, `Change`, `schema_changes` and `worst`, and the checks of a stored tree (`problems`, `unplaced`), are texmodel's
+  (`texmodel.history`); texpkg's copies are removed. The import contract lists `texmodel` among its root packages so the
+  run time can be kept from importing `texmodel.run`.
+
 ## [0.3.1] - 2026-10-29
 
 ### Changed

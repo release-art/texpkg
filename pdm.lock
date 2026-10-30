@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:45b4a4ac2516c4c7635f779014daa34c5150f6e732aa637bf3b8d5e9cbda8ec9"
+content_hash = "sha256:9188d90a6a172bf974a3e62016ae2e9a0028c5245a272aed2ffd40e2f25e5808"
 
 [[metadata.targets]]
 requires_python = ">=3.15,<3.16"
@@ -26,7 +26,7 @@ name = "annotated-types"
 version = "0.8.0"
 requires_python = ">=3.10"
 summary = "Reusable constraint types to use with typing.Annotated"
-groups = ["default"]
+groups = ["default", "dev"]
 files = [
     {file = "annotated_types-0.8.0-py3-none-any.whl", hash = "sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0"},
     {file = "annotated_types-0.8.0.tar.gz", hash = "sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7"},
@@ -796,7 +796,7 @@ name = "pydantic"
 version = "2.14.1"
 requires_python = ">=3.10"
 summary = "Data validation using Python type hints"
-groups = ["default"]
+groups = ["default", "dev"]
 dependencies = [
     "annotated-types>=0.6.0",
     "pydantic-core==2.50.1",
@@ -813,7 +813,7 @@ name = "pydantic-core"
 version = "2.50.1"
 requires_python = ">=3.10"
 summary = "Core functionality for Pydantic validation and serialization"
-groups = ["default"]
+groups = ["default", "dev"]
 dependencies = [
     "typing-extensions>=4.16.0",
 ]
@@ -906,6 +906,22 @@ dependencies = [
 files = [
     {file = "pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c"},
     {file = "pytest-9.1.1.tar.gz", hash = "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313"},
+]
+
+[[package]]
+name = "pytest-asyncio"
+version = "1.4.1"
+requires_python = ">=3.10"
+summary = "Pytest support for asyncio"
+groups = ["dev"]
+dependencies = [
+    "backports-asyncio-runner<2,>=1.1; python_version < \"3.11\"",
+    "pytest<10,>=8.4",
+    "typing-extensions>=4.12; python_version < \"3.13\"",
+]
+files = [
+    {file = "pytest_asyncio-1.4.1-py3-none-any.whl", hash = "sha256:507afa78ec77c6661164ef1a2368bc7820383fd1a14b2a7f813de8b5a92949cc"},
+    {file = "pytest_asyncio-1.4.1.tar.gz", hash = "sha256:e8266eb094e5ee9ffdb2068c9836f33e209ea77a970eb846933d416b5602669b"},
 ]
 
 [[package]]
@@ -1089,17 +1105,15 @@ files = [
 
 [[package]]
 name = "texmodel"
-version = "0.10.0"
+version = "0.10.1.dev5"
 requires_python = "<3.16,>=3.15"
+editable = true
+path = "../texmodel"
 summary = "Typed document-family models rendered to TeX, with an optional latexmk driver and verifier plugins."
-groups = ["default"]
+groups = ["default", "dev"]
 dependencies = [
     "pydantic>=2.14.1",
     "typer>=0.27.3",
-]
-files = [
-    {file = "texmodel-0.10.0-py3-none-any.whl", hash = "sha256:e2f6e25ac4807cb29113c4b128d4c0349f2bb09a300d390b9324bf332ad29f12"},
-    {file = "texmodel-0.10.0.tar.gz", hash = "sha256:1ae1424b795b5a8e28f009aafc40cfa59f4f96e00624d648f7cdad636fa75ece"},
 ]
 
 [[package]]
@@ -1175,7 +1189,7 @@ name = "typing-inspection"
 version = "0.4.4"
 requires_python = ">=3.10"
 summary = "Runtime typing introspection tools"
-groups = ["default"]
+groups = ["default", "dev"]
 dependencies = [
     "typing-extensions>=4.15.0",
 ]

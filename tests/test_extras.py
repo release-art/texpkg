@@ -6,12 +6,13 @@ import sys
 import pytest
 from acme_brand import Compact, FactGap, Ink
 from jsonschema import Draft202012Validator
+from texmodel import history
+from texmodel.history import Level
 from texmodel.preamble import InputPath, PdfInfo, PreambleSlots, RequireMetadata
 from texmodel.types import CMYK, Length
 
 from texpkg import Migrated, migration
-from texpkg._internal import classify, state
-from texpkg._internal.classify import Level
+from texpkg._internal import state
 from texpkg.contracts import Contracts, Triple
 from texpkg.errors import MigrationError, NotAllowedError
 from texpkg_build.testing import load_declaration
@@ -109,7 +110,7 @@ def test_a_hand_edit_of_a_line_the_document_wrote_is_found_at_its_data_path(doc)
     paths = {e.path for e in doc.hand_edits()}
     assert {"/settings/0", "/preamble/after_package/0"} <= paths  # the document's own lines
     assert "settings[0]" in paths and not any(p.startswith("/settings/") and p != "/settings/0" for p in paths)
-    assert "header" in paths or any("documentclass" in e.found for e in doc.hand_edits())  # the class line
+    assert "header" in paths or any("documentclass" in e.edit.found for e in doc.hand_edits())  # the class line
 
 
 def test_the_stored_schema_describes_what_the_kind_allows(expert, acme_brand_tex):
@@ -136,21 +137,21 @@ def test_allowing_more_is_compatible_and_allowing_less_is_breaking(expert, acme_
     for change in ("options", "settings", "preamble"):
         old = json.loads(json.dumps(new))
         del old["properties"][change]
-        assert [c.level for c in classify.schema_changes(old, new)] == [Level.COMPATIBLE]
-        assert [c.level for c in classify.schema_changes(new, old)] == [Level.BREAKING]
+        assert [c.level for c in history.schema_changes(old, new)] == [Level.COMPATIBLE]
+        assert [c.level for c in history.schema_changes(new, old)] == [Level.BREAKING]
     narrower = json.loads(json.dumps(new))
     narrower["properties"]["options"]["items"]["enum"].remove("landscape")
     narrower["properties"]["preamble"]["properties"]["after_package"]["items"]["oneOf"].pop()
-    levels = {(c.where, c.level) for c in classify.schema_changes(new, narrower)}
+    levels = {(c.where, c.level) for c in history.schema_changes(new, narrower)}
     assert ("expert.options", Level.BREAKING) in levels
     assert ("expert.preamble.after_package", Level.BREAKING) in levels
     fewer = json.loads(json.dumps(new))
     del fewer["properties"]["preamble"]["properties"]["before_class"]
-    assert [(c.where, c.level) for c in classify.schema_changes(new, fewer)] == [
+    assert [(c.where, c.level) for c in history.schema_changes(new, fewer)] == [
         ("expert.preamble.before_class", Level.BREAKING)
     ]
-    assert classify.schema_changes(narrower, new) and all(
-        c.level is Level.COMPATIBLE for c in classify.schema_changes(narrower, new)
+    assert history.schema_changes(narrower, new) and all(
+        c.level is Level.COMPATIBLE for c in history.schema_changes(narrower, new)
     )
 
 
@@ -202,8 +203,8 @@ def test_stored_extras_texmodel_cannot_read_are_unresolved_with_their_value(doc,
 
 @pytest.mark.tex
 @pytest.mark.timeout(300)
-def test_a_document_with_settings_options_and_preamble_compiles(doc, compiler, tmp_path):
+async def test_a_document_with_settings_options_and_preamble_compiles(doc, compiler, tmp_path):
     doc.save()
-    result = compiler.compile(doc.path / "deck.tex", tmp_path / "out")
+    result = await compiler.compile(doc.path / "deck.tex", tmp_path / "out")
     result.raise_for_status()
     assert result.pages == 1

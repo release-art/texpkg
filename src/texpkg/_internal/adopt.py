@@ -13,6 +13,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, cast
 
 from texmodel.components import Node
+from texmodel.history import problems, unplaced
 from texmodel.package import Package
 
 from ..declaration import Kind
@@ -20,7 +21,6 @@ from ..errors import MigrationError
 from ..migration import DefaultChange, Migration, Unresolved
 from . import state
 from .envelope import Envelope
-from .history import problems, unplaced
 from .state import Extras
 
 UNRESOLVED = (
@@ -180,8 +180,11 @@ def adopt(
     if saved_kind_defaults is not None and not found:
         extras, asked = kind_default_changes(package, extras, saved_kind_defaults, kind_defaults or {}, policy)
         left += asked
-    left += [{**p, "boundary": "validation"} for p in unplaced(tree, schema)]
-    left += [{**p, "boundary": "validation"} for p in problems(kind.model, state.given(tree), schema)]
+    left += [{**p, "boundary": "validation"} for p in map(dataclasses.asdict, unplaced(tree, schema))]
+    left += [
+        {**p, "boundary": "validation"}
+        for p in map(dataclasses.asdict, problems(kind.model, state.given(tree), schema))
+    ]
     if left:
         items = tuple(
             Unresolved(i["path"], i["reason"], i.get("value"), i.get("schema") or {}, i.get("boundary", ""))

@@ -13,6 +13,7 @@ import shutil
 from collections.abc import Mapping
 from typing import Any
 
+from texmodel import history
 from texmodel.components import Command, Environment, Value, control_name
 from texmodel.errors import DeclarationError as TexmodelDeclarationError
 from texmodel.interface import Body
@@ -154,19 +155,19 @@ def _schemas(directory: pathlib.Path) -> dict[str, str]:
     }
 
 
-def _data_changes(was: Mapping[str, str], now: Mapping[str, str]) -> list[classify.Change]:
+def _data_changes(was: Mapping[str, str], now: Mapping[str, str]) -> list[history.Change]:
     """What changed in the data the kinds accept (V12): each kind's schema diff, kinds added and kinds removed."""
-    out: list[classify.Change] = []
+    out: list[history.Change] = []
     for name, text in now.items():
         if name in was:
             out += [
                 dataclasses.replace(c, where=f"{name}: {c.where}")
-                for c in classify.schema_changes(json.loads(was[name]), json.loads(text))
+                for c in history.schema_changes(json.loads(was[name]), json.loads(text))
             ]
         else:
-            out.append(classify.Change(classify.Level.COMPATIBLE, f"kind {name}", "added"))
+            out.append(history.Change(history.Level.COMPATIBLE, f"kind {name}", "added"))
     return out + [
-        classify.Change(classify.Level.BREAKING, f"kind {n}", "removed") for n in sorted(was.keys() - now.keys())
+        history.Change(history.Level.BREAKING, f"kind {n}", "removed") for n in sorted(was.keys() - now.keys())
     ]
 
 
@@ -174,8 +175,8 @@ def _data_changes(was: Mapping[str, str], now: Mapping[str, str]) -> list[classi
 class Proposal:
     files: dict[str, str]  # the snapshot, with the versions file as `versions.toml`
     versions: Versions
-    data: list[classify.Change]
-    interface: list[classify.Change]
+    data: list[history.Change]
+    interface: list[history.Change]
     output: list[str]
     not_compared: list[str]
 
@@ -215,11 +216,11 @@ def propose(
         json.loads((last / "interface.json").read_text(encoding="utf-8")), json.loads(files["interface.json"])
     )
     changed, not_compared = output_changes(last, dist, release, sty)
-    data = classify.bump(old.data, classify.worst(data_changes))
-    interface = classify.bump(old.interface, classify.worst(interface_changes))
+    data = classify.bump(old.data, history.worst(data_changes))
+    interface = classify.bump(old.interface, history.worst(interface_changes))
     output = classify.bump_output(old.output, change if changed else "")
     required = classify.required_release(
-        old.release, classify.worst(data_changes), classify.worst(interface_changes), bool(changed)
+        old.release, history.worst(data_changes), history.worst(interface_changes), bool(changed)
     )
     releases = dict(old.releases)
     if data.current != old.data.current:
@@ -315,4 +316,4 @@ def required_for(previous: pathlib.Path | None, this: pathlib.Path) -> str:
     changed = (previous / "output.json").read_text(encoding="utf-8") != (this / "output.json").read_text(
         encoding="utf-8"
     )
-    return classify.required_release(before.release, classify.worst(data), classify.worst(interface), changed)
+    return classify.required_release(before.release, history.worst(data), history.worst(interface), changed)

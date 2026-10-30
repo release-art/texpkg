@@ -53,13 +53,17 @@ extraPaths = ["src", "tests/fixtures"]
 addopts = "-v -l --color=yes --cov=texpkg --cov=texpkg_build --cov-report term-missing --cov-fail-under=100 --no-cov-on-fail"
 pythonpath = ["src", "tests/fixtures"]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# a coroutine never awaited is a test that checked nothing
+filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
 timeout = 15
 markers = [
     "tex: needs the reference image with latexmk (skipped without it; TEXPKG_REQUIRE_TEX=1 makes that a failure)",
 ]
 
 [tool.importlinter]
-root_packages = ["texpkg", "texpkg_build"]
+root_packages = ["texpkg", "texpkg_build", "texmodel"]  # texmodel: so `texmodel.run` can be forbidden
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -72,7 +76,7 @@ forbidden_modules = ["texpkg_build"]
 name = "the run time imports only the standard library, texmodel and pydantic"
 type = "forbidden"
 source_modules = ["texpkg"]
-forbidden_modules = ["typer", "pdm", "jsonschema", "hypothesis", "pytest", "texmodel_build"]
+forbidden_modules = ["typer", "pdm", "jsonschema", "hypothesis", "pytest", "texmodel.run"]
 
 [[tool.importlinter.contracts]]
 name = "only cli prints and formats"
@@ -85,7 +89,7 @@ name = "nothing starts a process"
 type = "forbidden"
 source_modules = ["texpkg", "texpkg_build"]
 forbidden_modules = ["subprocess"]
-allow_indirect_imports = true  # texmodel_build starts the compiler; only its spawn module imports subprocess
+allow_indirect_imports = true  # texmodel.run starts the compiler; only its spawn module starts a process
 
 [tool.pdm]
 distribution = true
@@ -100,6 +104,10 @@ fallback_version = "0.0.0"
 package-dir = "src"
 includes = ["src/texpkg", "src/texpkg_build"]
 
+[tool.pdm.dev-dependencies]
+dev = [
+    "-e file:///${PROJECT_ROOT}/../texmodel#egg=texmodel",
+]
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
@@ -119,4 +127,5 @@ dev = [
     "pdm-backend>=2.5.0",
     "pikepdf>=10.17.0",
     "proof-pdf>=0.3.3",
+    "pytest-asyncio>=1.4.1",
 ]

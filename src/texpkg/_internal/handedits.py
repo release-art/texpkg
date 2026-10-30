@@ -46,5 +46,5 @@ def edits(root: pathlib.Path, files: Sequence[tuple[str | None, str]]) -> list[t
     for variant, name in files:
         text, saved = directory.read(root, name), directory.read(root, directory.plan_file(variant))
         if text is not None and saved is not None:
-            found += [(name, edit) for edit in Plan.from_json(saved).edits(text)]
+            found += [(name, edit) for edit in Plan.from_json(saved).edits(text, file=root / name)]
     return found

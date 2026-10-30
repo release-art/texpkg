@@ -13,7 +13,9 @@ from .migration import DefaultChange, Migration
 
 @runtime_checkable
 class KindModule(Protocol):
-    """`acme_tex.kinds.expert`: besides these, the kind's own classes (P24)."""
+    """`acme_tex.kinds.expert`: besides these, the kind's own classes (P24), and the types of its documents' hand edits
+    (`HandEdit`, and texmodel's `Edit`, `EditKind`, `FieldEdit`, `Reason`, `Restored`, `Unapplied`), so an importer of
+    edits needs no other module (D9)."""
 
     @property
     def NAME(self) -> str: ...  # noqa: N802
