@@ -8,7 +8,6 @@ import pytest
 from acme_sheet import dist as sheet_dist  # noqa: F401
 
 from texpkg import DefaultChange, Migrated, Unresolved, migration
-from texpkg._internal import history
 from texpkg.contracts import Contracts, Triple
 from texpkg.errors import MigrationError
 from texpkg_build.testing import load_declaration
@@ -240,22 +239,6 @@ def test_the_generic_load_takes_the_same_arguments(acme_brand_tex, expert, tmp_p
 # -- the pieces ------------------------------------------------------------------------------------------------------
 
 
-def test_locations_become_data_paths():
-    assert history.pointer(("content", 1, "Card", "content", 0, "Title", "text")) == "/content/1/content/0/text"
-    assert history.pointer(("content",)) == "/content" and history.pointer(()) == ""
-    assert (
-        history.violation_pointer("Deck") == ""
-        and history.violation_pointer("Deck/Card[1]/Fact[0]") == "/content/1/content/0"
-    )
-
-
-def test_the_schema_of_a_field_is_found_or_empty():
-    schema = {"$defs": {"Fact": {"properties": {"accent": {"enum": ["a"]}}}}, "properties": {"content": {}}}
-    assert history.schema_at(schema, ("content", 1, "Fact", "accent")) == {"enum": ["a"]}
-    assert history.schema_at(schema, ("content", 1, "Nothing", "accent")) == {}
-    assert history.schema_at(schema, ("content",)) == {}
-
-
 def with_note(root: pathlib.Path) -> pathlib.Path:
     path = root / "_texpkg/state.json"
     envelope = json.loads(path.read_text())
@@ -281,7 +264,3 @@ def test_a_migration_that_removes_the_field_on_purpose_lets_the_document_load(sh
 
     root = with_note(release_4(tmp_path))
     assert sheet.load(root, migrations=[drop_note]).tree is not None
-
-
-def test_a_node_of_an_unknown_class_is_left_to_the_validation():
-    assert history.unplaced({"type": "Gone", "extra": 1}, {"title": "Sheet", "properties": {"type": {}}}) == []

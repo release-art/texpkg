@@ -10,8 +10,8 @@ from collections.abc import Iterable
 from types import ModuleType
 
 from texmodel.components import Node
-from texmodel_build import fonts
-from texmodel_build.compiler import Compiler
+from texmodel.run import fonts
+from texmodel.run.compiler import Compiler
 
 from texpkg.contracts import Contracts
 from texpkg.declaration import Distribution
@@ -93,7 +93,7 @@ def check_expansion(dist: Distribution, kind: str, examples: Iterable[Node] = ()
             )
 
 
-def check_isolated(module: ModuleType, compiler: Compiler, workdir: pathlib.Path) -> None:
+async def check_isolated(module: ModuleType, compiler: Compiler, workdir: pathlib.Path) -> None:
     """Each kind's example, in each of its variants, saved into a fresh directory that holds only that kind's payload
     and compiled with no search path (no `TEXINPUTS`, no font directory): it fails on a file the payload lacks, and on a
     font embedded from outside the document directory (A7). It proves what the example uses, so an example uses the
@@ -104,7 +104,7 @@ def check_isolated(module: ModuleType, compiler: Compiler, workdir: pathlib.Path
         root = workdir / kind.name
         kind_module.create(root, kind_module.example()).save()
         for _, name in kind.documents():
-            result = compiler.compile(root / name, workdir / "out" / kind.name / name.removesuffix(".tex"))
+            result = await compiler.compile(root / name, workdir / "out" / kind.name / name.removesuffix(".tex"))
             problems += [f"{kind.name}/{name}: {e.code} {e.message}" for e in result.errors]
             if result.log is not None:
                 problems += [

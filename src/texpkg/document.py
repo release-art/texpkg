@@ -10,15 +10,19 @@ from typing import TYPE_CHECKING, Any
 
 from texmodel import drift
 from texmodel.components import AnyValue, Command, Environment
-from texmodel.plan import FieldEdit
+from texmodel.plan import Edit
 from texmodel.preamble import PreambleSlots
+from texmodel.restore import (
+    Restored,
+    restore as restore_edits,
+)
 
 from . import provenance
 from ._internal import directory, handedits, state
 from ._internal.state import Extras
 from .contracts import Pair
 from .declaration import Kind
-from .errors import HandEditError, NotADocumentError
+from .errors import DeclarationError, HandEditError, NotADocumentError
 from .layout import LAYOUT
 
 if TYPE_CHECKING:
@@ -33,29 +37,28 @@ class FileState(enum.StrEnum):
     EXTRA = "extra"  # in a place the payload writes to, and not written by it: a retired `.sty` (A4)
 
 
-@enum.unique
-class HandEditKind(enum.StrEnum):
-    ADDED = "added"  # in the file, not in the plan
-    REMOVED = "removed"  # in the plan, not in the file
-    CHANGED = "changed"
-
-
 @dataclasses.dataclass(frozen=True)
 class HandEdit:
-    """One line of a `.tex` that is not what `save` wrote (D8). `path` is the data path of the node that wrote it
-    (`/content/1/content/0`: `.content[1].content[0]` of `Document.tree`, after `load`); a line of a setting or a
-    preamble entry the document set has its place in the data (`/settings/0`), and one no node wrote, or any line of a
-    profile kind, keeps the plan's own path (`header`, `settings[0]`, `Deck[0]/Card[1]`).
+    """One line of a `.tex` that is not what `save` wrote (D8): texmodel's `Edit` (`kind`, `expected`, `found`, the
+    `fields` a `CHANGED` line changes, D9, and the `file` and `line` it is at).
 
-    `fields` are the arguments of the node a `CHANGED` line changes (texmodel's `FieldEdit`: `arg`, `found`, and the
-    typed `value` when texmodel reads it back); empty when the change is not inside one argument's text (D9)."""
+    `path` is the data path of the node that wrote it (`/content/1/content/0`: `.content[1].content[0]` of
+    `Document.tree`, after `load`); a line of a setting or a preamble entry the document set has its place in the data
+    (`/settings/0`), and one no node wrote, or any line of a profile kind, keeps the plan's own path (`header`,
+    `settings[0]`, `Deck[0]/Card[1]`). Read it and not `edit.data_path`, which does not know the kind's locked entries
+    or that the tree is the document's root.
 
-    file: pathlib.Path
+    `locked` is set for a line the kind fixes (one of its locked settings, or a leading preamble entry): the kind wrote
+    it and it was edited by hand, which is no change to the document's data."""
+
+    edit: Edit
     path: str
-    expected: str
-    found: str
-    kind: HandEditKind
-    fields: tuple[FieldEdit, ...] = ()
+    locked: bool = False
+
+    @property
+    def file(self) -> pathlib.Path:
+        assert self.edit.file is not None  # `hand_edits` names it when it reads the edits
+        return self.edit.file
 
 
 @dataclasses.dataclass(frozen=True)
@@ -168,15 +171,18 @@ class Document[T: Command | Environment]:
             | self._release.states(self._kind, self.tree, self._extras)
         )
 
+    def _fixed(self, variant: str | None) -> dict[str, Any]:
+        """What the kind fixes in a document of `variant`: for `handedits`, its locked settings and leading entries."""
+        return {
+            "locked": len(self._release.settings(self._kind, variant)),
+            "leading": self._release.fixed_preamble(self._kind),
+        }
+
     def _data_path(self, plan_path: str, variant: str | None) -> str:
         """A line of a setting or a preamble entry the document set is at its place in the data (D10); one the kind
         writes keeps its plan path. A profile's tree is expanded before it is written, so a plan path names a node of
         the base's tree and not a path in this document's data: it is given as it is."""
-        own = handedits.extra_path(
-            plan_path,
-            locked=len(self._release.settings(self._kind, variant)),
-            leading=self._release.fixed_preamble(self._kind),
-        )
+        own = handedits.extra_path(plan_path, **self._fixed(variant))
         if own:
             return own
         return plan_path if self._kind.expand else handedits.data_path(plan_path)
@@ -186,15 +192,36 @@ class Document[T: Command | Environment]:
         variants = {name: variant for variant, name in self._kind.documents()}
         return tuple(
             HandEdit(
-                self.path / name,
+                edit,
                 self._data_path(edit.path, variants[name]),
-                edit.expected,
-                edit.found,
-                HandEditKind(edit.kind.value),
-                edit.fields,
+                handedits.is_locked(edit.path, **self._fixed(variants[name])),
             )
             for name, edit in handedits.edits(self.path, self._kind.documents())
         )
+
+    def restore(self) -> dict[pathlib.Path, Restored]:
+        """For each `.tex` with hand edits, texmodel's `Restored`: its `document` is the data that writes the edits it
+        could restore (`document.content[0]` is the tree of this kind), `applied` the edits it holds, and `unapplied`
+        the others with their `Reason`. Nothing is written; `save` still refuses the file until it is overwritten.
+
+        Edits are read against the plan saved with the document, so a release whose output differs from it (a new
+        `.sty`) refuses the file whole (texmodel `TM-X034`). A profile kind is refused: its tree is expanded before it
+        is written, and an edit of the expansion has no place in the profile's data."""
+        if self._kind.expand:
+            raise DeclarationError(
+                f"kind {self._kind.name} is a profile: its hand edits cannot be restored",
+                code="TP-D008",
+                path=self._kind.name,
+                hint="read doc.hand_edits() and place each edit by its plan path",
+            )
+        package, found = self._release.package(self._kind), self.hand_edits()
+        return {
+            self.path / name: restore_edits(
+                package, self._release.texdocument(self._kind, self.tree, variant, self._extras), edits
+            )
+            for variant, name in self._kind.documents()
+            if (edits := [h.edit for h in found if h.file.name == name])
+        }
 
     def save(self, *, now: datetime.datetime | None = None, stamp: str | None = None, force: bool = False) -> None:
         """Write the states, the `.tex` of every variant with its plan, and the payload of the kind: only what changed,

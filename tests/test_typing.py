@@ -21,6 +21,7 @@ from acme_brand_tex.kinds import expert, vocab
 import acme_brand_tex
 from texmodel.preamble import PreambleSlots
 from texmodel.types import CMYK
+from pathlib import Path
 from typing import Any
 from texpkg.document import Document
 from texpkg.protocol import KindModule, PackageModule
@@ -40,6 +41,11 @@ rendered: str = saved.render("compact")
 new: Document[expert.Deck] = saved.replace(tree)
 anything: Document[Any] = acme_brand_tex.load("deck")
 schema: dict[str, object] = expert.schema(mode="serialization")
+edits: tuple[expert.HandEdit, ...] = saved.hand_edits()
+changed: bool = edits[0].edit.kind is expert.EditKind.CHANGED
+fields: tuple[expert.FieldEdit, ...] = edits[0].edit.fields
+restored: dict[Path, expert.Restored] = saved.restore()
+text: str = fields[0].found
 """
 
 BAD = """

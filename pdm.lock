@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:45b4a4ac2516c4c7635f779014daa34c5150f6e732aa637bf3b8d5e9cbda8ec9"
+content_hash = "sha256:d1ff68b2afdaafc60dbc0b6fab5c1ae55147116eb7536084f910c52f25f9eda5"
 
 [[metadata.targets]]
 requires_python = ">=3.15,<3.16"
@@ -909,6 +909,22 @@ files = [
 ]
 
 [[package]]
+name = "pytest-asyncio"
+version = "1.4.1"
+requires_python = ">=3.10"
+summary = "Pytest support for asyncio"
+groups = ["dev"]
+dependencies = [
+    "backports-asyncio-runner<2,>=1.1; python_version < \"3.11\"",
+    "pytest<10,>=8.4",
+    "typing-extensions>=4.12; python_version < \"3.13\"",
+]
+files = [
+    {file = "pytest_asyncio-1.4.1-py3-none-any.whl", hash = "sha256:507afa78ec77c6661164ef1a2368bc7820383fd1a14b2a7f813de8b5a92949cc"},
+    {file = "pytest_asyncio-1.4.1.tar.gz", hash = "sha256:e8266eb094e5ee9ffdb2068c9836f33e209ea77a970eb846933d416b5602669b"},
+]
+
+[[package]]
 name = "pytest-cov"
 version = "7.1.0"
 requires_python = ">=3.9"
@@ -1089,7 +1105,7 @@ files = [
 
 [[package]]
 name = "texmodel"
-version = "0.10.0"
+version = "0.11.0"
 requires_python = "<3.16,>=3.15"
 summary = "Typed document-family models rendered to TeX, with an optional latexmk driver and verifier plugins."
 groups = ["default"]
@@ -1098,8 +1114,8 @@ dependencies = [
     "typer>=0.27.3",
 ]
 files = [
-    {file = "texmodel-0.10.0-py3-none-any.whl", hash = "sha256:e2f6e25ac4807cb29113c4b128d4c0349f2bb09a300d390b9324bf332ad29f12"},
-    {file = "texmodel-0.10.0.tar.gz", hash = "sha256:1ae1424b795b5a8e28f009aafc40cfa59f4f96e00624d648f7cdad636fa75ece"},
+    {file = "texmodel-0.11.0-py3-none-any.whl", hash = "sha256:3726e4d2abf75f45a6f4c05640ef1377119a9e2a06a906cb2726efdb711cd761"},
+    {file = "texmodel-0.11.0.tar.gz", hash = "sha256:62e1f4a5f5b12292922f3e6b9ba6cbfc6340e00db5968d7afcdf35063966bb09"},
 ]
 
 [[package]]

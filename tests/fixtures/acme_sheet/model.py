@@ -4,8 +4,9 @@ import enum
 
 from texmodel.body import Comment
 from texmodel.components import Command, Environment
+from texmodel.ext.fit import Fit
 from texmodel.package import Package
-from texmodel.types import Choice, Text
+from texmodel.types import Choice, Length, Text
 
 
 class Audit(Comment):
@@ -16,6 +17,10 @@ class Audit(Comment):
 
 
 pkg = Package("acme-sheet", prefix="as", version="5.0.0", date="2026/10/25", description="Datasheets", comments=[Audit])
+
+# A fitted heading: `\asFitTitle`, with the lengths `\asTitleSize` and `\asTitleLineSize` (`\newlength`).
+fit = Fit("Title", target=Length("8mm"), floor=Length("4mm"), room=Length("10mm"))
+fit.declare(pkg)
 
 
 @enum.unique

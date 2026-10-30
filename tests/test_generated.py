@@ -223,10 +223,10 @@ def test_each_kind_of_the_generated_package_is_a_module_with_its_own_classes():
 
 @pytest.mark.tex
 @pytest.mark.timeout(300)
-def test_every_generated_kind_compiles_with_only_its_own_payload(compiler, tmp_path):
+async def test_every_generated_kind_compiles_with_only_its_own_payload(compiler, tmp_path):
     module = load_declaration("acme_series:dist", version="0.1.0")
     try:
-        check_isolated(module, compiler, tmp_path)
+        await check_isolated(module, compiler, tmp_path)
     finally:
         for name in [n for n in sys.modules if n.split(".")[0] == "acme_series_tex"]:
             del sys.modules[name]

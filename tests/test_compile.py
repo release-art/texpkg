@@ -9,7 +9,7 @@ import pathlib
 from types import ModuleType
 
 import pytest
-from texmodel_build.compiler import Compiler
+from texmodel.run.compiler import Compiler
 
 from texpkg_build.testing import load_declaration
 
@@ -28,17 +28,19 @@ def saved(module: ModuleType, kind: str, root: pathlib.Path) -> pathlib.Path:
 
 
 @pytest.mark.parametrize(("kind", "name"), CASES)
-def test_a_saved_document_compiles_with_only_its_payload(acme_brand_tex, compiler: Compiler, tmp_path, kind, name):
+async def test_a_saved_document_compiles_with_only_its_payload(
+    acme_brand_tex, compiler: Compiler, tmp_path, kind, name
+):
     root = saved(acme_brand_tex, kind, tmp_path / "doc")
-    result = compiler.compile(root / name, tmp_path / "out")
+    result = await compiler.compile(root / name, tmp_path / "out")
     result.raise_for_status()
     assert result.pages == 1
 
 
-def test_a_missing_lockup_is_a_compile_error_not_a_silent_fallback(acme_brand_tex, compiler: Compiler, tmp_path):
+async def test_a_missing_lockup_is_a_compile_error_not_a_silent_fallback(acme_brand_tex, compiler: Compiler, tmp_path):
     root = saved(acme_brand_tex, "expert", tmp_path / "doc")
     (root / "res" / "texpkg" / "lockup.pdf").unlink()
-    assert not compiler.compile(root / "deck.tex", tmp_path / "out").ok
+    assert not (await compiler.compile(root / "deck.tex", tmp_path / "out")).ok
 
 
 SAVE = """
@@ -49,7 +51,7 @@ for kind, name in ((slide, "slide"), (vocab, "vocab")):
 """
 
 
-def test_documents_saved_by_an_installed_dependent_compile_with_nothing_else(brand_site, compiler, tmp_path):
+async def test_documents_saved_by_an_installed_dependent_compile_with_nothing_else(brand_site, compiler, tmp_path):
     built = projects.wheel(
         projects.author_project(tmp_path / "deck", declaration="acme_deck", project="acme-deck-tex"), tmp_path / "dist"
     )
@@ -58,14 +60,14 @@ def test_documents_saved_by_an_installed_dependent_compile_with_nothing_else(bra
     venvs.install(python, built)
     venvs.run(python, SAVE, tmp_path / "docs", cwd=tmp_path)
     for name in ("slide/slide.tex", "vocab/glossary.tex"):
-        compiler.compile(tmp_path / "docs" / name, tmp_path / "out" / name.split("/")[0]).raise_for_status()
+        (await compiler.compile(tmp_path / "docs" / name, tmp_path / "out" / name.split("/")[0])).raise_for_status()
 
 
-def test_a_profile_document_compiles_as_the_base_kind_it_expands_to(acme_brand_tex, compiler, tmp_path):
+async def test_a_profile_document_compiles_as_the_base_kind_it_expands_to(acme_brand_tex, compiler, tmp_path):
     module = load_declaration("acme_deck:dist", version="2.0.0")
     brief = module.kinds.modules()["brief"]
     brief.create(tmp_path / "doc", brief.example()).save()
-    compiler.compile(tmp_path / "doc" / "brief.tex", tmp_path / "out").raise_for_status()
+    (await compiler.compile(tmp_path / "doc" / "brief.tex", tmp_path / "out")).raise_for_status()
 
 
 # -- provenance --------------------------------------------------------------------------------------------
@@ -79,7 +81,7 @@ def with_provenance(root: pathlib.Path, head: str, *, name: str = "prov") -> pat
     return root / f"{name}.tex"
 
 
-def test_the_provenance_is_printable_and_is_in_the_pdfs_info_dictionary(acme_brand_tex, compiler, tmp_path):
+async def test_the_provenance_is_printable_and_is_in_the_pdfs_info_dictionary(acme_brand_tex, compiler, tmp_path):
     import datetime
 
     import pikepdf
@@ -89,7 +91,7 @@ def test_the_provenance_is_printable_and_is_in_the_pdfs_info_dictionary(acme_bra
     module = acme_brand_tex.kinds.modules()["expert"]
     module.load(root).save(now=datetime.datetime(2026, 10, 25, 12, 30, 5, tzinfo=datetime.UTC), stamp="1.2.0-3f9c2ab")
     source = with_provenance(root, "\\DocumentMetadata{lang=en-GB}\n")
-    result = compiler.compile(source, tmp_path / "out")
+    result = await compiler.compile(source, tmp_path / "out")
     result.raise_for_status()
     expected = "acme-brand 1.2.0, stamp 1.2.0-3f9c2ab, materialised 2026-10-25T12:30:05Z"
     assert f"PROVENANCE: {expected}" in result.log.read_text()
@@ -97,10 +99,10 @@ def test_the_provenance_is_printable_and_is_in_the_pdfs_info_dictionary(acme_bra
         assert str(pdf.docinfo["/AbProvenance"]) == expected
 
 
-def test_without_a_provenance_file_the_command_says_what_the_package_is(acme_brand_tex, compiler, tmp_path):
+async def test_without_a_provenance_file_the_command_says_what_the_package_is(acme_brand_tex, compiler, tmp_path):
     root = saved(acme_brand_tex, "expert", tmp_path / "doc")
     (root / "res/texpkg/acme-brand-provenance.sty").unlink()
-    result = compiler.compile(with_provenance(root, ""), tmp_path / "out")
+    result = await compiler.compile(with_provenance(root, ""), tmp_path / "out")
     result.raise_for_status()
     assert "PROVENANCE: acme-brand 1.2.0\n" in result.log.read_text()
     import pikepdf
@@ -132,9 +134,11 @@ Printed from \\acProvenanceInfo.
         ),
     ],
 )
-def test_the_info_entry_passes_pdfa_and_adds_nothing_to_pdfx(compiler, tmp_path, standard, version, options, findings):
+async def test_the_info_entry_passes_pdfa_and_adds_nothing_to_pdfx(
+    compiler, tmp_path, standard, version, options, findings
+):
     import pikepdf
-    from texmodel_build.verify import registered
+    from texmodel.run.verify import registered
 
     from texpkg._internal import provenance_tex as tex
 
@@ -150,14 +154,25 @@ def test_the_info_entry_passes_pdfa_and_adds_nothing_to_pdfx(compiler, tmp_path,
     )
     text = MINIMAL.format(standard=standard, version=version, declarations=tex.declarations("ac", "acme", "1.2.0"))
     (source / "doc.tex").write_text(text)
-    result = compiler.compile(source / "doc.tex", tmp_path / "out")
+    result = await compiler.compile(source / "doc.tex", tmp_path / "out")
     result.raise_for_status()
     with pikepdf.open(result.pdf) as pdf:
         assert str(pdf.docinfo["/AcProvenance"]) == "acme 1.2.0, stamp 1.2.0-abc, materialised 2026-10-25T12:30:05Z"
-    assert {f.check for f in verifier.verify(result.pdf, options)} == findings
+    assert {f.check for f in await verifier.verify(result.pdf, options)} == findings
 
 
-def test_every_template_of_an_export_compiles_with_the_search_environment_unset(acme_brand_tex, compiler, tmp_path):
+async def test_every_template_of_an_export_compiles_with_the_search_environment_unset(
+    acme_brand_tex, compiler, tmp_path
+):
     acme_brand_tex.export(tmp_path / "export", now=None)
     for kind in acme_brand_tex.kinds.names():
-        compiler.compile(tmp_path / "export" / f"{kind}-template.tex", tmp_path / "out" / kind).raise_for_status()
+        (
+            await compiler.compile(tmp_path / "export" / f"{kind}-template.tex", tmp_path / "out" / kind)
+        ).raise_for_status()
+
+
+async def test_a_saved_sheet_with_a_fit_compiles(compiler: Compiler, tmp_path):
+    module = load_declaration("acme_sheet:dist", version="5.0.0")
+    root = saved(module, "datasheet", tmp_path / "doc")
+    result = await compiler.compile(next(root.glob("*.tex")), tmp_path / "out")
+    result.raise_for_status()

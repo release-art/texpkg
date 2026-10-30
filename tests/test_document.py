@@ -13,12 +13,15 @@ from hypothesis import (
 from jsonschema import Draft202012Validator
 from texmodel.body import Comment
 from texmodel.components import Command, Environment, Passthrough
+from texmodel.errors import DeclarationError as TexmodelDeclarationError
 from texmodel.package import Package
+from texmodel.plan import EditKind
+from texmodel.restore import Reason
 from texmodel.types import Raw, Text
 
 from texpkg._internal import directory, handedits, state
 from texpkg.contracts import Contracts, Pair
-from texpkg.document import FileState, HandEditKind
+from texpkg.document import FileState
 from texpkg.errors import (
     DocumentExistsError,
     HandEditError,
@@ -365,13 +368,9 @@ def test_a_hand_edited_tex_is_given_back_and_not_overwritten(expert, doc):
     doc.save()
     edit_file(doc.path, "deck.tex", "\\abTitle{Fox}", "\\abTitle{Fox!}")
     (edit,) = doc.hand_edits()
-    assert (edit.file, edit.path, edit.kind) == (
-        doc.path / "deck.tex",
-        "/content/1/content/0",
-        HandEditKind.CHANGED,
-    )
-    assert [(f.arg, f.found) for f in edit.fields] == [("text", "Fox!")]
-    assert (edit.expected, edit.found) == ("    \\abTitle{Fox}", "    \\abTitle{Fox!}")
+    assert (edit.file, edit.path, edit.edit.kind) == (doc.path / "deck.tex", "/content/1/content/0", EditKind.CHANGED)
+    assert [(f.arg, f.found) for f in edit.edit.fields] == [("text", "Fox!")]
+    assert (edit.edit.expected, edit.edit.found) == ("    \\abTitle{Fox}", "    \\abTitle{Fox!}")
     changed = doc.replace(Deck(Mark(), Card(Title(text="Other"), Fact(text="x"))))
     with pytest.raises(HandEditError) as raised:
         changed.save()
@@ -391,9 +390,9 @@ def test_a_hand_edits_path_walks_the_loaded_tree_and_its_fields_name_the_argumen
     for part in edit.path.strip("/").split("/"):
         node = node[int(part)] if part.isdigit() else getattr(node, part)
     assert isinstance(node, Title) and node.text == "Fox"
-    assert [(f.arg, f.found) for f in edit.fields] == [("text", "Fox!")]
+    assert [(f.arg, f.found) for f in edit.edit.fields] == [("text", "Fox!")]
     edit_file(doc.path, "deck.tex", "\\abTitle{Fox!}", "\\abHeading{Fox!}")
-    assert [e.fields for e in expert.load(doc.path).hand_edits()] == [
+    assert [e.edit.fields for e in expert.load(doc.path).hand_edits()] == [
         ()
     ]  # the command's name changed: the line says it
 
@@ -403,14 +402,20 @@ def test_check_reports_a_hand_edit_as_changed_and_lists_it(doc):
     edit_file(doc.path, "deck-wide.tex", "\\abMark\n", "\\abMark\n\\vspace{1cm}\n")
     report = doc.check()
     assert not report.current and report.files[doc.path / "deck-wide.tex"] is FileState.CHANGED
-    assert [(e.kind, e.found, e.path) for e in report.edits] == [(HandEditKind.ADDED, "\\vspace{1cm}", "/content/0")]
+    assert [(e.edit.kind, e.edit.found, e.path) for e in report.edits] == [
+        (EditKind.ADDED, "\\vspace{1cm}", "/content/0")
+    ]
 
 
 def test_removed_and_added_lines_are_edits_too(doc):
     doc.save()
     edit_file(doc.path, "deck.tex", "    \\abFact[ab-moss]{50\\% of \\$5}\n", "")
     (edit,) = doc.hand_edits()
-    assert (edit.kind, edit.expected, edit.found) == (HandEditKind.REMOVED, "    \\abFact[ab-moss]{50\\% of \\$5}", "")
+    assert (edit.edit.kind, edit.edit.expected, edit.edit.found) == (
+        EditKind.REMOVED,
+        "    \\abFact[ab-moss]{50\\% of \\$5}",
+        "",
+    )
     assert edit.path == "/content/1/content/2"
 
 
@@ -530,3 +535,57 @@ def test_comments_and_passthroughs_are_state_too():
     assert state.default_paths(tree) == ("/content/0/mark",)
     again = state.tree_from_state(Page, json.loads(json.dumps(stored)))
     assert state.tree_state(again) == stored
+
+
+def test_restore_gives_the_tree_that_writes_the_edit(expert, doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fox}", "\\abTitle{Fox!}")
+    ((file, restored),) = expert.load(doc.path).restore().items()
+    assert file == doc.path / "deck.tex" and restored.unapplied == ()
+    assert [e.found for e in restored.applied] == ["    \\abTitle{Fox!}"]
+    assert restored.document.content[0].content[1].content[0].text == "Fox!"  # Deck / Card / Title
+
+
+def test_restore_returns_what_it_cannot_restore_with_its_reason(expert, doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\setlength{\\abFactGap}{3mm}", "\\setlength{\\abFactGap}{9mm}")
+    ((_, restored),) = expert.load(doc.path).restore().items()
+    assert restored.applied == () and [u.reason for u in restored.unapplied] == [Reason.SETTING]
+
+
+def test_restore_has_nothing_for_a_document_nobody_edited(doc):
+    doc.save()
+    assert doc.restore() == {}
+
+
+def test_a_hand_edit_names_its_file_and_line(doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fox}", "\\abTitle{Fox!}")
+    (edit,) = doc.hand_edits()
+    assert edit.file == doc.path / "deck.tex" and edit.edit.file == edit.file
+    assert edit.edit.line is not None
+    assert (doc.path / "deck.tex").read_text().splitlines()[edit.edit.line - 1] == edit.edit.found
+
+
+def test_an_edit_of_a_line_the_kind_fixes_is_locked(doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\setlength{\\abFactGap}{3mm}", "\\setlength{\\abFactGap}{9mm}")
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fox}", "\\abTitle{Fox!}")
+    assert {e.path: e.locked for e in doc.hand_edits()} == {"settings[0]": True, "/content/1/content/0": False}
+
+
+def test_restore_refuses_an_edit_of_a_line_the_current_release_writes_differently(expert, doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fox}", "\\abTitle{Fax}")  # what an earlier release wrote
+    edit_file(doc.path, "_texpkg/plan.json", "\\\\abTitle{Fox}", "\\\\abTitle{Fax}")
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fax}", "\\abTitle{Fax!}")
+    with pytest.raises(TexmodelDeclarationError) as raised:
+        expert.load(doc.path).restore()
+    assert raised.value.code == "TM-X034"
+
+
+def test_restore_restores_an_edit_of_a_line_the_current_release_writes_the_same(expert, doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\abFact[ab-moss]{50\\% of \\$5}", "\\abFact[ab-moss]{50\\% of \\$6}")
+    ((_, restored),) = expert.load(doc.path).restore().items()
+    assert restored.unapplied == () and len(restored.applied) == 1

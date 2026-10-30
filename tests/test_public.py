@@ -8,9 +8,10 @@ import types
 
 import pytest
 from pydantic import BaseModel
+from texmodel import history
+from texmodel.history import Level
 
 from texpkg._internal import classify
-from texpkg._internal.classify import Level
 from texpkg.errors import DeclarationError
 from texpkg_build._internal import generate, snapshot
 
@@ -127,6 +128,6 @@ def test_the_levels_of_a_change_to_the_published_constants():
     assert levels({"A": {"$class": "X", "n": 1}}, {"A": {"$class": "X", "n": 2}}) == [("public A", Level.REVISION)]
     assert levels({"A": {"$class": "X", "n": 1}}, {"A": {"$class": "Y", "n": 1}}) == [("public A", Level.BREAKING)]
     assert classify.interface_changes({"public": {"A": 1}}, {}) == [
-        classify.Change(Level.BREAKING, "public A", "removed")
+        history.Change(Level.BREAKING, "public A", "removed")
     ]
     assert classify.interface_changes({}, {}) == []

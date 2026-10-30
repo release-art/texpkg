@@ -267,11 +267,11 @@ def test_a_hand_edit_of_the_documents_own_entry_is_found_at_its_data_path(deck, 
 
 @pytest.mark.tex
 @pytest.mark.timeout(300)
-def test_a_document_with_a_locked_entry_compiles(deck, compiler, tmp_path):
+async def test_a_document_with_a_locked_entry_compiles(deck, compiler, tmp_path):
     slide = deck.kinds.modules()["slide"]
     slide.create(tmp_path / "doc", slide.example(), preamble=OWN).save()
     for name in ("slide", "slide-review"):  # the variant passes `draft` to the class
-        compiler.compile(tmp_path / f"doc/{name}.tex", tmp_path / "out" / name).raise_for_status()
+        (await compiler.compile(tmp_path / f"doc/{name}.tex", tmp_path / "out" / name)).raise_for_status()
 
 
 def locked_deck(deck, **changes):  # noqa: ANN001, ANN003, ANN201
@@ -387,3 +387,13 @@ def test_a_default_is_for_a_settable_value_once(acme_brand_tex):
     with pytest.raises(DeclarationError) as raised:
         dataclasses.replace(expert, defaults=(Compact(True),))
     assert raised.value.code == "TP-K021" and "Compact" in str(raised.value)
+
+
+def test_a_profile_documents_hand_edits_are_not_restored(deck, tmp_path):
+    brief = deck.kinds.modules()["brief"]
+    doc = brief.create(tmp_path, brief.example())
+    doc.save()
+    (tmp_path / "brief.tex").write_text((tmp_path / "brief.tex").read_text().replace("Why moss", "Why not moss"))
+    with pytest.raises(DeclarationError) as raised:
+        doc.restore()
+    assert raised.value.code == "TP-D008" and "doc.hand_edits()" in raised.value.hint

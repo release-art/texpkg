@@ -8,11 +8,12 @@ import shutil
 import sys
 
 import pytest
+from texmodel import history
+from texmodel.history import Level
 from typer.testing import CliRunner
 
 from texpkg import errors
 from texpkg._internal import classify, snapshots
-from texpkg._internal.classify import Level
 from texpkg._internal.versions import Versions
 from texpkg.contracts import Changes, Pair, Triple
 from texpkg_build._internal import snapshot
@@ -104,15 +105,15 @@ def schema(**properties):  # noqa: ANN003, ANN201
     ],
 )
 def test_a_schema_change_is_classified_as_avro_does(old, new, level, words):
-    found = classify.schema_changes(old, new)
-    assert classify.worst(found) is level and (not words or any(words in c.what for c in found))
+    found = history.schema_changes(old, new)
+    assert history.worst(found) is level and (not words or any(words in c.what for c in found))
 
 
 def test_classes_and_branches_that_go_or_come_are_changes():
     one = {"title": "Deck", "properties": {}, "$defs": {"Card": {"title": "Card"}}}
     two = {"title": "Deck", "properties": {}, "$defs": {"Card": {"title": "Card"}, "Mark": {"title": "Mark"}}}
-    assert classify.worst(classify.schema_changes(one, two)) is Level.COMPATIBLE
-    assert classify.worst(classify.schema_changes(two, one)) is Level.BREAKING
+    assert history.worst(history.schema_changes(one, two)) is Level.COMPATIBLE
+    assert history.worst(history.schema_changes(two, one)) is Level.BREAKING
 
     def items(*refs: str) -> dict:  # noqa: ANN401
         return {
@@ -120,9 +121,9 @@ def test_classes_and_branches_that_go_or_come_are_changes():
             "title": "Deck",
         }
 
-    assert classify.worst(classify.schema_changes(items("a", "b"), items("a"))) is Level.BREAKING
-    assert classify.worst(classify.schema_changes(items("a"), items("a", "b"))) is Level.COMPATIBLE
-    assert classify.schema_changes(items("a"), items("a")) == []
+    assert history.worst(history.schema_changes(items("a", "b"), items("a"))) is Level.BREAKING
+    assert history.worst(history.schema_changes(items("a"), items("a", "b"))) is Level.COMPATIBLE
+    assert history.schema_changes(items("a"), items("a")) == []
 
 
 def test_the_interface_is_names_and_signatures():
@@ -132,24 +133,24 @@ def test_the_interface_is_names_and_signatures():
     base = component(("text", "Text", False))
     assert classify.interface_changes(base, base) == []
     assert (
-        classify.worst(classify.interface_changes(base, component(("text", "Text", False), ("n", "Text", True))))
+        history.worst(classify.interface_changes(base, component(("text", "Text", False), ("n", "Text", True))))
         is Level.COMPATIBLE
     )
     assert (
-        classify.worst(classify.interface_changes(base, component(("text", "Text", False), ("n", "Text", False))))
+        history.worst(classify.interface_changes(base, component(("text", "Text", False), ("n", "Text", False))))
         is Level.BREAKING
     )
-    assert classify.worst(classify.interface_changes(base, component(("other", "Text", False)))) is Level.BREAKING
+    assert history.worst(classify.interface_changes(base, component(("other", "Text", False)))) is Level.BREAKING
     assert (
-        classify.worst(classify.interface_changes(base, component(("text", "Text", False), cs="abY"))) is Level.BREAKING
+        history.worst(classify.interface_changes(base, component(("text", "Text", False), cs="abY"))) is Level.BREAKING
     )
     assert (
-        classify.worst(classify.interface_changes(base, component(("text", "Text", False), doc="e"))) is Level.REVISION
+        history.worst(classify.interface_changes(base, component(("text", "Text", False), doc="e"))) is Level.REVISION
     )
-    assert classify.worst(classify.interface_changes(base, {"components": {}, "kinds": {}})) is Level.BREAKING
+    assert history.worst(classify.interface_changes(base, {"components": {}, "kinds": {}})) is Level.BREAKING
     kinds = lambda v: {"components": {}, "kinds": {"k": {"variants": v}}}  # noqa: E731
-    assert classify.worst(classify.interface_changes(kinds(["a", "b"]), kinds(["a"]))) is Level.BREAKING
-    assert classify.worst(classify.interface_changes(kinds(["a"]), kinds(["a", "b"]))) is Level.COMPATIBLE
+    assert history.worst(classify.interface_changes(kinds(["a", "b"]), kinds(["a"]))) is Level.BREAKING
+    assert history.worst(classify.interface_changes(kinds(["a"]), kinds(["a", "b"]))) is Level.COMPATIBLE
 
 
 def test_libtools_bump_table():

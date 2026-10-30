@@ -66,7 +66,7 @@ ADOPT = textwrap.dedent(
     report["accents"] = [f.accent.name for card in doc.tree.content[1:] for f in card.content[1:]]
     report["defaults"] = list(doc.defaults)
     report["changes"] = sorted(c.setting for c in doc.template_changes())
-    report["hand_edits"] = [[e.path, e.found] for e in doc.hand_edits()]
+    report["hand_edits"] = [[e.path, e.edit.found] for e in doc.hand_edits()]
     try:
         doc.save()
     except HandEditError as error:
@@ -91,7 +91,9 @@ def set_version(project: pathlib.Path, version: str) -> None:
     file.write_text(re.sub(r'^version = ".*"$', f'version = "{version}"', file.read_text(), flags=re.MULTILINE))
 
 
-def test_two_wheels_are_installed_used_saved_compiled_and_a_new_release_is_adopted(compiler, tmp_path, monkeypatch):
+async def test_two_wheels_are_installed_used_saved_compiled_and_a_new_release_is_adopted(
+    compiler, tmp_path, monkeypatch
+):
     # -- the first release of both -----------------------------------------------------------------------------
     brand = projects.author_project(tmp_path / "brand")
     set_version(brand, "0.1.0")
@@ -125,8 +127,10 @@ def test_two_wheels_are_installed_used_saved_compiled_and_a_new_release_is_adopt
         len(sources) == 3 + 1 + 1 + 2 + 1
     )  # expert and its two variants, vocab, then the deck's brief, slide and its variant, and vocab
     for source in sources:
-        compiler.compile(
-            source, tmp_path / "out" / source.parent.parent.name / source.parent.name / source.stem
+        (
+            await compiler.compile(
+                source, tmp_path / "out" / source.parent.parent.name / source.parent.name / source.stem
+            )
         ).raise_for_status()
 
     # -- a hand edit, then a new release of the brand ----------------------------------------------------------
@@ -153,4 +157,6 @@ def test_two_wheels_are_installed_used_saved_compiled_and_a_new_release_is_adopt
     assert report["changes"] and any(c.startswith("default Fact.accent") for c in report["changes"])
     assert report["hand_edits"] == [["/content/1/content/0", "    \\abTitle{Fox, edited}"]]
     assert report["refused"] == 1 and report["data"] == 2 and report["history"] == 1
-    compiler.compile(tmp_path / "docs/acme_brand_tex/expert/deck.tex", tmp_path / "out" / "after").raise_for_status()
+    (
+        await compiler.compile(tmp_path / "docs/acme_brand_tex/expert/deck.tex", tmp_path / "out" / "after")
+    ).raise_for_status()

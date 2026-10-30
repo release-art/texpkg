@@ -210,13 +210,18 @@ The surface is specified in §4a; the requirements behind it follow.
   texpkg wrote and what the file holds now, and whether lines were added, removed or changed. `save(force=True)`
   overwrites the hand edit; `check` reports hand edits too. Generated payload files are not covered: `check` reports them
   changed (A4) and `save` rewrites them (**proposed**).
-- D9 **Which field changed is texmodel's** (**decided**): `HandEdit.fields` is texmodel's `Plan.edits` result for the line, a
+- D9 **Which field changed is texmodel's** (**decided**): `HandEdit.edit.fields` is texmodel's `Plan.edits` result for the line, a
   tuple of `FieldEdit` (`arg`, `found`, and the typed `value` where texmodel reads it back): the arguments a `CHANGED` line
   changes when every change lies inside one argument's text; else `()` (the command's name or a delimiter changed, a line
   was added or removed) and the edit carries the node's data path and the raw text, never a guess. `HandEdit.path` is a
   data path into `Document.tree` after `load` (`/content/1/content/0` is `.content[1].content[0]`); a line of the
   document's own setting or preamble entry has its place in the data (`/settings/0`), and a line no node wrote, or any
-  line of a profile kind, keeps the plan's path. texpkg reads no TeX itself (N1); applying an edit back to the document stays with the consumer.
+  line of a profile kind, keeps the plan's path. texpkg reads no TeX itself (N1).
+- D11 **Restoring an edit is texmodel's; the path is texpkg's** (**decided**). `HandEdit` is texmodel's `Edit` (which names its file and line) and texpkg's data path; there
+  is no copy of its kind or fields. `Document.restore()` runs `texmodel.restore.restore` for each `.tex` with edits, on the
+  document as `save` rendered it (the kind's settings and preamble in place), and returns texmodel's `Restored` per file. The
+  data path stays texpkg's: texmodel's `Edit.data_path` keeps the root step and does not know a kind's locked settings and
+  preamble entries. A profile kind is refused (`TP-D008`): its tree is expanded before it is written.
 
 - D10 **A document carries its own settings, options and preamble entries, within what its kind allows** (**decided**).
   texmodel 0.5 holds them in the tree (`Document(*content, options=, settings=, preamble=)`), so a document of a kind is
@@ -414,7 +419,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | render | `doc.render(variant: str \| None = None) -> str` (pure: returns the `.tex`, writes nothing) | decided: a method, no module-level `render`; `variant=` decided (K6) | P28, K6 |
 | save | `doc.save(*, now: datetime \| None = None, stamp: str \| None = None, force: bool = False) -> None` (writes both states, history, the `.tex`, its plan and the payload; only what changed; `now` pins the provenance time, N4; raises `HandEditError` on a hand-edited `.tex` unless `force`) | decided | P29, D1–D3, D7, D8, N4 |
 | check | `doc.check(*, stamp: str \| None = None) -> Check` (never writes; reports hand edits too) | decided | P29, A4, D8 |
-| hand edits | `doc.hand_edits() -> tuple[HandEdit, ...]`; `HandEdit(file, path, expected, found, kind, fields=())`, `kind`: `ADDED`, `REMOVED`, `CHANGED`; `path` is the data path of the node that wrote the line (into `Document.tree`); `fields` are texmodel's `FieldEdit`s of a line changed inside one argument (D9) | decided | D8, D9 |
+| hand edits | `doc.hand_edits() -> tuple[HandEdit, ...]`; `HandEdit(edit, path, locked=False)`, with `.file` that of `edit.file`; `locked` is set for a line the kind fixes (a locked setting, a leading preamble entry): `edit` is texmodel's `Edit` (`kind`: `ADDED`, `REMOVED`, `CHANGED`, `UNREAD`; `expected`, `found`; `fields`, its `FieldEdit`s of a line changed inside one argument, D9); `path` is the data path of the node that wrote the line (into `Document.tree`), which is texpkg's and not `edit.data_path`; `doc.restore() -> dict[Path, Restored]` is texmodel's `restore` over each edited `.tex` (D11); every kind module exports `HandEdit`, `Edit`, `EditKind`, `FieldEdit`, `Reason`, `Restored` and `Unapplied` | decided | D8, D9, D11 |
 | path | `doc.path: Path` | decided | P27 |
 | kind | `doc.kind: str` | decided | K3 |
 | defaults | `doc.defaults` (which values are still the package's defaults) | decided | V21 |
@@ -773,8 +778,9 @@ components today (`spec`), so each kind's state model is one of those, extended.
 
 ## 8. Not built yet
 
-- **Move the per-model core into texmodel** (V8, V9) once it is stable: `_internal/history.py` (data paths, problems,
-  unplaced fields), `classify.py`, `versions.py`, `provenance_tex.py`. texpkg then imports it.
+- **Move the per-model core into texmodel** (V8, V9): `history.py` (problems, unplaced fields) and the schema half of
+  `classify.py` (`Level`, `Change`, `schema_changes`, `worst`) are texmodel's `texmodel.history`. Left: `versions.py`,
+  `provenance_tex.py` and the interface half of `classify.py`.
 - **Port the first consumer** (acceptance): its `pack` becomes a texpkg declaration with no change to its output. Its
   kinds are its series, generated from its tokens (K4); cards become texmodel nodes; its hook files become
   variants (K6). Accepted when its generated `.sty`, `deck.tex` for every series and its `derived/` files are

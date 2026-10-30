@@ -7,8 +7,8 @@ from collections.abc import Iterator
 from types import ModuleType
 
 import pytest
-from texmodel_build.compiler import Compiler
-from texmodel_build.errors import ToolchainError
+from texmodel.run.compiler import Compiler
+from texmodel.run.errors import ToolchainError
 
 from texpkg_build.testing import load_declaration
 
@@ -30,11 +30,11 @@ def fonts(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
 
 
 @pytest.fixture
-def compiler(fonts: pathlib.Path) -> Compiler:
+async def compiler(fonts: pathlib.Path) -> Compiler:
     """The reference image, or a skip (TEXPKG_REQUIRE_TEX=1 makes the skip a failure)."""
     comp = Compiler(image=os.environ.get("TEXPKG_TEST_IMAGE", "texmodel-test"), font_cache=fonts, epoch=1700000000)
     try:
-        comp.check_ready()
+        await comp.check_ready()
     except ToolchainError as exc:
         if os.environ.get("TEXPKG_REQUIRE_TEX"):
             pytest.fail(f"reference image unusable: {exc}")
