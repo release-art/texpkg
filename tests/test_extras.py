@@ -111,6 +111,10 @@ def test_a_hand_edit_of_a_line_the_document_wrote_is_found_at_its_data_path(doc)
     assert {"/settings/0", "/preamble/after_package/0"} <= paths  # the document's own lines
     assert "settings[0]" in paths and not any(p.startswith("/settings/") and p != "/settings/0" for p in paths)
     assert "header" in paths or any("documentclass" in e.edit.found for e in doc.hand_edits())  # the class line
+    assert {e.path: e.locked for e in doc.hand_edits() if e.path.startswith(("/settings/", "settings["))} == {
+        "/settings/0": False,  # the document's own
+        "settings[0]": True,  # the kind's preset
+    }
 
 
 def test_the_stored_schema_describes_what_the_kind_allows(expert, acme_brand_tex):

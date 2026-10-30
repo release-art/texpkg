@@ -13,6 +13,7 @@ from hypothesis import (
 from jsonschema import Draft202012Validator
 from texmodel.body import Comment
 from texmodel.components import Command, Environment, Passthrough
+from texmodel.errors import DeclarationError as TexmodelDeclarationError
 from texmodel.package import Package
 from texmodel.plan import EditKind
 from texmodel.restore import Reason
@@ -564,3 +565,27 @@ def test_a_hand_edit_names_its_file_and_line(doc):
     assert edit.file == doc.path / "deck.tex" and edit.edit.file == edit.file
     assert edit.edit.line is not None
     assert (doc.path / "deck.tex").read_text().splitlines()[edit.edit.line - 1] == edit.edit.found
+
+
+def test_an_edit_of_a_line_the_kind_fixes_is_locked(doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\setlength{\\abFactGap}{3mm}", "\\setlength{\\abFactGap}{9mm}")
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fox}", "\\abTitle{Fox!}")
+    assert {e.path: e.locked for e in doc.hand_edits()} == {"settings[0]": True, "/content/1/content/0": False}
+
+
+def test_restore_refuses_an_edit_of_a_line_the_current_release_writes_differently(expert, doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fox}", "\\abTitle{Fax}")  # what an earlier release wrote
+    edit_file(doc.path, "_texpkg/plan.json", "\\\\abTitle{Fox}", "\\\\abTitle{Fax}")
+    edit_file(doc.path, "deck.tex", "\\abTitle{Fax}", "\\abTitle{Fax!}")
+    with pytest.raises(TexmodelDeclarationError) as raised:
+        expert.load(doc.path).restore()
+    assert raised.value.code == "TM-X034"
+
+
+def test_restore_restores_an_edit_of_a_line_the_current_release_writes_the_same(expert, doc):
+    doc.save()
+    edit_file(doc.path, "deck.tex", "\\abFact[ab-moss]{50\\% of \\$5}", "\\abFact[ab-moss]{50\\% of \\$6}")
+    ((_, restored),) = expert.load(doc.path).restore().items()
+    assert restored.unapplied == () and len(restored.applied) == 1

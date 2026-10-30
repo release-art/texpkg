@@ -87,5 +87,5 @@ TEXPKG_REQUIRE_TEX=1 pdm run pytest -m tex --no-cov   # when TeX written by the 
 ## Development environment
 
 - `pdm install`; run tools as `pdm run ...`. Python is 3.15 only. The compile tests are `async` (`pytest-asyncio`, auto mode).
-- texmodel is the released one (`texmodel>=0.10.0`). To try a change in the sibling checkout, `pdm add -e ../texmodel --dev` locally
+- texmodel is the released one (`texmodel>=0.11.0`). To try a change in the sibling checkout, `pdm add -e ../texmodel --dev` locally
   and do not commit that.

@@ -31,6 +31,16 @@ def extra_path(plan_path: str, *, locked: int, leading: PreambleSlots) -> str:
     return ""
 
 
+def is_locked(plan_path: str, *, locked: int, leading: PreambleSlots) -> bool:
+    """Whether the line is one the kind fixes: a setting among its `locked` ones, or an entry among the `leading` ones
+    of a preamble slot."""
+    if found := _SETTING.fullmatch(plan_path):
+        return int(found[1]) < locked
+    if found := _ENTRY.fullmatch(plan_path):
+        return int(found[2]) < len(getattr(leading, found[1]))
+    return False
+
+
 def data_path(plan_path: str) -> str:
     """The data path of a plan path: `Deck[0]/Card[1]/Title[0]` is `/content/1/content/0`, the root being the document.
     A line that no node wrote (`header`, `preamble.before_package[0]`, `settings[2]`) keeps its plan path."""

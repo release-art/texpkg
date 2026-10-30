@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-30
+
 ### Added
 
+- `HandEdit.locked`: set for a line the kind fixes (one of its locked settings, a leading preamble entry), so a consumer can
+  tell "the kind wrote this and it was edited by hand" from a change to the document's data.
 - `Document.restore()`: for each `.tex` with hand edits, texmodel's `Restored` (the data that writes the edits it could
   restore, the `applied` edits, and the `unapplied` ones with their `Reason`). A profile kind is refused (`TP-D008`).
 - Every generated kind module exports the types of its documents' hand edits: `HandEdit` and texmodel's `Edit`,
@@ -17,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Needs the next texmodel release (`texmodel.run`, `texmodel.history`, `texmodel.restore`); `texmodel>=` is raised when it is out.
+- Requires `texmodel>=0.11.0` (`texmodel.run`, `texmodel.history`, `texmodel.restore`). Wheels built from now on depend on `texmodel~=0.11.0`.
 - `HandEdit(edit, path)` holds texmodel's `Edit`: `kind`, `expected`, `found`, `fields`, `line` are `edit.kind` and so
   on (`file` is still `HandEdit.file`), and `HandEditKind` is removed (use `EditKind`, which also has `UNREAD`). `path` is still the data path.
 - `texpkg_build.testing.check_isolated` is `async`, and the compile tests are too (`pytest-asyncio`): texmodel's driver is

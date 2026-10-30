@@ -46,10 +46,14 @@ class HandEdit:
     `Document.tree`, after `load`); a line of a setting or a preamble entry the document set has its place in the data
     (`/settings/0`), and one no node wrote, or any line of a profile kind, keeps the plan's own path (`header`,
     `settings[0]`, `Deck[0]/Card[1]`). Read it and not `edit.data_path`, which does not know the kind's locked entries
-    or that the tree is the document's root."""
+    or that the tree is the document's root.
+
+    `locked` is set for a line the kind fixes (one of its locked settings, or a leading preamble entry): the kind wrote
+    it and it was edited by hand, which is no change to the document's data."""
 
     edit: Edit
     path: str
+    locked: bool = False
 
     @property
     def file(self) -> pathlib.Path:
@@ -167,15 +171,18 @@ class Document[T: Command | Environment]:
             | self._release.states(self._kind, self.tree, self._extras)
         )
 
+    def _fixed(self, variant: str | None) -> dict[str, Any]:
+        """What the kind fixes in a document of `variant`: for `handedits`, its locked settings and leading entries."""
+        return {
+            "locked": len(self._release.settings(self._kind, variant)),
+            "leading": self._release.fixed_preamble(self._kind),
+        }
+
     def _data_path(self, plan_path: str, variant: str | None) -> str:
         """A line of a setting or a preamble entry the document set is at its place in the data (D10); one the kind
         writes keeps its plan path. A profile's tree is expanded before it is written, so a plan path names a node of
         the base's tree and not a path in this document's data: it is given as it is."""
-        own = handedits.extra_path(
-            plan_path,
-            locked=len(self._release.settings(self._kind, variant)),
-            leading=self._release.fixed_preamble(self._kind),
-        )
+        own = handedits.extra_path(plan_path, **self._fixed(variant))
         if own:
             return own
         return plan_path if self._kind.expand else handedits.data_path(plan_path)
@@ -184,7 +191,11 @@ class Document[T: Command | Environment]:
         """The lines of the `.tex` files that differ from the plan `save` kept of them (D8)."""
         variants = {name: variant for variant, name in self._kind.documents()}
         return tuple(
-            HandEdit(edit, self._data_path(edit.path, variants[name]))
+            HandEdit(
+                edit,
+                self._data_path(edit.path, variants[name]),
+                handedits.is_locked(edit.path, **self._fixed(variants[name])),
+            )
             for name, edit in handedits.edits(self.path, self._kind.documents())
         )
 
