@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:d1ff68b2afdaafc60dbc0b6fab5c1ae55147116eb7536084f910c52f25f9eda5"
+content_hash = "sha256:fa01f81ce89330ad7919b3d56cd3bff06983b0c3f3f83ed956abee974a9fd902"
 
 [[metadata.targets]]
 requires_python = ">=3.15,<3.16"
@@ -1105,7 +1105,7 @@ files = [
 
 [[package]]
 name = "texmodel"
-version = "0.11.0"
+version = "0.12.0"
 requires_python = "<3.16,>=3.15"
 summary = "Typed document-family models rendered to TeX, with an optional latexmk driver and verifier plugins."
 groups = ["default"]
@@ -1114,8 +1114,8 @@ dependencies = [
     "typer>=0.27.3",
 ]
 files = [
-    {file = "texmodel-0.11.0-py3-none-any.whl", hash = "sha256:3726e4d2abf75f45a6f4c05640ef1377119a9e2a06a906cb2726efdb711cd761"},
-    {file = "texmodel-0.11.0.tar.gz", hash = "sha256:62e1f4a5f5b12292922f3e6b9ba6cbfc6340e00db5968d7afcdf35063966bb09"},
+    {file = "texmodel-0.12.0-py3-none-any.whl", hash = "sha256:447d5ed04fef4f5ba7ea8bc57730370c6fb245c3ee19506e162a40b84e9dea1b"},
+    {file = "texmodel-0.12.0.tar.gz", hash = "sha256:27551fb2cd80898331ee22511de0789a2b2319905e181f3a1cac1d61ff43864b"},
 ]
 
 [[package]]
