@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `texpkg-build contracts --base <wheel|dir>` copies the frozen snapshots of the previous release into `contracts/`, so a repository need not commit them. `TP-C009` (a snapshot differs from the base's), `TP-C010` (the base holds none).
 - `[tool.texpkg.release]` in `pyproject.toml` (`output`, `note`, `base-interface`) states what the author says about the next release, instead of `contracts/next/versions.toml`. `TP-C008` for a key or value that is wrong or does not apply.
-
 - `[tool.texpkg] contracts = "wheel"` ships a release's snapshots in `<name>-contracts`, which `texpkg-build contracts --wheel <dir>` writes: every snapshot up to the release, in a wheel of its own. The package's wheel carries none and depends on `<name>-contracts==<version>`. `TP-C011`, `TP-B016`.
 
 ### Changed

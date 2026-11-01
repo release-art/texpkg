@@ -724,7 +724,7 @@ so the layers (the TeX, the embedded data, the kinds) only say where a change ca
   wheel of its own that `contracts --wheel <dir>` writes after the freeze: one release per wheel, holding every
   snapshot up to it, byte-for-byte reproducible, and the base of the next release (`--base`). The package's wheel
   carries none and depends on `<name>-contracts==<its version>`, and `changes`, migrations and V35 read the contracts
-  module. A development build has no such wheel, so it carries its snapshots itself (`TP-C011`: nothing frozen to put
+  module. `pdm build` cleans `dist/`, so the wheel is written to another directory or the build runs with `--no-clean`. A development build has no such wheel, so it carries its snapshots itself (`TP-C011`: nothing frozen to put
   in a wheel; `TP-B016`: another value of `contracts`).
 
 Examples:

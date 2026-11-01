@@ -91,7 +91,10 @@ def contracts(
     ] = None,
     wheel: Annotated[
         pathlib.Path | None,
-        typer.Option(help='A directory to write the wheel of every frozen snapshot into (`contracts = "wheel"`).'),
+        typer.Option(
+            help='A directory to write the wheel of every frozen snapshot into (`contracts = "wheel"`): not `dist/`, '
+            "which `pdm build` cleans."
+        ),
     ] = None,
 ) -> None:
     """Write contracts/next: the snapshot of the declaration and the versions it implies against the newest frozen
