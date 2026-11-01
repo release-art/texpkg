@@ -112,7 +112,6 @@ def contract_gate(
         return Contracts(), []
     held = snapshot.frozen(root)
     current = snapshot.base_current(dist)
-    proposal = snapshot.propose(root, dist, release, snapshot.sty_of(dist), base_current=current)
     if classify.RELEASE.fullmatch(version):
         if not held or held[-1].name != version:
             raise DeclarationError(
@@ -129,6 +128,9 @@ def contract_gate(
             )
         versions = snapshot.read_versions(held[-1])
     else:
+        proposal = snapshot.propose(
+            root, dist, release, snapshot.sty_of(dist), base_current=current, hint=snapshot.read_hint(root)
+        )
         if stale := snapshot.stale(root, proposal.files):
             raise DeclarationError(
                 f"contracts/next is not current: {', '.join(stale)}",
@@ -137,9 +139,11 @@ def contract_gate(
             )
         if proposal.output and not proposal.versions.output_change:
             raise DeclarationError(
-                f"the output changed ({', '.join(proposal.output)}) and contracts/next/versions.toml does not say how",
+                f"the output changed ({', '.join(proposal.output)}) and neither contracts/next/versions.toml "
+                "nor [tool.texpkg.release] says how",
                 code="TP-C005",
-                hint='under [output] write change = "current" (visible: proofs need approving again) or "revision"',
+                hint='under [tool.texpkg.release] write output = "current" (visible: proofs need approving again) or '
+                '"revision"',
             )
         versions = snapshot.read_versions(root / snapshot.CONTRACTS / snapshot.NEXT)
     assert versions is not None

@@ -18,7 +18,7 @@ from texpkg._internal import classify
 from texpkg.declaration import Distribution
 from texpkg.errors import DeclarationError
 
-from ._internal import assemble, checks, generate, generated
+from ._internal import assemble, checks, contractswheel, generate, generated, snapshot
 from ._internal.isolate import author_source
 from .testing import load_declaration
 
@@ -47,12 +47,14 @@ def _base_requirement(name: str) -> str:
     return f"{name}>={version},<{major + 1 if major else f'0.{minor + 1}'}"
 
 
-def requirements(dist: Distribution) -> list[str]:
+def requirements(dist: Distribution, history: str | None = None) -> list[str]:
     """What the wheel depends on (B7): everything its code imports, named here whether or not texpkg brings it along.
     texpkg and texmodel of the release it was built with, up to the next minor (`~=X.Y.Z` is `>=X.Y.Z, ==X.Y.*`),
-    pydantic, and the base's wheel from the release it was built on to its next breaking one."""
+    pydantic, and the base's wheel from the release it was built on to its next breaking one. `history` is the pinned
+    requirement of the contracts wheel, when the snapshots ship in one."""
     base = [_base_requirement(dist.base.name)] if dist.base else []
-    return [f"texpkg~={_installed('texpkg')}", f"texmodel~={_installed('texmodel')}", PYDANTIC, *base]
+    held = [history] if history else []
+    return [f"texpkg~={_installed('texpkg')}", f"texmodel~={_installed('texmodel')}", PYDANTIC, *base, *held]
 
 
 def _pointer(context: Context) -> tuple[str, str]:
@@ -67,6 +69,19 @@ def _pointer(context: Context) -> tuple[str, str]:
     return module, attr
 
 
+def _ships_in_a_wheel(context: Context, version: str) -> bool:
+    """Whether this build's snapshots go in the contracts wheel, which a release depends on at its own version
+    (`[tool.texpkg] contracts = "wheel"`). A development build carries its snapshots itself: there is no such wheel."""
+    given = context.config.data.get("tool", {}).get("texpkg", {}).get("contracts", "embedded")
+    if given not in ("embedded", "wheel"):
+        raise DeclarationError(
+            f"{context.root / 'pyproject.toml'}: [tool.texpkg] contracts is {given!r}",
+            code="TP-B016",
+            hint='write contracts = "embedded" (the snapshots ship in the wheel) or "wheel" (in <name>-contracts)',
+        )
+    return given == "wheel" and bool(classify.RELEASE.fullmatch(version))
+
+
 def pdm_build_initialize(context: Context) -> None:
     """A wheel depends on texpkg and the base (B7); `pdm_build_update_files` pins them, once the declaration says which
     base. Until then, and for an sdist or an editable install, which link or hold the sources, it is texpkg itself."""
@@ -77,8 +92,14 @@ def pdm_build_initialize(context: Context) -> None:
 
 
 def pdm_build_update_files(context: Context, files: dict[str, pathlib.Path]) -> None:
+    if context.target == "sdist":
+        # the wheel built from it must see the same frozen snapshots; without them it would report the first versions
+        for file in sorted((context.root / snapshot.CONTRACTS).rglob("*")):
+            if file.is_file():
+                files[file.relative_to(context.root).as_posix()] = file
+        return
     if context.target != "wheel":
-        return  # the sdist holds the sources, an editable install links them: the module is made for a wheel (B6)
+        return  # an editable install links the sources: the module is made for a wheel (B6)
     module, attr = _pointer(context)
     source = context.root / (context.config.build_config.package_dir or ".")
     with author_source(source) as isolation:
@@ -100,9 +121,13 @@ def pdm_build_update_files(context: Context, files: dict[str, pathlib.Path]) -> 
         loaded = load_declaration(f"{module}:{attr}", version=version)
         checks.module_satisfies_the_protocols(loaded)
         contracts, held = checks.contract_gate(context.root, dist, loaded._bound.RELEASE, version)  # pyright: ignore[reportAttributeAccessIssue]
-        module_files = generate.sources(dist, f"{module}:{attr}", version, contracts)
+        apart = _ships_in_a_wheel(context, version) and bool(held)
+        history = contractswheel.module_of(dist) if apart else None
+        module_files = generate.sources(dist, f"{module}:{attr}", version, contracts, history)
         files.clear()  # a wheel holds the generated module, not the author's sources
         assemble.assemble(
-            context.build_dir / dist.module, dist, declaration, module_files, held
+            context.build_dir / dist.module, dist, declaration, module_files, () if apart else held
         )  # not ensure_build_dir(): its .gitignore
-        context.config.metadata["dependencies"] = requirements(dist)
+        context.config.metadata["dependencies"] = requirements(
+            dist, f"{contractswheel.name_of(dist)}=={version}" if apart else None
+        )

@@ -9,8 +9,11 @@ import hashlib
 import importlib
 import json
 import pathlib
+import re
 import shutil
-from collections.abc import Mapping
+import tomllib
+import zipfile
+from collections.abc import Iterator, Mapping
 from typing import Any
 
 from texmodel import history
@@ -29,6 +32,7 @@ from . import generate
 CONTRACTS = "contracts"
 NEXT = "next"
 VERSIONS = "versions.toml"
+_IN_WHEEL = re.compile(r"[^/]+/(?:_contracts/)?(\d+\.\d+\.\d+/.+)")  # a package wheel, or a contracts wheel
 
 
 def _dumps(value: object) -> str:
@@ -172,6 +176,35 @@ def _data_changes(was: Mapping[str, str], now: Mapping[str, str]) -> list[histor
 
 
 @dataclasses.dataclass(frozen=True)
+class Hint:
+    """What the author states for the next release, in `[tool.texpkg.release]` of `pyproject.toml` (V12, V33): how an
+    output change counts, the note of the `data` version the release introduces, the base `interface` relied on."""
+
+    output: str = ""
+    note: str = ""
+    base_interface: int = 0
+
+
+def read_hint(root: pathlib.Path) -> Hint:
+    config = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    given = dict(config.get("tool", {}).get("texpkg", {}).get("release", {}))
+    where = "[tool.texpkg.release] in pyproject.toml"
+    if unknown := sorted(set(given) - {"output", "note", "base-interface"}):
+        raise errors.DeclarationError(
+            f"{where} has {', '.join(unknown)}",
+            code="TP-C008",
+            hint='the keys are output = "current" or "revision", note = "...", base-interface = 3',
+        )
+    if given.get("output", "") not in ("", "current", "revision"):
+        raise errors.DeclarationError(
+            f"{where}: output is {given['output']!r}",
+            code="TP-C008",
+            hint='write output = "current" (visible: proofs need approving again) or "revision"',
+        )
+    return Hint(given.get("output", ""), given.get("note", ""), given.get("base-interface", 0))
+
+
+@dataclasses.dataclass(frozen=True)
 class Proposal:
     files: dict[str, str]  # the snapshot, with the versions file as `versions.toml`
     versions: Versions
@@ -189,21 +222,26 @@ def propose(
     *,
     first: str = "0.1.0",
     base_current: tuple[int, int] = (0, 0),
+    hint: Hint,
 ) -> Proposal:
     """The snapshot of this declaration and the versions it implies against the newest frozen release (V12, V13),
-    keeping what the author wrote in `contracts/next/versions.toml`: the `output` classification and the notes."""
+    keeping what the author wrote in `contracts/next/versions.toml`: the `output` classification and the notes. The
+    `hint` of `pyproject.toml` says the same for a project that commits no `contracts/next`."""
     files = build(dist, release, sty)
     authored = read_versions(root / CONTRACTS / NEXT)
     notes = dict(authored.notes) if authored else {}
-    change = authored.output_change if authored else ""
+    change = hint.output or (authored.output_change if authored else "")
+    base_interface = hint.base_interface or (authored.base_interface if authored else 0)
     previous = frozen(root)
     if not previous:
+        if hint.note:
+            notes[1] = hint.note
         versions = Versions(
             first,
             notes=notes,
             releases={1: first},
             base_data={1: base_current[0]} if dist.base else {},
-            base_interface=authored.base_interface if authored else base_current[1],
+            base_interface=base_interface or base_current[1],
         )
         return Proposal(files | {VERSIONS: versions.to_text()}, versions, [], [], [], [])
     last = previous[-1]
@@ -222,9 +260,23 @@ def propose(
     required = classify.required_release(
         old.release, history.worst(data_changes), history.worst(interface_changes), bool(changed)
     )
+    if hint.output and not changed:
+        raise errors.DeclarationError(
+            f"[tool.texpkg.release] output = {hint.output!r}, but the output did not change",
+            code="TP-C008",
+            hint="remove it from pyproject.toml: it states one release",
+        )
+    if hint.note and data.current == old.data.current:
+        raise errors.DeclarationError(
+            "[tool.texpkg.release] has a note, but this release introduces no new data version",
+            code="TP-C008",
+            hint="remove it from pyproject.toml: it states one release",
+        )
     releases = dict(old.releases)
     if data.current != old.data.current:
         releases[data.current] = required
+        if hint.note:
+            notes[data.current] = hint.note
     base_data = dict(old.base_data)
     if dist.base is not None and data.current != old.data.current:
         base_data[data.current] = base_current[0]
@@ -237,11 +289,58 @@ def propose(
         notes,
         releases,
         base_data,
-        authored.base_interface if authored and authored.base_interface else old.base_interface,
+        base_interface or old.base_interface,
     )
     return Proposal(
         files | {VERSIONS: versions.to_text()}, versions, data_changes, interface_changes, changed, not_compared
     )
+
+
+def _held(base: pathlib.Path) -> Iterator[tuple[str, bytes]]:
+    """`<version>/<file>` and its bytes for every frozen snapshot of `base`: a wheel's `_contracts`, or a directory of
+    `<version>/` directories."""
+    if base.is_file():
+        try:
+            with zipfile.ZipFile(base) as wheel:
+                for name in sorted(wheel.namelist()):
+                    if (found := _IN_WHEEL.fullmatch(name)) and ".." not in found[1].split("/"):
+                        yield found[1], wheel.read(name)
+        except zipfile.BadZipFile as exc:
+            raise errors.DeclarationError(f"{base} is not a wheel", code="TP-C010", path=str(base)) from exc
+    elif base.is_dir():
+        for file in sorted(base.glob("*.*.*/**/*")):
+            relative = file.relative_to(base).as_posix()
+            if file.is_file() and classify.RELEASE.fullmatch(relative.split("/")[0]):
+                yield relative, file.read_bytes()
+
+
+def seed(root: pathlib.Path, base: pathlib.Path) -> list[str]:
+    """Copy the frozen snapshots of `base`, the previous release's wheel or a directory, into `root/contracts`, so a
+    project need not commit them. A snapshot already there must be the same bytes (V37). The releases copied."""
+    held = list(_held(base))
+    if not held:
+        raise errors.DeclarationError(
+            f"{base} holds no frozen snapshots",
+            code="TP-C010",
+            path=str(base),
+            hint="give the previous release's wheel",
+        )
+    copied: dict[str, None] = {}
+    for relative, data in held:
+        target = root / CONTRACTS / relative
+        if target.exists():
+            if target.read_bytes() != data:
+                raise errors.DeclarationError(
+                    f"{CONTRACTS}/{relative} differs from the one in {base}",
+                    code="TP-C009",
+                    path=str(target),
+                    hint="a frozen snapshot is never rewritten: remove contracts/ or use the right base",
+                )
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        copied[relative.split("/")[0]] = None
+    return list(copied)
 
 
 def write_next(root: pathlib.Path, files: Mapping[str, str]) -> None:

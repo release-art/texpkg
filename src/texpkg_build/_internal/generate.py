@@ -204,9 +204,12 @@ def _tuple(items: list[str]) -> str:
     return "(" + "".join(f"{item!r}, " for item in items).strip() + ")"
 
 
-def sources(dist: Distribution, pointer: str, version: str, contracts: Contracts) -> dict[str, str]:
+def sources(
+    dist: Distribution, pointer: str, version: str, contracts: Contracts, history: str | None = None
+) -> dict[str, str]:
     """The generated files by path inside the module, for `dist` released at `version`. `pointer` is the
-    `module:attribute` of `[tool.texpkg] distribution`: where the declaring package holds the declaration."""
+    `module:attribute` of `[tool.texpkg] distribution`: where the declaring package holds the declaration. `history` is
+    the module of the contracts wheel the snapshots are read from, else they are the module's own `_contracts`."""
     module, _, pointer_attr = pointer.partition(":")
     where = module.removeprefix(dist.declared_in)  # "" when the declaration is the package's `__init__`
     offered = dist.kinds_offered()
@@ -220,6 +223,7 @@ def sources(dist: Distribution, pointer: str, version: str, contracts: Contracts
     base_import = f"from {base.module} import _bound as _base" if base else ""
     base_sty = "**_base.STY, " if base else ""
     base_release = "(_base.RELEASE,), " if base else "(), "
+    snapshots = f"files({history!r})" if history else 'files(__package__).joinpath("_contracts")'
     return (
         {f"_sty/{name}": text for name, text in sty.items()}
         | public
@@ -292,7 +296,7 @@ def sources(dist: Distribution, pointer: str, version: str, contracts: Contracts
                 {base_import}
 
                 _NAMES: Final = {_tuple(list(sty))}
-                _SNAPSHOTS: Final = files(__package__).joinpath("_contracts")
+                _SNAPSHOTS: Final = {snapshots}
                 _OWN: Final = {{
                     name: files(__package__).joinpath("_sty", name).read_text(encoding="utf-8") for name in _NAMES
                 }}

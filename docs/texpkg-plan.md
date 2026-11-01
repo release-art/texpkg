@@ -102,7 +102,7 @@ profiles' models) is neither's: it is the content being packaged, built with tex
   satisfy the protocol. A defect fails `pdm build`, not a consumer's import (**decided**).
 - B5 The generated module is deterministic: the same declaration builds byte-identical files (no clock, hash or set order),
   so a wheel can be checked by rebuilding (**decided**).
-- B6 A sdist carries the declaration and the sources, not the generated module, and builds the same wheel (**decided**).
+- B6 A sdist carries the declaration, the sources and `contracts/`, not the generated module, and builds the same wheel (**decided**).
 - B7 **A wheel depends on what its code imports** (**decided**), each named whether or not texpkg brings it along:
   `texpkg~=X.Y.Z` and `texmodel~=X.Y.Z` (`>=X.Y.Z`, same `X.Y`) with `X.Y.Z` the release the wheel was built with,
   `pydantic>=2,<3`, and the base's wheel from the release it was built on up to its next breaking release (V13), so a
@@ -711,6 +711,21 @@ so the layers (the TeX, the embedded data, the kinds) only say where a change ca
   release step freezes `next/` into `contracts/<version>/`, never rewritten after; right after a freeze `next` describes the release just made, and `texpkg-build contracts` starts the next; the build refuses a tag that does not
   match the newest frozen directory or understates it. The wheel carries every frozen directory (`changes`, migrations
   and V35 read them).
+- V38 **A repository need not commit its contracts** (**decided**): `texpkg-build contracts --base <wheel|dir>` copies
+  the frozen snapshots of the previous release's wheel (its `_contracts`) or of a directory into `contracts/` first,
+  refusing a file that differs from one already there (`TP-C009`) and a base with none (`TP-C010`), so CI can fetch the
+  last release, freeze and build in one run with `contracts/` ignored by git. What the author states for the release
+  is `[tool.texpkg.release]` in `pyproject.toml`: `output = "current" | "revision"` (replaces `change` in
+  `contracts/next/versions.toml`), `note` (the one-line note of the `data` version the release introduces) and
+  `base-interface`. It states one release: a value that does not apply (an `output` without an output change, a
+  `note` without a new `data` version) is `TP-C008`, so a leftover cannot carry into the next release. `--freeze`
+  refuses an output change nobody classified (`TP-C005`). The sdist carries `contracts/` (B6). With
+  `[tool.texpkg] contracts = "wheel"` a release's snapshots ship in `<name>-contracts` (module `<module>_contracts`), a
+  wheel of its own that `contracts --wheel <dir>` writes after the freeze: one release per wheel, holding every
+  snapshot up to it, byte-for-byte reproducible, and the base of the next release (`--base`). The package's wheel
+  carries none and depends on `<name>-contracts==<its version>`, and `changes`, migrations and V35 read the contracts
+  module. A development build has no such wheel, so it carries its snapshots itself (`TP-C011`: nothing frozen to put
+  in a wheel; `TP-B016`: another value of `contracts`).
 
 Examples:
 

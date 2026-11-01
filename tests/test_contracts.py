@@ -542,3 +542,157 @@ def test_the_command_reports_a_refusal_with_its_code_and_hint(brand, monkeypatch
     monkeypatch.setattr(snapshot, "freeze", refuse)
     result = contracts(brand, "--freeze")
     assert result.exit_code == 1 and "error TP-C002: no" in result.output and "hint: because" in result.output
+
+
+def test_a_wheel_built_from_the_sdist_ships_the_same_frozen_snapshots(brand, tmp_path):
+    frozen = release(brand).release
+    edit(brand, "pyproject.toml", 'version = "1.2.0"', f'version = "{frozen}"')
+    direct = projects.wheel(brand, tmp_path / "direct")
+    unpacked = projects.unpack_sdist(projects.sdist(brand, tmp_path / "sdist"), tmp_path / "unpacked")
+    assert (unpacked / "contracts" / frozen / "versions.toml").is_file()
+    from_sdist = projects.wheel(unpacked, tmp_path / "from-sdist")
+    assert any("/_contracts/" in name for name in projects.names(direct))
+    assert projects.names(from_sdist) == projects.names(direct)
+
+
+# -- no contracts in the repository: the previous wheel and the hint in pyproject.toml ------------------------
+
+
+def hint(project: pathlib.Path, text: str) -> None:
+    pyproject = project / "pyproject.toml"
+    pyproject.write_text(pyproject.read_text() + f"\n[tool.texpkg.release]\n{text}\n")
+
+
+@pytest.fixture
+def released(brand, tmp_path):
+    """The wheel of release 0.1.0, built from a project that committed its contracts."""
+    release(brand)
+    set_version(brand, "0.1.0")
+    return build(brand, tmp_path)
+
+
+@pytest.fixture
+def fresh(tmp_path):
+    """The same project with no `contracts/` and a changed colour: an output change."""
+    project = projects.author_project(tmp_path / "fresh")
+    edit(project, "src/acme_brand/tokens.json", "2F3E46", "2F3E47")
+    return project
+
+
+def test_the_previous_wheel_gives_the_snapshot_to_compare_with_and_the_hint_says_how_the_output_changed(
+    released, fresh
+):
+    refused = contracts(fresh, "--base", str(released), "--freeze")
+    assert refused.exit_code == 1 and "TP-C005" in refused.output and "[tool.texpkg.release]" in refused.output
+    assert not (fresh / "contracts/0.1.1").exists()  # nothing frozen on a number the author has not settled
+    hint(fresh, 'output = "current"')
+    result = contracts(fresh, "--base", str(released), "--freeze")
+    assert result.exit_code == 0, result.output
+    assert sorted(p.name for p in (fresh / "contracts").iterdir()) == ["0.1.0", "0.1.1", "next"]
+    now = versions(fresh, "0.1.1")
+    assert (now.release, now.output, now.output_change) == ("0.1.1", Pair(2, 0), "current")
+    set_version(fresh, "0.1.1")
+    assert any("_contracts/0.1.0/" in name for name in projects.names(build(fresh, fresh.parent)))
+
+
+def test_a_directory_of_snapshots_is_a_base_too(brand, tmp_path):
+    release(brand)
+    project = projects.author_project(tmp_path / "other")
+    result = contracts(project, "--base", str(brand / "contracts"))
+    assert result.exit_code == 0 and "copied contracts/0.1.0" in result.output
+    assert (project / "contracts/0.1.0/versions.toml").is_file() and not (project / "contracts/0.1.1").exists()
+    assert (
+        contracts(project, "--base", str(brand / "contracts")).exit_code == 0
+    )  # the same bytes again: nothing to copy
+
+
+def test_a_base_that_disagrees_with_a_frozen_snapshot_is_refused(released, fresh):
+    contracts(fresh, "--base", str(released))
+    edit(fresh, "contracts/0.1.0/versions.toml", 'release = "0.1.0"', 'release = "0.1.0"\n# edited')
+    result = contracts(fresh, "--base", str(released))
+    assert result.exit_code == 1 and "TP-C009" in result.output
+
+
+def test_a_base_without_snapshots_is_refused(fresh, tmp_path):
+    (tmp_path / "empty").mkdir()
+    (tmp_path / "plain.whl").write_text("not a zip")
+    for base in ("empty", "plain.whl"):
+        result = contracts(fresh, "--base", str(tmp_path / base))
+        assert result.exit_code == 1 and "TP-C010" in result.output
+
+
+@pytest.mark.parametrize(
+    ("text", "release_first"),
+    [
+        ('colour = "red"', False),  # a key nobody reads
+        ('output = "huge"', False),
+        ('output = "revision"', True),  # nothing changed in the output: a leftover from the last release
+        ('note = "a new data version"', True),  # no new data version
+    ],
+)
+def test_a_hint_that_is_wrong_or_left_over_is_refused(brand, text, release_first):
+    if release_first:
+        release(brand)
+    hint(brand, text)
+    result = contracts(brand)
+    assert result.exit_code == 1 and "TP-C008" in result.output
+
+
+def test_the_hint_gives_the_note_of_a_data_version_and_the_base_interface(brand):
+    hint(brand, 'note = "the first"\nbase-interface = 2')
+    contracts(brand)
+    first = versions(brand)
+    assert first.notes == {1: "the first"} and first.base_interface == 2
+
+
+def test_the_hint_notes_the_data_version_a_release_introduces(brand):
+    release(brand)
+    edit(
+        brand,
+        "src/acme_brand/model.py",
+        '''class Title(Command):
+    """The subject's name."""
+
+    text: Text
+''',
+        '''class Title(Command, unused=["note"]):
+    """The subject's name."""
+
+    text: Text
+    note: Text | None = None
+''',
+    )
+    hint(brand, 'output = "revision"\nnote = "titles take a note"')
+    assert contracts(brand).exit_code == 0
+    assert versions(brand).notes == {2: "titles take a note"}
+
+
+def test_a_development_build_takes_the_classification_from_the_hint(brand, tmp_path):
+    release(brand)
+    edit(brand, "src/acme_brand/model.py", 'description="The acme brand"', 'description="The acme brand!"')
+    hint(brand, 'output = "revision"')
+    contracts(brand)
+    set_version(brand, "0.1.1.dev1")
+    assert build(brand, tmp_path).is_file()
+
+
+def test_a_new_data_version_of_a_dependent_records_the_base_it_was_made_on(brand, tmp_path, monkeypatch):
+    import zipfile
+
+    set_version(brand, "0.1.0")
+    release(brand)
+    site = tmp_path / "site"
+    zipfile.ZipFile(build(brand, tmp_path / "brand-dist")).extractall(site)
+    monkeypatch.syspath_prepend(str(site))
+    deck = projects.author_project(tmp_path / "deck", declaration="acme_deck", project="acme-deck-tex")
+    release(deck)
+    edit(
+        deck,
+        "src/acme_deck/model.py",
+        '    """A slide heading, set as the brand sets a term."""\n\n    text: Text\n',
+        '    """A slide heading, set as the brand sets a term."""\n\n    text: Text\n    note: Text | None = None\n',
+    )
+    edit(deck, "src/acme_deck/model.py", "class Heading(Command):", 'class Heading(Command, unused=["note"]):')
+    classify_output(deck, "revision")
+    assert contracts(deck).exit_code == 0
+    assert versions(deck).base_data == {1: 1, 2: 1}

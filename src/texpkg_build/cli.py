@@ -8,9 +8,9 @@ from typing import Annotated
 import typer
 
 from texpkg.declaration import Distribution
-from texpkg.errors import TexpkgError
+from texpkg.errors import DeclarationError, TexpkgError
 
-from ._internal import generated, snapshot
+from ._internal import contractswheel, generated, snapshot
 from ._internal.isolate import author_source
 from .testing import load_declaration
 
@@ -60,18 +60,50 @@ def generate(
         raise typer.Exit(1) from exc
 
 
+def _report(proposal: snapshot.Proposal) -> None:
+    """What the proposal found, one line each, and the versions it implies."""
+    for label, found in (("data", proposal.data), ("interface", proposal.interface)):
+        for change in found:
+            typer.echo(f"{label}: {change.level.name.lower()}: {change.where}: {change.what}")
+    for name in proposal.output:
+        typer.echo(f"output: changed: {name}")
+    for name in proposal.not_compared:
+        typer.echo(f"output: not compared: {name} (its example data no longer loads)")
+    v = proposal.versions
+    typer.echo(
+        f"release {v.release}: data {v.data.current}:{v.data.revision}:{v.data.age} "
+        f"interface {v.interface.current}:{v.interface.revision}:{v.interface.age} "
+        f"output {v.output.current}:{v.output.revision}"
+    )
+
+
 @app.command()
 def contracts(
     root: Annotated[pathlib.Path, typer.Option(help="The project directory.")] = pathlib.Path(),
     freeze: Annotated[bool, typer.Option(help="Freeze contracts/next as contracts/<release>.")] = False,
     first: Annotated[str, typer.Option(help="The release number of a first snapshot.")] = "0.1.0",
+    previous: Annotated[
+        pathlib.Path | None,
+        typer.Option(
+            "--base",
+            help="The previous release's wheel (or a directory of its snapshots): its snapshots are copied first.",
+        ),
+    ] = None,
+    wheel: Annotated[
+        pathlib.Path | None,
+        typer.Option(help='A directory to write the wheel of every frozen snapshot into (`contracts = "wheel"`).'),
+    ] = None,
 ) -> None:
     """Write contracts/next: the snapshot of the declaration and the versions it implies against the newest frozen
-    release. Review the files; with --freeze, keep them as the release."""
+    release. Review the files; with --freeze, keep them as the release. `[tool.texpkg.release]` in `pyproject.toml`
+    carries what the author states for it."""
     root = root.resolve()
     pointer, source = _project(root)
     module, _, attr = pointer.partition(":")
     try:
+        if previous is not None:
+            for copied in snapshot.seed(root, previous):
+                typer.echo(f"copied contracts/{copied}")
         with author_source(source) as isolation:
             isolation.forget(module.split(".")[0])
             dist = getattr(importlib.import_module(module), attr)
@@ -88,25 +120,20 @@ def contracts(
                 snapshot.sty_of(dist),
                 first=first,
                 base_current=snapshot.base_current(dist),
+                hint=snapshot.read_hint(root),
             )
         snapshot.write_next(root, proposal.files)
-        for label, found in (("data", proposal.data), ("interface", proposal.interface)):
-            for change in found:
-                typer.echo(f"{label}: {change.level.name.lower()}: {change.where}: {change.what}")
-        for name in proposal.output:
-            typer.echo(f"output: changed: {name}")
-        for name in proposal.not_compared:
-            typer.echo(f"output: not compared: {name} (its example data no longer loads)")
         v = proposal.versions
-        typer.echo(
-            f"release {v.release}: data {v.data.current}:{v.data.revision}:{v.data.age} "
-            f"interface {v.interface.current}:{v.interface.revision}:{v.interface.age} "
-            f"output {v.output.current}:{v.output.revision}"
-        )
+        _report(proposal)
         if proposal.output and not v.output_change:
-            typer.echo('output changed: say how in contracts/next/versions.toml, change = "current" or "revision"')
+            how = 'say how in [tool.texpkg.release] of pyproject.toml, output = "current" or "revision"'
+            if freeze:
+                raise DeclarationError(f"output changed: {how}", code="TP-C005")
+            typer.echo(f"output changed: {how}")
         if freeze:
             typer.echo(f"frozen: {snapshot.freeze(root)}")
+        if wheel is not None:
+            typer.echo(f"wheel: {contractswheel.build(dist, root, wheel)}")
     except TexpkgError as exc:
         typer.echo(f"error {exc.code}: {exc}" + (f"\n  hint: {exc.hint}" if exc.hint else ""), err=True)
         raise typer.Exit(1) from exc
