@@ -2,6 +2,7 @@
 does, and a consumer's type checker reads the generated module's own types."""
 
 import datetime
+import importlib.resources.abc
 import pathlib
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal, Protocol, runtime_checkable
@@ -51,6 +52,7 @@ class PackageModule(Protocol):
     def CONTRACTS(self) -> Contracts: ...  # noqa: N802
     @property
     def kinds(self) -> KindsModule: ...
+    def asset_path(self, relative: pathlib.PurePosixPath) -> importlib.resources.abc.Traversable: ...
     def export(
         self, dest: pathlib.Path | str, *, now: datetime.datetime | None = None, stamp: str | None = None
     ) -> tuple[pathlib.Path, ...]: ...

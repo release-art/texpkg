@@ -2,6 +2,7 @@
 
 import pathlib
 import sys
+from pathlib import PurePosixPath
 from types import ModuleType
 from typing import Annotated
 
@@ -181,3 +182,10 @@ def test_a_fit_declares_its_lengths_where_the_adoption_scanner_reads_them():
 
     sty = load_declaration("acme_sheet:dist", version="5.0.0")._bound.RELEASE.sty["acme-sheet.sty"]
     assert {"asTitleSize", "asTitleLineSize", "asTitleTarget"} <= declared(sty)
+
+
+def test_asset_path_names_a_declared_asset_and_refuses_any_other(acme_brand_tex):
+    assert acme_brand_tex.asset_path(PurePosixPath("assets/NOTICE.txt")).is_file()
+    with pytest.raises(FileNotFoundError, match=r"assets/lockup\.pdf") as refused:
+        acme_brand_tex.asset_path(PurePosixPath("assets/nope.txt"))
+    assert getattr(refused.value, "code", "") == "TP-A005"

@@ -96,7 +96,7 @@ def _kind_source(dist: Distribution, kind: Kind) -> str:
     root = kind.model.__name__
     return _module(f"""
         from collections.abc import Mapping, Sequence
-        from pathlib import Path
+        from pathlib import Path, PurePosixPath
         from typing import Any, Final, Literal, Never
 
         from texmodel.plan import Edit as Edit, EditKind as EditKind, FieldEdit as FieldEdit
@@ -231,7 +231,8 @@ def sources(
             "__init__.py": _module(f"""
                 import datetime
                 from collections.abc import Mapping, Sequence
-                from pathlib import Path
+                from importlib.resources.abc import Traversable
+                from pathlib import Path, PurePosixPath
                 from typing import Any, Final
 
                 from texpkg.document import Document
@@ -249,12 +250,17 @@ def sources(
                     "Migrated",
                     "Unresolved",
                     "__version__",
+                    "asset_path",
                     "dist",
                     "export",
                     "kinds",
                     "load",
                     "migration",{all_public}
                 ]
+
+
+                def asset_path(relative: PurePosixPath) -> Traversable:
+                    return RELEASE.asset_path(relative)
 
 
                 def export(

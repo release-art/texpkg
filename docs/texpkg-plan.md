@@ -391,6 +391,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 |---|---|---|---|
 | kinds listed | `acme_tex.kinds.names() -> tuple[str, ...]` | decided | P26 |
 | kinds by name | `acme_tex.kinds.modules() -> Mapping[str, KindModule]` | decided | P26 |
+| asset path | `acme_tex.asset_path(relative: PurePosixPath) -> Traversable` | decided: the file of the declared `Asset.path` without an export; `TP-A005` (`FileNotFoundError`) lists the declared assets otherwise | A1 |
 | plain-LaTeX export | `acme_tex.export(dest: Path \| str, *, now: datetime \| None = None, stamp: str \| None = None) -> tuple[Path, ...]` | decided: writes the package's `.sty`, those of its bases and every asset (in the layout, A2), refused whole if a file is missing; one template `.tex` per kind and a README: proposed | E1, A3 |
 | any kind | `acme_tex.load(path: Path \| str, *, migrations: Sequence[Migration] = (), default_changes: DefaultChange \| Mapping[str, DefaultChange] = DefaultChange.FOLLOW) -> Document[Any]` | decided as a nice-to-have | P26, V23 |
 | release version | `acme_tex.__version__: str` | decided | V1 |

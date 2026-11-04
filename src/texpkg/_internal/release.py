@@ -30,6 +30,7 @@ from ..errors import (
     NewerDataError,
     NotADocumentError,
     NotAllowedError,
+    PayloadError,
 )
 from ..layout import LAYOUT
 from ..migration import DefaultChange, Migration
@@ -160,6 +161,19 @@ class Release:
         everything.write(root)
         directory.write(root, directory.differing(root, texts))
         return tuple(root / name for name in sorted(listing))
+
+    def asset_path(self, relative: pathlib.PurePosixPath) -> importlib.resources.abc.Traversable:
+        """The shipped file of the declared asset `relative` (the `Asset.path`), without writing anything."""
+        declared = [r.asset.path for r in self.dist.resolved_assets()]
+        for found in self.dist.resolved_assets():
+            if pathlib.PurePosixPath(found.asset.path) == relative:
+                return found.source
+        raise PayloadError(
+            f"{str(relative)!r} is not a declared asset of {self.dist.name}; declared: {', '.join(declared) or 'none'}",
+            code="TP-A005",
+            path=str(relative),
+            hint="pass the path given to Asset(path, ...)",
+        )
 
     def payload(self, kind: Kind, provenance: Mapping[str, str] | None = None) -> payload.Payload:
         """The payload of a document of `kind`: the `.sty` files, the provenance files if given, the assets."""

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-04
+
+### Added
+
+- `acme_tex.asset_path(relative: PurePosixPath)` returns the `Traversable` of a declared asset (`Asset.path`) without an export; `TP-A005` (a `FileNotFoundError`) names the declared assets when `relative` is none of them.
+
 ## [0.5.0] - 2026-11-01
 
 ### Added
