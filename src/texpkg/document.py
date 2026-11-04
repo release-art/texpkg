@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from texmodel import drift
 from texmodel.components import AnyValue, Command, Environment
+from texmodel.package import declared, redefined
 from texmodel.plan import Edit
 from texmodel.preamble import PreambleSlots
 from texmodel.restore import (
@@ -18,11 +19,11 @@ from texmodel.restore import (
 )
 
 from . import provenance
-from ._internal import directory, handedits, state
+from ._internal import directory, handedits, provenance_tex, state
 from ._internal.state import Extras
 from .contracts import Pair
 from .declaration import Kind
-from .errors import DeclarationError, HandEditError, NotADocumentError
+from .errors import DeclarationError, HandEditError, NotADocumentError, StyEditError
 from .layout import LAYOUT
 
 if TYPE_CHECKING:
@@ -72,13 +73,36 @@ class TemplateChange:
     new: object
 
 
+@enum.unique
+class OverrideKind(enum.StrEnum):
+    LOCAL = "local"  # `<name>-local.sty`, read after the package (O1)
+    SHADOW = "shadow"  # a `<name>.sty` in the document's root, which TeX reads in place of the package's (O4)
+
+
+@dataclasses.dataclass(frozen=True)
+class Override:
+    """A file that changes a package's TeX for one document (O1, O4). `names` are what it redefines with
+    `\\renewcommand` and its kin, and `unknown` those of them no package of the stack declares: a hint, as a kernel
+    command is one and TeX refuses a name that does not exist (O7). `against` is the release of the package when a save
+    last saw this text, `None` until one has; `stale` says the package's `.sty` has changed since (O6)."""
+
+    path: pathlib.Path
+    kind: OverrideKind
+    text: str
+    names: tuple[str, ...] = ()
+    unknown: tuple[str, ...] = ()
+    against: str | None = None
+    stale: bool = False
+
+
 @dataclasses.dataclass(frozen=True)
 class Check:
     """What a `save` would change, and nothing changed to find out (P29, A4). A file that is `EXTRA` is reported, but a
-    save removes nothing, so it does not make the document not current."""
+    save removes nothing, so it does not make the document not current; nor do its `overrides`, which a save keeps."""
 
     files: Mapping[pathlib.Path, FileState]
     edits: tuple[HandEdit, ...] = ()
+    overrides: tuple[Override, ...] = ()
 
     @property
     def current(self) -> bool:
@@ -97,6 +121,38 @@ class Stack:
     """The packages a document was rendered through, the top one first: its lockfile (V18)."""
 
     entries: tuple[StackEntry, ...]
+
+
+@dataclasses.dataclass(frozen=True)
+class Sty:
+    """A package's `.sty` as the build rendered it (P4), with the installed release of that package and, read for a
+    document, what overrides it there (O3)."""
+
+    package: str
+    release: str
+    name: str
+    text: str
+    overrides: tuple[Override, ...] = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class StyStack:
+    """The `.sty` of a package and of those it builds on, the top one first (P32): `acme_tex.STY`."""
+
+    entries: tuple[Sty, ...]
+
+    @property
+    def top(self) -> Sty:
+        return self.entries[0]
+
+    @property
+    def bases(self) -> tuple[Sty, ...]:
+        return self.entries[1:]
+
+    @property
+    def overrides(self) -> tuple[Override, ...]:
+        """Every override of the stack, the top one's first: none means the package's own TeX."""
+        return tuple(o for sty in self.entries for o in sty.overrides)
 
 
 class Document[T: Command | Environment]:
@@ -139,6 +195,14 @@ class Document[T: Command | Environment]:
         template = json.loads(saved) if saved else self._release.template(self._kind)
         return Stack(tuple(StackEntry(e["package"], e["release"], Pair(*e["output"])) for e in template["stack"]))
 
+    @property
+    def sty(self) -> StyStack:
+        """The `.sty` stack of the release, each with what overrides it in this directory (O3)."""
+        stack = self._release.sty_stack()
+        return StyStack(
+            tuple(dataclasses.replace(sty, overrides=self._overrides_of(sty, stack)) for sty in stack.entries)
+        )
+
     def render(self, variant: str | None = None) -> str:
         """The `.tex` of the document, complete: pure, nothing is written. Raises an `ExceptionGroup` of texmodel
         `ValidationError` when the tree breaks a rule."""
@@ -161,6 +225,70 @@ class Document[T: Command | Environment]:
         )
         return Document(self.tree if tree is None else tree, self.path, self._release, self._kind, extras)
 
+    def _saved(self) -> dict[str, Any]:
+        """The template state on disk, empty when nothing is saved yet."""
+        saved = directory.read(self.path, directory.TEMPLATE)
+        return json.loads(saved) if saved else {}
+
+    def _overrides_of(self, sty: Sty, stack: StyStack) -> tuple[Override, ...]:
+        """The files that override `sty` here: a root copy, and the local file wherever TeX can find it."""
+        recorded: Mapping[str, Mapping[str, str]] = self._saved().get("overrides", {})
+        local = provenance_tex.local_name(sty.name.removesuffix(".sty"))
+        found: list[Override] = []
+        for kind, rel in (
+            (OverrideKind.SHADOW, sty.name),
+            (OverrideKind.LOCAL, local),
+            (OverrideKind.LOCAL, self._release.layout_path(local)),
+        ):
+            text = directory.read(self.path, rel)
+            if text is not None:
+                seen = recorded.get(rel, {})
+                same = seen.get("text") == state.digest(text)
+                names = tuple(sorted(redefined(text)))
+                known = frozenset(name for entry in stack.entries for name in declared(entry.text))
+                found.append(
+                    Override(
+                        self.path / rel,
+                        kind,
+                        text,
+                        names,
+                        tuple(name for name in names if name not in known),
+                        seen["release"] if same else None,
+                        same and seen["sty"] != state.digest(sty.text),
+                    )
+                )
+        return tuple(found)
+
+    def _override_records(self) -> dict[str, dict[str, str]]:
+        """What a save records of the overrides (O6): a text it has seen keeps its record, so a save does not hide
+        that the package moved on; a new text is taken to be written against the installed release."""
+        recorded = self._saved().get("overrides", {})
+        records: dict[str, dict[str, str]] = {}
+        for sty in self.sty.entries:
+            for override in sty.overrides:
+                rel = override.path.relative_to(self.path).as_posix()
+                records[rel] = (
+                    recorded[rel]
+                    if override.against is not None
+                    else {
+                        "release": sty.release,
+                        "sty": state.digest(sty.text),
+                        "text": state.digest(override.text),
+                    }
+                )
+        return records
+
+    def _edited_sty(self) -> tuple[pathlib.Path, ...]:
+        """The `.sty` of the payload that are not what a save last wrote (O8). A new release's differ from the files on
+        disk too, so the comparison is with the hashes saved, not with the release."""
+        found: list[pathlib.Path] = []
+        for name, saved in self._saved().get("sty", {}).items():
+            rel = self._release.layout_path(name)
+            text = directory.read(self.path, rel)
+            if text is not None and state.digest(text) != saved:
+                found.append(self.path / rel)
+        return tuple(found)
+
     def _expected(self, stamp: str, time: str) -> dict[str, str | bytes]:
         """Every file a save writes, by path in the directory."""
         files = provenance.files(self._release, stamp, time)
@@ -168,7 +296,7 @@ class Document[T: Command | Environment]:
         return (
             payload.expected()
             | self._release.rendered(self._kind, self.tree, self._extras)
-            | self._release.states(self._kind, self.tree, self._extras)
+            | self._release.states(self._kind, self.tree, self._extras, self._override_records())
         )
 
     def _fixed(self, variant: str | None) -> dict[str, Any]:
@@ -225,13 +353,14 @@ class Document[T: Command | Environment]:
 
     def save(self, *, now: datetime.datetime | None = None, stamp: str | None = None, force: bool = False) -> None:
         """Write the states, the `.tex` of every variant with its plan, and the payload of the kind: only what changed,
-        and a history entry only when the states did (P29). Raises `HandEditError`, writing nothing, when a `.tex` was
-        edited by hand, unless `force`. Nothing is written if the tree or the payload is not whole.
+        and a history entry only when the states did (P29). Raises `HandEditError` when a `.tex` was edited by hand and
+        `StyEditError` when a `.sty` of the payload was, writing nothing, unless `force`. Nothing is written if the tree
+        or the payload is not whole. A local override is the consumer's: it is recorded, never written (O1, O6).
 
         The provenance files carry `stamp` (default: the release's version, V4) and the time of `now` (default: the
         clock, N4). Their time is kept while the stamp and the rest of the payload are as they were."""
         rendered = self._release.rendered(self._kind, self.tree, self._extras)
-        states = self._release.states(self._kind, self.tree, self._extras)
+        states = self._release.states(self._kind, self.tree, self._extras, self._override_records())
         wanted = provenance.stamp_of(stamp, self._release)
         bare = self._release.payload(self._kind)
         bare.complete()
@@ -245,6 +374,13 @@ class Document[T: Command | Environment]:
                 f"{len(edits)} hand-edited line(s) in {files}: not overwritten",
                 edits=edits,
                 hint="doc.hand_edits() lists them; save(force=True) overwrites them",
+            )
+        if not force and (edited := self._edited_sty()):
+            names = ", ".join(sorted(path.name for path in edited))
+            raise StyEditError(
+                f"{names}: edited in the payload, not overwritten",
+                files=edited,
+                hint="move the change to a <name>-local.sty beside the document; save(force=True) overwrites it",
             )
         payload.write(self.path)
         directory.write(self.path, directory.differing(self.path, rendered))
@@ -270,7 +406,7 @@ class Document[T: Command | Environment]:
                 else FileState.UNCHANGED
             )
         files |= {self.path / rel: FileState.EXTRA for rel in report.orphaned}
-        return Check(files, self.hand_edits())
+        return Check(files, self.hand_edits(), self.sty.overrides)
 
     def template_changes(self) -> tuple[TemplateChange, ...]:
         """What the installed release changes for this document against the template state it was saved with (D4)."""
@@ -280,9 +416,16 @@ class Document[T: Command | Environment]:
                 f"{self.path}: no {directory.TEMPLATE}", code="TP-D001", path=str(self.path), hint="save the document"
             )
         old, new = _flat(json.loads(saved)), _flat(self._release.template(self._kind))
-        return tuple(
+        changed = [
             TemplateChange(key, old.get(key), new.get(key)) for key in sorted(old | new) if old.get(key) != new.get(key)
-        )
+        ]
+        stale = [
+            TemplateChange(f"override {o.path.name}", o.against, sty.release)
+            for sty in self.sty.entries
+            for o in sty.overrides
+            if o.stale
+        ]
+        return (*changed, *stale)
 
 
 def _flat(template: dict[str, Any]) -> dict[str, Any]:

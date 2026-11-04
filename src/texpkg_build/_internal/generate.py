@@ -243,11 +243,13 @@ def sources(
                 from ._version import CONTRACTS, VERSION
 
                 __version__: Final = VERSION
+                STY: Final = RELEASE.sty_stack()
                 dist: Final = RELEASE.dist  # for a package built on this one (P14)
                 __all__ = [
                     "CONTRACTS",
                     "DefaultChange",
                     "Migrated",
+                    "STY",
                     "Unresolved",
                     "__version__",
                     "asset_path",

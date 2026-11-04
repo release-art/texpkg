@@ -7,6 +7,8 @@ A consumer catches the built-in base (`ValueError`, `FileNotFoundError`) or the 
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    import pathlib
+
     from .document import HandEdit
     from .migration import Unresolved
 
@@ -64,6 +66,14 @@ class NotAllowedError(TexpkgError, ValueError):
     def __init__(self, message: str, *, items: "tuple[dict[str, Any], ...]", hint: str = "") -> None:
         super().__init__(message, code="TP-D007", hint=hint)
         self.items = items
+
+
+class StyEditError(TexpkgError, ValueError):
+    """`save` found a `.sty` of the payload that differs from what was last written (O8). `files` lists them."""
+
+    def __init__(self, message: str, *, files: "tuple[pathlib.Path, ...]", hint: str = "") -> None:
+        super().__init__(message, code="TP-D009", hint=hint)
+        self.files = files
 
 
 class HandEditError(TexpkgError, ValueError):

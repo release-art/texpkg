@@ -369,6 +369,41 @@ mode presets that a deck cannot set.
   of the `interface` snapshot (V11), so removing or renaming one is breaking and adding one compatible; each variant's
   rendered example joins the `output` fingerprint (**decided**).
 
+### Local overrides
+
+A consumer, or an agent working for one, changes how a package's TeX behaves for one document without a new release: to
+draft a change for the package's author, or as a one-off. All of it is **decided** and built.
+
+- O1 **One file per package, beside the document**: `<name>-local.sty` in the document's root. Every package's `.sty` ends
+  with `\InputIfFileExists{<name>-local.sty}{...}{}`, after the provenance file, so what it holds runs once the package is
+  defined and before the definitions of a dependent's `.sty`, which requires it first. A change to the brand goes in the brand's file, and that file is what goes to
+  the brand's author. `save` never writes it or removes it.
+- O2 **It changes behaviour, not structure.** A `\renewcommand` reaches what a `.sty` defines. A grammar, a field or a
+  kind stays a change to the package or a profile (L4). What the `.sty` used while loading has already run.
+- O3 **The document reports it, in the `.sty` stack.** `acme_tex.STY` (P32) describes the wheel and knows no directory, so its
+  `Sty.overrides` is `()`. `doc.sty` is the same `StyStack` read for a document, each `Sty` with its `overrides`, and
+  `doc.sty.overrides` lists them all, top first: one test for "is this document on the package's own TeX?". `check` carries
+  them as `Check.overrides`; they do not make a document not current, since a save keeps them.
+- O4 **A whole-file copy counts too.** TeX finds a root `<name>.sty` before `\input@path`, so a copy there replaces the
+  package outright. `doc.sty` reports it as an `Override` of kind `SHADOW`, the file's kind being `LOCAL`. A local file under
+  the layout's directory is found too, as TeX finds it there.
+- O5 **The PDF says so.** The hook itself sets `\<prefix>ProvenanceLocal`, so a file added after `save` still counts:
+  `\<prefix>ProvenanceInfo` prints "local overrides" and the PDF's Info gets `/<Prefix>Overrides`. A pipeline decides what to
+  do about it (a print job refuses, a proof does not); texpkg reports and refuses nothing (L5). A root copy has no hook to
+  run, so only `doc.sty` tells of it.
+- O6 **A release shows what it invalidates.** `save` records each override in the template state (`overrides`, absent when
+  there are none) with the release and the `.sty` hash of its package. A text it has seen keeps its record, so saving does not
+  clear a stale override; a new text is taken to be written against the installed release. `Override.against` is that release
+  (`None` until a save has seen the text) and `Override.stale` says the `.sty` has changed since; `template_changes()` lists
+  it (D4). The check is per file: a new release that leaves the overridden macro alone still reads as stale.
+- O7 **What it redefines is read, not declared.** `Override.names` are what the file redefines with `\renewcommand`,
+  `\renewenvironment` and xparse's renewals (texmodel's `redefined`), not a `\def` or `\let`. `Override.unknown` are those no
+  package of the stack declares. It is a hint: a kernel command is one, and TeX refuses a `\renewcommand` of a name that does
+  not exist.
+- O8 **`save` refuses an edited `.sty`.** A `.sty` of the payload that differs from what the last save recorded is someone's
+  work: `save` raises `StyEditError`, as for a hand-edited `.tex` (D8), and `force=True` overwrites it. The comparison is with
+  the saved hash, not the release, whose `.sty` a new release changes anyway. The hint names `<name>-local.sty`.
+
 ## 4a. API reference
 
 Every name a consumer or an author touches, with its status. **decided**: agreed with the maintainer; **proposed**: drafted
@@ -385,6 +420,11 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
   of another type or class, is breaking; a name added is compatible; a new value of the same type is a revision, since what the
   value drives shows in `data` and `output`. A migration cannot repair a removal: it rewrites stored documents, not code.
 
+- P32 **A package publishes its `.sty` files** (**decided**): `acme_tex.STY` is a `StyStack`, the `.sty` of the package and of
+  those it builds on as the build rendered them (P4), the top one first as in `doc.stack` (V18). Each `Sty` names the installed
+  release of its package, which may be newer than the one the dependent was built on (P16). A provenance file is not among
+  them: `save` and `export` write it.
+
 ### Consumer side: the package module (`acme_tex`)
 
 | Name | Signature | Status | Ref |
@@ -392,6 +432,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | kinds listed | `acme_tex.kinds.names() -> tuple[str, ...]` | decided | P26 |
 | kinds by name | `acme_tex.kinds.modules() -> Mapping[str, KindModule]` | decided | P26 |
 | asset path | `acme_tex.asset_path(relative: PurePosixPath) -> Traversable` | decided: the file of the declared `Asset.path` without an export; `TP-A005` (`FileNotFoundError`) lists the declared assets otherwise | A1 |
+| `.sty` files | `acme_tex.STY: StyStack` (`.top`, `.bases`, `.entries`, top first); `Sty(package, release, name, text)` | decided | P32 |
 | plain-LaTeX export | `acme_tex.export(dest: Path \| str, *, now: datetime \| None = None, stamp: str \| None = None) -> tuple[Path, ...]` | decided: writes the package's `.sty`, those of its bases and every asset (in the layout, A2), refused whole if a file is missing; one template `.tex` per kind and a README: proposed | E1, A3 |
 | any kind | `acme_tex.load(path: Path \| str, *, migrations: Sequence[Migration] = (), default_changes: DefaultChange \| Mapping[str, DefaultChange] = DefaultChange.FOLLOW) -> Document[Any]` | decided as a nice-to-have | P26, V23 |
 | release version | `acme_tex.__version__: str` | decided | V1 |
@@ -426,6 +467,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | defaults | `doc.defaults` (which values are still the package's defaults) | decided | V21 |
 | stack | `doc.stack: Stack` | decided | V18 |
 | template changes | `doc.template_changes() -> tuple[TemplateChange, ...]`: what a new release changes for this document (a preset, a lock, a default, the `.sty`); `TemplateChange(setting, old, new)` | decided (field names proposed) | D4, D6 |
+| `.sty` files | `doc.sty: StyStack`: `acme_tex.STY` read for this directory, each `Sty` with its `overrides: tuple[Override, ...]`, and `StyStack.overrides`, all of them top first; `Override(path, kind, text, names, unknown, against, stale)`, `kind`: `LOCAL`, `SHADOW` | decided | O3, O4, O6, O7 |
 | new tree | `doc.replace(tree: T \| None = None, *, settings=None, options=None, preamble=None) -> Document[T]`: what is not given stays | decided | P23, D10 |
 
 ### TeX side: provenance
@@ -434,6 +476,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 |---|---|---|---|
 | print it | `\<prefix>ProvenanceInfo`: "acme-tex 2.0.0, stamp …, materialised …", the parts that are empty left out | decided (a command); name proposed | V2 |
 | its parts | `\<prefix>ProvenanceStamp`, `\<prefix>ProvenanceTime`, empty in the `.sty`, renewed by the provenance file | proposed | V2 |
+| local overrides | `\<prefix>ProvenanceLocal`, empty in the `.sty`, set when `<name>-local.sty` is read; `/<Prefix>Overrides` in the PDF's Info | decided | O5 |
 | the file | `<name>-provenance.sty`, written by `save` and `export`, loaded by the package when present | decided (behaviour); name proposed | V2 |
 
 ### Results and errors
@@ -444,6 +487,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | `MigrationError` | raised by `load`; `.unresolved: tuple[Unresolved, ...]`, each with its `data` boundary (`4 → 5`) and release | decided | V31 |
 | `KindMismatchError` | raised by `<kind>.load` on another kind's directory; `.found`, `.expected` | decided | P26 |
 | `NewerDataError` | data written for a newer `data` version than this release | decided | V14 |
+| `StyEditError` | raised by `save` when a `.sty` of the payload differs from what it last wrote; `.files: tuple[Path, ...]` | decided | O8 |
 | `HandEditError` | raised by `save` when a `.tex` differs from its saved plan; `.edits: tuple[HandEdit, ...]` | decided | D8 |
 | `NotAllowedError` | raised by `create` and `replace` for a setting, option or preamble entry the kind does not allow; `.items`, each with its data `path`, `reason` and `value` | decided | D10 |
 | `NotADocumentError`, `PayloadError` | no state in the directory; a payload that cannot be written whole | decided | P27, A3 |
@@ -895,6 +939,8 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | A kind's document is a texmodel tree; a pydantic root with a render function is not supported, because `Plan`, hand edits, the defaults marks and the schemas need nodes | decided |
 | A document does not carry its package's version as a field; the stack in `template.json` and the provenance command do | decided |
 | The version is a constant the build writes into the module, never read from metadata at run time | decided |
+| A package's `.sty` files are read from `acme_tex.STY`, an ordered stack, top first; `asset_path` stays for declared assets | decided |
+| A document's local overrides are one `<name>-local.sty` per package, reported by `doc.sty`; the hook marks the PDF; `save` refuses an edited payload `.sty` | decided |
 
 ## 10. Open questions
 
@@ -904,3 +950,6 @@ components today (`spec`), so each kind's state model is one of those, extended.
 3. **Starting a texpkg package.** A template project, or only the docs and the test examples.
 4. **Design points to revisit:** `state["$unresolved"]` as the way a later migration sees earlier leftovers; the `output`
    fingerprint rendering the `.sty` at a fixed version; the `next` snapshot one release behind after a freeze.
+5. **Local overrides.** Whether a package can turn the hook off (proposed: no, a root copy works regardless, O4); whether a
+   stale override should be judged per macro rather than per file, which needs the definitions read (O6).
+6. **A public form of a field's type.** `_internal/fieldkinds.py` imports texmodel's private `FieldType` (N5).

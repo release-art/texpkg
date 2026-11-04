@@ -95,7 +95,7 @@ def test_a_new_stamp_or_a_changed_payload_materialises_again(doc):
     doc.save(now=LATER, stamp="other")
     assert "2026-10-26T12:30:05Z" in (doc.path / FILE).read_text()
     (doc.path / "res/texpkg/acme-brand.sty").write_text("edited")
-    doc.save(now=NOW + datetime.timedelta(days=2), stamp="other")
+    doc.save(now=NOW + datetime.timedelta(days=2), stamp="other", force=True)
     assert "2026-10-27T12:30:05Z" in (doc.path / FILE).read_text()
 
 

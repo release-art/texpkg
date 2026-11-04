@@ -170,19 +170,21 @@ def schema(kind: Kind, package: Package, mode: Mode) -> dict[str, Any]:
 
 
 def _fields(node: Command | Environment | Passthrough) -> dict[str, Any]:
-    return node.model_dump(mode="json", exclude={"content"})
+    """Every field's value as data: `to_dict` writes the fields a node was given, so it is given them all."""
+    whole = node.copy(**{a.name: getattr(node, a.name) for a in type(node).__tm_args__})
+    return {name: value for name, value in spec.to_dict(whole).items() if name not in ("type", "content")}
 
 
 def tree_state(node: Node) -> dict[str, Any]:
     """The state of a tree: every value written (V21), and for each node the fields that hold the package's defaults in
-    `$defaults` (V24), known from `model_fields_set`, which says what the caller passed (V25)."""
+    `$defaults` (V24), known from `fields_set`, which says what the caller passed (V25)."""
     if isinstance(node, Comment):
         return {"type": type(node).__name__} | {f: getattr(node, f) for f in node.__tm_fields__}
     if isinstance(node, Passthrough):
         return {"type": "Passthrough"} | _fields(node)
     fields = _fields(node)
     out: dict[str, Any] = {"type": type(node).__name__} | fields
-    if defaulted := [name for name in fields if name not in node.model_fields_set]:
+    if defaulted := [name for name in fields if name not in node.fields_set]:
         out[DEFAULTS] = defaulted
     if isinstance(node, Environment):
         out["content"] = [tree_state(child) for child in node.content]
@@ -191,7 +193,7 @@ def tree_state(node: Node) -> dict[str, Any]:
 
 def given(state: dict[str, Any]) -> dict[str, Any]:
     """`state` as the caller would have passed it: the fields marked as defaults left out, so the model fills them with
-    its current defaults and `model_fields_set` is what the author set (V27)."""
+    its current defaults and `fields_set` is what the author set (V27)."""
     out = {k: v for k, v in state.items() if k not in (DEFAULTS, *state.get(DEFAULTS, ()))}
     if "content" in out:
         out["content"] = [given(child) for child in out["content"]]
@@ -208,7 +210,7 @@ def default_paths(node: Node, path: str = "") -> tuple[str, ...]:
     """The data paths of the fields that hold defaults (`/content/1/accent`), in document order."""
     if isinstance(node, Comment):
         return ()
-    own = tuple(f"{path}/{name}" for name in _fields(node) if name not in node.model_fields_set)
+    own = tuple(f"{path}/{name}" for name in _fields(node) if name not in node.fields_set)
     if isinstance(node, Environment):
         return own + tuple(
             p for i, child in enumerate(node.content) for p in default_paths(child, f"{path}/content/{i}")
@@ -227,6 +229,10 @@ def defaults_table(model: Model) -> dict[str, Any]:
     return dict(sorted(table.items()))
 
 
+def digest(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def sty_hashes(sty: Mapping[str, str]) -> dict[str, str]:
     """The `.sty` files the template state records by hash, not by value (D6)."""
-    return {name: hashlib.sha256(text.encode("utf-8")).hexdigest() for name, text in sorted(sty.items())}
+    return {name: digest(text) for name, text in sorted(sty.items())}

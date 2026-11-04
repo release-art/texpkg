@@ -19,10 +19,9 @@ from typing import Any
 from texmodel import history
 from texmodel.components import Command, Environment, Value, control_name
 from texmodel.errors import DeclarationError as TexmodelDeclarationError
-from texmodel.interface import Body
 
 from texpkg import errors
-from texpkg._internal import classify, state
+from texpkg._internal import classify, fieldkinds, state
 from texpkg._internal.release import Release
 from texpkg._internal.versions import Versions
 from texpkg.declaration import Distribution
@@ -43,17 +42,12 @@ def _sha(data: str | bytes) -> str:
     return hashlib.sha256(data.encode("utf-8") if isinstance(data, str) else data).hexdigest()
 
 
-def _body(body: Body) -> str:
-    """What an argument holds, without a `Choice`'s members (they belong to the data contract, not the interface)."""
-    return body.kind.value + (f" {body.choice.__name__}" if body.choice else "")
-
-
 def _component(cls: type) -> dict[str, Any]:
     plain: type = cls  # `cls` is narrowed below; the name lookups want the declared type
     entry: dict[str, Any] = {"doc": str(getattr(cls, "__tm_doc__", ""))}
     if issubclass(cls, Command | Environment):
         entry["kind"] = "environment" if issubclass(cls, Environment) else "command"
-        entry["signature"] = [[a.name, _body(a.body), a.optional] for a in cls.__tm_args__]
+        entry["signature"] = [[a.name, fieldkinds.label(a.type), a.optional] for a in cls.__tm_args__]
     elif issubclass(cls, Value):
         entry["kind"] = "value"
         entry["type"] = cls.__tm_kind__.name

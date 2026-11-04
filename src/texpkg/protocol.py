@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from .contracts import Changes, Contracts
-from .document import Document
+from .document import Document, StyStack
 from .migration import DefaultChange, Migration
 
 
@@ -50,6 +50,8 @@ class PackageModule(Protocol):
     def __version__(self) -> str: ...
     @property
     def CONTRACTS(self) -> Contracts: ...  # noqa: N802
+    @property
+    def STY(self) -> StyStack: ...  # noqa: N802
     @property
     def kinds(self) -> KindsModule: ...
     def asset_path(self, relative: pathlib.PurePosixPath) -> importlib.resources.abc.Traversable: ...

@@ -22,7 +22,7 @@ from .. import provenance
 from ..assets import Role
 from ..contracts import Changes, Contracts
 from ..declaration import Distribution, Kind
-from ..document import Document
+from ..document import Document, Sty, StyStack
 from ..errors import (
     DeclarationError,
     DocumentExistsError,
@@ -76,6 +76,11 @@ class Release:
             {"package": r.dist.name, "release": r.version, "output": list(dataclasses.astuple(r.contracts.output))}
             for r in self.releases()
         ]
+
+    def sty_stack(self) -> StyStack:
+        """The `.sty` of this package and of those it builds on, this one first (P32)."""
+        names = [(r, f"{r.dist.package.name}.sty") for r in self.releases()]
+        return StyStack(tuple(Sty(r.dist.name, r.version, name, r.sty[name]) for r, name in names))
 
     def layout_path(self, name: str) -> str:
         """Where the layout puts the package file `name` in a document directory."""
@@ -211,12 +216,20 @@ class Release:
             "stack": self.stack(),
         }
 
-    def states(self, kind: Kind, tree: Node, extras: Extras = Extras()) -> dict[str, str]:  # noqa: B008
-        """The pair of states `save` and `create` write (D1)."""
+    def states(
+        self,
+        kind: Kind,
+        tree: Node,
+        extras: Extras = Extras(),  # noqa: B008
+        overrides: Mapping[str, Mapping[str, str]] | None = None,
+    ) -> dict[str, str]:
+        """The pair of states `save` and `create` write (D1), the template state with what a save saw of the local
+        overrides (O6); without any it has no such entry."""
         envelope = Envelope(
             self.dist.name, kind.name, self.contracts.data.current, state.tree_state(tree), state.extras_state(extras)
         )
-        return {directory.STATE: envelope.to_text(), directory.TEMPLATE: dumps(self.template(kind))}
+        template = self.template(kind) | ({"overrides": overrides} if overrides else {})
+        return {directory.STATE: envelope.to_text(), directory.TEMPLATE: dumps(template)}
 
     def read(self, path: pathlib.Path) -> Envelope:
         """The envelope of the document in `path`, refused if it is another package's or not readable (K3)."""

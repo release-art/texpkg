@@ -70,6 +70,45 @@ async def test_a_profile_document_compiles_as_the_base_kind_it_expands_to(acme_b
     (await compiler.compile(tmp_path / "doc" / "brief.tex", tmp_path / "out")).raise_for_status()
 
 
+# -- local overrides -----------------------------------------------------------------------------------------
+
+
+async def test_each_packages_local_file_runs_after_it_and_marks_the_pdf(acme_brand_tex, compiler, tmp_path):
+    import pikepdf
+
+    module = load_declaration("acme_deck:dist", version="2.0.0")
+    slide = module.kinds.modules()["slide"]
+    root = tmp_path / "doc"
+    slide.create(root, slide.example()).save()
+    (root / "acme-brand-local.sty").write_text(
+        "\\typeout{LOCAL: brand}\n\\renewcommand{\\abTitle}[1]{#1}\n"
+    )  # after the save
+    (root / "acme-deck-local.sty").write_text(
+        "\\typeout{LOCAL: deck}\n\\renewcommand{\\adHeading}[1]{\\typeout{OVERRIDDEN: #1}#1}\n"
+    )
+    source = root / "slide.tex"
+    text = source.read_text().replace(
+        "\\begin{document}", "\\typeout{PROVENANCE: \\abProvenanceInfo}\n\\begin{document}", 1
+    )
+    source.write_text(text)
+    result = await compiler.compile(source, tmp_path / "out")
+    result.raise_for_status()
+    log = result.log.read_text()
+    assert log.index("LOCAL: brand") < log.index("LOCAL: deck")
+    assert "local overrides" in log[log.index("PROVENANCE:") :].splitlines()[0] and "OVERRIDDEN: Hello" in log
+    with pikepdf.open(result.pdf) as pdf:
+        assert (str(pdf.docinfo["/AbOverrides"]), str(pdf.docinfo["/AdOverrides"])) == ("yes", "yes")
+
+
+async def test_a_root_copy_of_the_sty_is_what_tex_reads(acme_brand_tex, compiler, tmp_path):
+    root = saved(acme_brand_tex, "expert", tmp_path / "doc")
+    copy = (root / "res/texpkg/acme-brand.sty").read_text() + "\n\\typeout{ROOT COPY}\n"
+    (root / "acme-brand.sty").write_text(copy)
+    result = await compiler.compile(root / "deck.tex", tmp_path / "out")
+    result.raise_for_status()
+    assert "ROOT COPY" in result.log.read_text()
+
+
 # -- provenance --------------------------------------------------------------------------------------------
 
 

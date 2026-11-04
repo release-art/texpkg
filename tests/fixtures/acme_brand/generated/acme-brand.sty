@@ -80,9 +80,18 @@
 \makeatletter
 \def\abProvenanceStamp{}
 \def\abProvenanceTime{}
+\def\abProvenanceLocal{}
 \newcommand{\abProvenanceInfo}{%
   acme-brand 1.2.0%
   \ifx\abProvenanceStamp\@empty\else, stamp \abProvenanceStamp\fi
-  \ifx\abProvenanceTime\@empty\else, materialised \abProvenanceTime\fi}
+  \ifx\abProvenanceTime\@empty\else, materialised \abProvenanceTime\fi
+  \ifx\abProvenanceLocal\@empty\else, local overrides\fi}
 \InputIfFileExists{acme-brand-provenance.sty}{}{}
+\InputIfFileExists{acme-brand-local.sty}{%
+  \def\abProvenanceLocal{yes}%
+  \ifdefined\IfPDFManagementActiveTF
+    \IfPDFManagementActiveTF
+      {\csname pdfmanagement_add:nnn\endcsname{Info}{AbOverrides}{(yes)}}
+      {}%
+  \fi}{}
 \makeatother

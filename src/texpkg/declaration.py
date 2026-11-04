@@ -17,10 +17,10 @@ from typing import Any
 import pydantic
 from texmodel.components import AnyValue, Command, Environment, Node, Passthrough, Value
 from texmodel.document import OPTION
-from texmodel.interface import Body, BodyKind
 from texmodel.package import Package
 from texmodel.preamble import Entry, PreambleSlots
 
+from ._internal.fieldkinds import is_raw
 from .assets import Asset, Resolved
 from .errors import DeclarationError
 from .migration import Migration
@@ -80,10 +80,6 @@ class Design:
         return self.model.model_validate_json(text)
 
 
-def _raw(body: Body) -> bool:
-    return body.kind is BodyKind.RAW or any(_raw(item) for item in body.items)
-
-
 def reachable(model: Model) -> tuple[type[Command] | type[Environment], ...]:
     """`model` and every component its grammars name (`Passthrough` excluded), in the order they are first met."""
     found: dict[type[Command] | type[Environment], None] = {model: None}
@@ -104,7 +100,7 @@ def raw_holes(model: Model) -> tuple[str, ...]:
     `Class.Passthrough` for a grammar that accepts a `Passthrough`."""
     holes: list[str] = []
     for cls in reachable(model):
-        holes += [f"{cls.__name__}.{a.name}" for a in cls.__tm_args__ if _raw(a.body)]
+        holes += [f"{cls.__name__}.{a.name}" for a in cls.__tm_args__ if is_raw(a.type)]
         if issubclass(cls, Environment) and any(t.kind is Passthrough for t in cls.__tm_grammar__):
             holes.append(f"{cls.__name__}.Passthrough")
     return tuple(holes)

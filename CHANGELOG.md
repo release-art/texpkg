@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-04
+
+### Added
+
+- `acme_tex.STY`: a `StyStack` of the `.sty` of the package and of those it builds on, the top one first (`.top`, `.bases`, `.entries`). Each `Sty` has `package`, `release`, `name`, `text` and `overrides`.
+- Local overrides: a `<name>-local.sty` beside a document runs after that package's `.sty`, and `save` leaves it alone. `doc.sty` is the stack read for a document: `StyStack.overrides` lists each `Override` (`path`, `kind`, `text`, `names`, `unknown`, `against`, `stale`), `kind` `LOCAL`, or `SHADOW` for a root copy of a `.sty`. `Check.overrides` carries them, and `template_changes()` lists a stale one.
+- `\<prefix>ProvenanceInfo` says "local overrides" and the PDF's Info gets `/<Prefix>Overrides` when a local file is read.
+
+### Changed
+
+- Requires `texmodel>=0.13.0`.
+- Every package's `.sty` gains the local-override hook, so the output of every package changes: a rebuild is an `output` change.
+- `save` raises `StyEditError` (`TP-D009`) for a `.sty` of the payload that differs from what it last wrote, instead of overwriting it; `force=True` overwrites.
+
 ## [0.6.0] - 2026-11-04
 
 ### Added

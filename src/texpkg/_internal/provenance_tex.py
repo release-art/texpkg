@@ -16,24 +16,41 @@ def file_name(package: str) -> str:
     return f"{package}-provenance.sty"
 
 
+def local_name(package: str) -> str:
+    """The file a consumer writes beside a document to change `package` for that document (O1)."""
+    return f"{package}-local.sty"
+
+
 def info(package: str, version: str, stamp: str, time: str) -> str:
     """The text `\\<prefix>ProvenanceInfo` prints, parts that are empty left out."""
     return f"{package} {version}" + (f", stamp {stamp}" if stamp else "") + (f", materialised {time}" if time else "")
 
 
 def declarations(prefix: str, package: str, version: str) -> str:
-    """The block a package's `.sty` carries: both parts empty, the command that composes them, the file read if there.
+    """The block a package's `.sty` carries: the parts empty, the command that composes them, the provenance file read
+    if there, then the local overrides (O1), which mark the document themselves so a file added after a save counts
+    (O5).
     Declared with `\\def`, not `\\newcommand`, which makes a `\\long` macro: `\\ifx` against `\\@empty` never holds."""
+    key = prefix.capitalize() + "Overrides"
     return textwrap.dedent(
         rf"""
         \makeatletter
         \def\{prefix}ProvenanceStamp{{}}
         \def\{prefix}ProvenanceTime{{}}
+        \def\{prefix}ProvenanceLocal{{}}
         \newcommand{{\{prefix}ProvenanceInfo}}{{%
           {package} {version}%
           \ifx\{prefix}ProvenanceStamp\@empty\else, stamp \{prefix}ProvenanceStamp\fi
-          \ifx\{prefix}ProvenanceTime\@empty\else, materialised \{prefix}ProvenanceTime\fi}}
+          \ifx\{prefix}ProvenanceTime\@empty\else, materialised \{prefix}ProvenanceTime\fi
+          \ifx\{prefix}ProvenanceLocal\@empty\else, local overrides\fi}}
         \InputIfFileExists{{{file_name(package)}}}{{}}{{}}
+        \InputIfFileExists{{{local_name(package)}}}{{%
+          \def\{prefix}ProvenanceLocal{{yes}}%
+          \ifdefined\IfPDFManagementActiveTF
+            \IfPDFManagementActiveTF
+              {{\csname pdfmanagement_add:nnn\endcsname{{Info}}{{{key}}}{{(yes)}}}}
+              {{}}%
+          \fi}}{{}}
         \makeatother
         """
     ).strip()

@@ -118,7 +118,7 @@ def test_a_value_the_author_set_to_the_default_stays_the_authors(expert, tmp_pat
     assert doc.defaults == ("/content/1/content/2/accent",)
     loaded = expert.load(tmp_path)
     assert loaded.defaults == doc.defaults
-    assert loaded.tree.content[1].content[1].model_fields_set == {"text", "accent"}  # pyright: ignore[reportAttributeAccessIssue]
+    assert loaded.tree.content[1].content[1].fields_set == {"text", "accent"}  # pyright: ignore[reportAttributeAccessIssue]
     raw = json.loads((tmp_path / "_texpkg" / "state.json").read_text())["tree"]["content"][1]["content"]
     assert "$defaults" not in raw[1] and raw[2]["$defaults"] == ["accent"] and raw[2]["accent"] == "SLATE"
 

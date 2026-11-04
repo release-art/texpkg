@@ -184,6 +184,24 @@ def test_a_fit_declares_its_lengths_where_the_adoption_scanner_reads_them():
     assert {"asTitleSize", "asTitleLineSize", "asTitleTarget"} <= declared(sty)
 
 
+def test_sty_is_the_packages_own_file_with_no_bases(acme_brand_tex):
+    stack = acme_brand_tex.STY
+    assert (stack.top.package, stack.top.release, stack.top.name) == ("acme-brand-tex", "1.2.0", "acme-brand.sty")
+    assert stack.top.text == acme_brand_tex._bound.RELEASE.sty["acme-brand.sty"] and stack.bases == ()
+
+
+def test_sty_lists_a_dependent_first_and_each_base_at_its_own_release(acme_brand_tex):
+    stack = load_declaration("acme_deck:dist", version="2.0.0").STY
+    try:
+        assert [(s.name, s.release) for s in stack.entries] == [("acme-deck.sty", "2.0.0"), ("acme-brand.sty", "1.2.0")]
+        assert stack.top is stack.entries[0] and stack.bases == stack.entries[1:]
+        assert stack.bases[0] == acme_brand_tex.STY.top
+        assert "\\ProvidesPackage{acme-deck}" in stack.top.text
+    finally:
+        for name in [n for n in sys.modules if n.split(".")[0] in ("acme_deck_tex", "acme_deck")]:
+            del sys.modules[name]
+
+
 def test_asset_path_names_a_declared_asset_and_refuses_any_other(acme_brand_tex):
     assert acme_brand_tex.asset_path(PurePosixPath("assets/NOTICE.txt")).is_file()
     with pytest.raises(FileNotFoundError, match=r"assets/lockup\.pdf") as refused:

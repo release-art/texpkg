@@ -10,6 +10,12 @@ What texpkg does not do yet, and what it cannot do because of the layer below.
 - **A profile reaches its base's values through the base's `_declaration`.** A kind module exports the classes a tree is
   made of, the value types they use and the kind's own `settable` values, not the package's other settings (`FactGap`), so a profile that locks one imports it from
   `<base module>._declaration`.
+- **A local override goes stale by file, not by macro.** `Override.stale` says the package's `.sty` changed, not that the
+  overridden macro did (plan O6). `Override.names` reads `\renewcommand` and its kin, not `\def` or `\let` (plan O7).
+- **A field's type is read through texmodel's internals.** It has no public form of `FieldType`, so `_internal/fieldkinds.py`
+  imports it, and a texmodel release can move it (`tests/test_fieldkinds.py` shows what is relied on; N5).
+- **An override is seen where a document's directory holds it.** A `<name>-local.sty` or `<name>.sty` elsewhere on TeX's search
+  path (`TEXINPUTS`) is not reported, and a root copy of a `.sty` does not mark the PDF (plan O4, O5).
 - **A lock holds at the Python API only** (L5): a hand-written document can still `\renewcommand` a locked value.
 - **Computed dynamic imports are not seen.** The build refuses `importlib.import_module("texmodel...")` with a literal, not
   one with a computed name.
