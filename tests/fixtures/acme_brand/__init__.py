@@ -3,7 +3,7 @@
 import dataclasses
 import pathlib
 
-from texmodel.preamble import PdfInfo, RequireMetadata
+from texmodel.preamble import GraphicsPath, InputIfExists
 from texmodel.types import CMYK, Length
 
 from texpkg import Asset, Distribution, Kind, Role, Variant
@@ -42,7 +42,7 @@ dist = Distribution(
             variants=(Variant("compact", (Compact(True),)), Variant("wide", (FactGap(Length("6mm")),))),
             settable=(Ink,),
             options=("a4paper", "landscape"),
-            preamble=(RequireMetadata, PdfInfo),
+            preamble=(InputIfExists, GraphicsPath),
         ),
         Kind("vocab", Glossary, presets=(Ink(CMYK(0, 0, 0, 0.8)),), example=vocab_example),
     ),

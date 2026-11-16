@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-16
+
+### Added
+
+- A document carries texmodel's `metadata` (`RequireMetadata`) and `pdf` (`PdfInfo`): `create(..., metadata=, pdf=)`, `doc.replace(metadata=, pdf=)`, `doc.metadata`, `doc.pdf`, stored as texmodel's `metadata` and `pdf` objects. `Kind(metadata=, pdf=)` fixes them for every document of the kind (a profile's falls back to its base kind's); a document that sets a fixed one is refused (`TP-D007`). The template state records them, so `template_changes()` shows a release that changes them.
+- `texpkg.document_metadata(to=N)`: the migration that moves a stored `RequireMetadata` or `PdfInfo` preamble entry to the document's `metadata` or `pdf`.
+
+### Changed
+
+- Requires `texmodel>=0.22.0`.
+- `RequireMetadata` and `PdfInfo` are no longer preamble entries, as in texmodel 0.19: `Kind(preamble=)` refuses them (`TP-K023`) and `locked_preamble` cannot hold them; `Kind(metadata=OutputIntent(...).metadata(dir))` replaces a locked `RequireMetadata`. A kind that allowed either has a breaking `data` change: bump `data` and list `document_metadata(to=N)` in `Kind(migrations=)`.
+- A profile that fixes `metadata` or `pdf` its base kind fixes is `TP-K024`.
+
 ## [0.7.0] - 2026-11-04
 
 ### Added

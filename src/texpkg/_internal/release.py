@@ -16,7 +16,7 @@ from texmodel.components import AnyValue, Command, Environment, Node
 from texmodel.document import Document as TexDocument
 from texmodel.package import Package, setting_line
 from texmodel.plan import Plan
-from texmodel.preamble import PreambleSlots
+from texmodel.preamble import PdfInfo, PreambleSlots, RequireMetadata
 
 from .. import provenance
 from ..assets import Role
@@ -129,12 +129,15 @@ class Release:
 
     def texdocument(self, kind: Kind, tree: Node, variant: str | None, extras: Extras = Extras()) -> TexDocument:  # noqa: B008
         """`tree` as texmodel's document: the kind's presets, then the variant's settings (L8), then the document's own
-        settings (D10); in each preamble slot the fixed entries, then the document's own."""
-        found, own = self.fixed_preamble(kind), extras.preamble
+        settings (D10); the kind's `metadata` and `pdf`, else the document's; in each preamble slot the fixed entries,
+        then the document's own."""
+        found, own, fixed = self.fixed_preamble(kind), extras.preamble, self.dist.fixed_document(kind)
         return TexDocument(
             tree if kind.expand is None else kind.expand(tree),
             options=kind.class_options(extras.options, variant),
             settings=(*self.settings(kind, variant), *extras.settings),
+            metadata=fixed.metadata or extras.metadata,
+            pdf=fixed.pdf or extras.pdf,
             preamble=PreambleSlots(
                 before_class=(*found.before_class, *own.before_class),
                 before_package=(*found.before_package, *own.before_package),
@@ -196,8 +199,9 @@ class Release:
 
     def template(self, kind: Kind) -> dict[str, Any]:
         """The package as a document of `kind` meets it (D6): the settings each `.tex` is written with, the defaults the
-        kind's classes have, the `.sty` by hash, and the stack (V18). Not the design file."""
-        c = self.contracts
+        kind's classes have, the `.sty` by hash, the stack (V18) and the `metadata` and `pdf` the kind fixes. Not the
+        design file."""
+        c, fixed = self.contracts, self.dist.fixed_document(kind)
         return {
             "package": self.dist.name,
             "release": self.version,
@@ -214,7 +218,7 @@ class Release:
             "kind_defaults": self.kind_defaults_state(kind),
             "sty": state.sty_hashes(self.sty),
             "stack": self.stack(),
-        }
+        } | state.extras_state(Extras(metadata=fixed.metadata, pdf=fixed.pdf))
 
     def states(
         self,
@@ -291,15 +295,22 @@ class KindApi[T: Command | Environment]:
             )
         self.release, self.kind = release, kind
 
-    def extras(self, settings: Sequence[AnyValue], options: Sequence[str], preamble: PreambleSlots | None) -> Extras:
+    def extras(
+        self,
+        settings: Sequence[AnyValue],
+        options: Sequence[str],
+        preamble: PreambleSlots | None,
+        metadata: RequireMetadata | None = None,
+        pdf: PdfInfo | None = None,
+    ) -> Extras:
         """What a document carries besides its tree, refused whole if the kind does not allow it (D10)."""
-        found = Extras(tuple(options), tuple(settings), preamble or PreambleSlots())
-        if items := state.not_allowed(self.kind, found):
+        found = Extras(tuple(options), tuple(settings), preamble or PreambleSlots(), metadata, pdf)
+        if items := state.not_allowed(self.kind, found, self.release.dist.fixed_document(self.kind)):
             shown = "; ".join(f"{i['path']}: {i['reason']}" for i in items)
             raise NotAllowedError(
                 f"kind {self.kind.name}: {shown}",
                 items=tuple(items),
-                hint="the kind lists what a document may set: Kind(settable=, options=, preamble=)",
+                hint="a kind lists what a document may set (settable=, options=, preamble=) and fixes metadata=, pdf=",
             )
         return found
 
@@ -311,6 +322,8 @@ class KindApi[T: Command | Environment]:
         settings: Sequence[AnyValue] = (),
         options: Sequence[str] = (),
         preamble: PreambleSlots | None = None,
+        metadata: RequireMetadata | None = None,
+        pdf: PdfInfo | None = None,
     ) -> Document[T]:
         """A document in `path` (made if need be) with both states written; refuses a directory that holds one."""
         path = pathlib.Path(path)
@@ -323,7 +336,7 @@ class KindApi[T: Command | Environment]:
             )
         if problems := tree.violations():
             raise ExceptionGroup("invalid document", [v.error() for v in problems])
-        extras = self.extras(settings, options, preamble)
+        extras = self.extras(settings, options, preamble, metadata, pdf)
         directory.write(path, self.release.states(self.kind, tree, extras))
         return Document(tree, path, self.release, self.kind, extras)
 
@@ -351,6 +364,7 @@ class KindApi[T: Command | Environment]:
         tree, extras = adopt(
             kind=self.kind,
             package=self.release.dist.owner(self.kind.name).package,
+            fixed=self.release.dist.fixed_document(self.kind),
             envelope=envelope,
             current=self.release.contracts.data.current,
             age=self.release.contracts.data.age,
@@ -364,7 +378,8 @@ class KindApi[T: Command | Environment]:
         return Document(cast("T", tree), path, self.release, self.kind, extras)
 
     def schema(self, mode: state.Mode) -> dict[str, Any]:
-        return state.schema(self.kind, self.release.dist.owner(self.kind.name).package, mode)
+        dist = self.release.dist
+        return state.schema(self.kind, dist.owner(self.kind.name).package, mode, dist.fixed_document(self.kind))
 
     def example(self) -> T:
         return cast("T", self.kind.example())

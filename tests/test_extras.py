@@ -1,4 +1,4 @@
-"""What a document carries besides its tree: settings, options and preamble entries its kind allows (D10)."""
+"""What a document carries besides its tree: settings, options, metadata, pdf and preamble entries (D10)."""
 
 import json
 import sys
@@ -8,17 +8,19 @@ from acme_brand import Compact, FactGap, Ink
 from jsonschema import Draft202012Validator
 from texmodel import history
 from texmodel.history import Level
-from texmodel.preamble import InputPath, PdfInfo, PreambleSlots, RequireMetadata
+from texmodel.preamble import InputIfExists, InputPath, PdfInfo, PreambleSlots, RequireMetadata
 from texmodel.types import CMYK, Length
 
-from texpkg import Migrated, migration
+from texpkg import Migrated, document_metadata, migration
 from texpkg._internal import state
 from texpkg.contracts import Contracts, Triple
 from texpkg.errors import MigrationError, NotAllowedError
 from texpkg_build.testing import load_declaration
 
 GREY = Ink(CMYK(0, 0, 0, 0.5))
-SLOTS = PreambleSlots(before_class=(RequireMetadata(pdfversion="2.0"),), after_package=(PdfInfo(Title="Rex"),))
+SLOTS = PreambleSlots(after_package=(InputIfExists("acme-notes.tex"),))
+META = RequireMetadata(pdfversion="2.0")
+INFO = PdfInfo(title="Rex")
 
 
 @pytest.fixture
@@ -28,31 +30,45 @@ def expert(acme_brand_tex):
 
 @pytest.fixture
 def doc(expert, tmp_path):
-    return expert.create(tmp_path / "doc", expert.example(), settings=[GREY], options=["a4paper"], preamble=SLOTS)
+    return expert.create(
+        tmp_path / "doc",
+        expert.example(),
+        settings=[GREY],
+        options=["a4paper"],
+        preamble=SLOTS,
+        metadata=META,
+        pdf=INFO,
+    )
 
 
-def test_a_document_carries_the_settings_options_and_preamble_its_kind_allows(doc):
-    assert (doc.settings, doc.options, doc.preamble) == ((GREY,), ("a4paper",), SLOTS)
+def test_a_document_carries_the_settings_options_metadata_pdf_and_preamble_its_kind_allows(doc):
+    assert (doc.settings, doc.options, doc.preamble, doc.metadata, doc.pdf) == (
+        (GREY,),
+        ("a4paper",),
+        SLOTS,
+        META,
+        INFO,
+    )
     text = doc.render()
     lines = text.splitlines()
-    assert lines[1] == "\\DocumentMetadata{pdfversion=2.0}" and lines[2] == "\\documentclass[a4paper]{article}"
+    assert lines[1:3] == ["\\DocumentMetadata{pdfversion=2.0}", "\\documentclass[a4paper]{article}"]
+    assert "\\InputIfFileExists{acme-notes.tex}{}{}" in lines
     assert lines.index("\\setlength{\\abFactGap}{3mm}") < lines.index(
         "\\definecolor{ab-ink}{cmyk}{0,0,0,0.5}"
     )  # presets first
-    assert lines.index("\\graphicspath{{}{res/texpkg/}}") < lines.index(
-        r"\csname pdfmanagement_add:nnn\endcsname{Info}{Title}{(\detokenize{Rex})}"
-    )
+    assert r"\csname pdfmanagement_add:nnn\endcsname{Info}{Title}{(\detokenize{Rex})}" in lines
 
 
 def test_they_are_stored_beside_the_tree_in_texmodels_shapes_and_come_back(doc, expert):
     doc.save()
     envelope = json.loads((doc.path / "_texpkg/state.json").read_text())
-    assert list(envelope) == ["package", "kind", "data", "tree", "settings", "options", "preamble"]
+    assert list(envelope) == ["package", "kind", "data", "tree", "settings", "options", "metadata", "pdf", "preamble"]
     assert envelope["settings"] == [{"type": "Ink", "value": {"c": 0.0, "m": 0.0, "y": 0.0, "k": 0.5}}]
     assert envelope["options"] == ["a4paper"]
-    assert envelope["preamble"]["after_package"] == [{"type": "PdfInfo", "entries": {"Title": "Rex"}}]
+    assert (envelope["metadata"], envelope["pdf"]) == ({"pdfversion": "2.0"}, {"title": "Rex"})
     again = expert.load(doc.path)
     assert again.options == doc.options and again.preamble == doc.preamble
+    assert (again.metadata, again.pdf) == (META, INFO)
     assert [type(v) for v in again.settings] == [Ink] and again.settings[0].value == GREY.value
     assert again.render() == doc.render() and again.check().current
 
@@ -60,7 +76,13 @@ def test_they_are_stored_beside_the_tree_in_texmodels_shapes_and_come_back(doc, 
 def test_a_document_with_none_stores_none(expert, tmp_path):
     plain = expert.create(tmp_path / "plain", expert.example())
     assert list(json.loads((plain.path / "_texpkg/state.json").read_text())) == ["package", "kind", "data", "tree"]
-    assert (plain.settings, plain.options, plain.preamble) == ((), (), PreambleSlots())
+    assert (plain.settings, plain.options, plain.preamble, plain.metadata, plain.pdf) == (
+        (),
+        (),
+        PreambleSlots(),
+        None,
+        None,
+    )
 
 
 def test_replace_changes_what_is_given_and_keeps_the_rest(doc):
@@ -68,6 +90,7 @@ def test_replace_changes_what_is_given_and_keeps_the_rest(doc):
     assert other.options == ("landscape",) and other.settings == doc.settings and other.preamble == doc.preamble
     assert doc.replace(settings=[]).settings == () and doc.replace(preamble=PreambleSlots()).preamble == PreambleSlots()
     assert doc.replace().render() == doc.render()
+    assert doc.replace(pdf=PdfInfo(title="Fox")).pdf == PdfInfo(title="Fox") and doc.replace().metadata == META
 
 
 @pytest.mark.parametrize(
@@ -105,10 +128,11 @@ def test_a_hand_edit_of_a_line_the_document_wrote_is_found_at_its_data_path(doc)
     text = text.replace("\\definecolor{ab-ink}{cmyk}{0,0,0,0.5}", "\\definecolor{ab-ink}{cmyk}{0,0,0,0.9}")
     text = text.replace("{Title}{(\\detokenize{Rex})}", "{Title}{(\\detokenize{Fox})}")
     text = text.replace("\\setlength{\\abFactGap}{3mm}", "\\setlength{\\abFactGap}{9mm}")
+    text = text.replace("pdfversion=2.0", "pdfversion=1.7")
     text = text.replace("\\documentclass[a4paper]", "\\documentclass[a5paper]")
     tex.write_text(text)
     paths = {e.path for e in doc.hand_edits()}
-    assert {"/settings/0", "/preamble/after_package/0"} <= paths  # the document's own lines
+    assert {"/settings/0", "/pdf", "/metadata"} <= paths  # the document's own lines
     assert "settings[0]" in paths and not any(p.startswith("/settings/") and p != "/settings/0" for p in paths)
     assert "header" in paths or any("documentclass" in e.edit.found for e in doc.hand_edits())  # the class line
     assert {e.path: e.locked for e in doc.hand_edits() if e.path.startswith(("/settings/", "settings["))} == {
@@ -119,15 +143,20 @@ def test_a_hand_edit_of_a_line_the_document_wrote_is_found_at_its_data_path(doc)
 
 def test_the_stored_schema_describes_what_the_kind_allows(expert, acme_brand_tex):
     stored = expert.schema("serialization")
-    assert set(stored["properties"]) == {"tree", "settings", "options", "preamble"} and stored["required"] == ["tree"]
+    assert set(stored["properties"]) == {"tree", "settings", "options", "metadata", "pdf", "preamble"}
+    assert stored["required"] == ["tree"] and stored["properties"]["pdf"] == {"$ref": "#/$defs/PdfInfoData"}
     assert stored["properties"]["options"]["items"] == {"enum": ["a4paper", "landscape"]}
     assert [r["$ref"] for r in stored["properties"]["settings"]["items"]["oneOf"]] == ["#/$defs/InkSetting"]
     slot = stored["properties"]["preamble"]["properties"]["after_package"]["items"]["oneOf"]
-    assert [r["$ref"] for r in slot] == ["#/$defs/RequireMetadataEntry", "#/$defs/PdfInfoEntry"]
-    assert {"InkSetting", "PdfInfoEntry", "RequireMetadataEntry", "Deck"} <= set(stored["$defs"])
+    assert [r["$ref"] for r in slot] == ["#/$defs/InputIfExistsEntry", "#/$defs/GraphicsPathEntry"]
+    assert {"InkSetting", "InputIfExistsEntry", "MetadataData", "PdfInfoData", "Deck"} <= set(stored["$defs"])
     assert "FactGapSetting" not in stored["$defs"]  # only what the kind allows, with what those name
     plain = acme_brand_tex.kinds.modules()["vocab"].schema()
-    assert set(plain["properties"]) == {"tree"}
+    assert set(plain["properties"]) == {
+        "tree",
+        "metadata",
+        "pdf",
+    }  # a kind that fixes neither leaves them to the document
     validator = Draft202012Validator(stored)
     data = json.loads(
         json.dumps({"tree": state.tree_state(expert.example()), **state.extras_state(state.Extras((), (GREY,)))})
@@ -203,6 +232,43 @@ def test_stored_extras_texmodel_cannot_read_are_unresolved_with_their_value(doc,
     assert by_path["/settings/1/value"].value is None  # nothing stored there
     assert by_path["/settings/0"].value == {"type": "Nope", "value": 1} and by_path["/options/0"].value == "!"
     assert "Nope" in by_path["/settings/0"].reason
+
+
+OLD_METADATA = {
+    "type": "RequireMetadata",
+    "entries": {"lang": "en", "pdfstandard": "A-2b, X-4", "colorprofiles": "A=res/a.icc,X=res/x.icc", "tagging": "on"},
+}
+OLD_PDF = {"type": "PdfInfo", "entries": {"Title": "Rex", "Keywords": "fox, owl", "Trapped": "False"}}
+
+
+def test_document_metadata_moves_the_old_slot_entries_to_metadata_and_pdf(doc):
+    doc.save()
+    notes = {"type": "InputIfExists", "name": "acme-notes.tex"}
+    stored_with(
+        doc, metadata=None, pdf=None, preamble={"before_class": [OLD_METADATA], "after_package": [OLD_PDF, notes]}
+    )
+    newer = load_declaration("acme_brand:dist", version="1.3.0", contracts=Contracts(data=Triple(2)))
+    try:
+        moved = newer.kinds.modules()["expert"].load(doc.path, migrations=[document_metadata(to=2)])
+        assert moved.metadata == RequireMetadata(
+            lang="en",
+            pdfstandard=("A-2b", "X-4"),
+            colorprofiles={"A": "res/a.icc", "X": "res/x.icc"},
+            extra={"tagging": "on"},
+        )
+        assert moved.pdf == PdfInfo(title="Rex", keywords=("fox", "owl"), extra={"Trapped": "False"})
+        assert moved.preamble == SLOTS
+    finally:
+        for name in [n for n in sys.modules if n.split(".")[0] == "acme_brand_tex"]:
+            del sys.modules[name]
+
+
+def test_document_metadata_drops_a_preamble_it_empties_and_leaves_a_state_without_one():
+    move = document_metadata(to=2)
+    state = {"$extras": {"preamble": {"after_package": [{"type": "PdfInfo", "entries": {"Author": "Ann"}}]}}}
+    assert move(state).state == {"$extras": {"pdf": {"author": "Ann"}}}
+    assert move({"$extras": {}}).state == {"$extras": {}}
+    assert move({}).state == {}
 
 
 @pytest.mark.tex

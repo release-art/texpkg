@@ -2,7 +2,7 @@
 
 from .assets import Asset, Role
 from .declaration import Design, Distribution, Kind, Variant
-from .migration import DefaultChange, Migrated, Unresolved, migration
+from .migration import DefaultChange, Migrated, Unresolved, document_metadata, migration
 
 __all__ = [
     "Asset",
@@ -14,5 +14,6 @@ __all__ = [
     "Role",
     "Unresolved",
     "Variant",
+    "document_metadata",
     "migration",
 ]

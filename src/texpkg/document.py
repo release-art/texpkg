@@ -12,7 +12,7 @@ from texmodel import drift
 from texmodel.components import AnyValue, Command, Environment
 from texmodel.package import declared, redefined
 from texmodel.plan import Edit
-from texmodel.preamble import PreambleSlots
+from texmodel.preamble import PdfInfo, PreambleSlots, RequireMetadata
 from texmodel.restore import (
     Restored,
     restore as restore_edits,
@@ -180,6 +180,16 @@ class Document[T: Command | Environment]:
         return self._extras.preamble
 
     @property
+    def metadata(self) -> RequireMetadata | None:
+        """The document's own `\\DocumentMetadata` keys; a kind that fixes them writes its own instead."""
+        return self._extras.metadata
+
+    @property
+    def pdf(self) -> PdfInfo | None:
+        """What the document's PDF says about itself; a kind that fixes it writes its own instead."""
+        return self._extras.pdf
+
+    @property
     def kind(self) -> str:
         return self._kind.name
 
@@ -215,13 +225,17 @@ class Document[T: Command | Environment]:
         settings: Sequence[AnyValue] | None = None,
         options: Sequence[str] | None = None,
         preamble: PreambleSlots | None = None,
+        metadata: RequireMetadata | None = None,
+        pdf: PdfInfo | None = None,
     ) -> "Document[T]":
-        """The same document, in the same directory, with another tree, and the settings, options or preamble given;
-        what is not given stays. Refused whole if the kind does not allow what is given (D10)."""
+        """The same document, in the same directory, with another tree, and the settings, options, preamble, metadata
+        or pdf given; what is not given stays. Refused whole if the kind does not allow what is given (D10)."""
         extras = self._release.kind(self._kind.name, self._kind.model).extras(
             self._extras.settings if settings is None else settings,
             self._extras.options if options is None else options,
             self._extras.preamble if preamble is None else preamble,
+            self._extras.metadata if metadata is None else metadata,
+            self._extras.pdf if pdf is None else pdf,
         )
         return Document(self.tree if tree is None else tree, self.path, self._release, self._kind, extras)
 
@@ -300,10 +314,12 @@ class Document[T: Command | Environment]:
         )
 
     def _fixed(self, variant: str | None) -> dict[str, Any]:
-        """What the kind fixes in a document of `variant`: for `handedits`, its locked settings and leading entries."""
+        """What the kind fixes in a document of `variant`: for `handedits`, its locked settings, leading entries and the
+        document fields it writes itself."""
         return {
             "locked": len(self._release.settings(self._kind, variant)),
             "leading": self._release.fixed_preamble(self._kind),
+            "fields": state.fixed_fields(self._release.dist.fixed_document(self._kind)),
         }
 
     def _data_path(self, plan_path: str, variant: str | None) -> str:
@@ -440,6 +456,7 @@ def _flat(template: dict[str, Any]) -> dict[str, Any]:
         }
         | {f"default {name}": value for name, value in template["defaults"].items()}
         | {f"sty {name}": digest for name, digest in template["sty"].items()}
+        | {name: template[name] for name in ("metadata", "pdf") if name in template}
         | {
             f"package {e['package']}": f"{e['release']} (output {e['output'][0]}.{e['output'][1]})"
             for e in template["stack"]

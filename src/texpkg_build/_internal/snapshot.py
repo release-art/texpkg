@@ -77,10 +77,10 @@ def build(dist: Distribution, release: Release, sty: Mapping[str, str]) -> dict[
     examples: dict[str, str] = {}
     for kind in dist.kinds_offered():
         files[f"kinds/{kind.name}.input.schema.json"] = _dumps(
-            state.schema(kind, dist.owner(kind.name).package, "validation")
+            state.schema(kind, dist.owner(kind.name).package, "validation", dist.fixed_document(kind))
         )
         files[f"kinds/{kind.name}.stored.schema.json"] = _dumps(
-            state.schema(kind, dist.owner(kind.name).package, "serialization")
+            state.schema(kind, dist.owner(kind.name).package, "serialization", dist.fixed_document(kind))
         )
         tree = kind.example()
         files[f"examples/{kind.name}.json"] = _dumps(state.tree_state(tree))

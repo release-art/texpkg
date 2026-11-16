@@ -71,3 +71,65 @@ def migration(*, to: int) -> Callable[[MigrationFunction], Migration]:
         return Migration(to, function)
 
     return wrap
+
+
+_INFO = ("title", "author", "subject", "keywords", "producer", "creator")  # `PdfInfo`'s Info fields, lower-case
+
+
+def _parts(text: str) -> list[str]:
+    return [part.strip() for part in text.split(",") if part.strip()]
+
+
+def _metadata(entries: dict[str, str]) -> dict[str, Any]:
+    """The `metadata` object of an old `RequireMetadata` entry's keys: a comma list is a list, `colorprofiles` a
+    mapping of subtype to file, a key with no field `extra`."""
+    found: dict[str, Any] = {}
+    extra: dict[str, str] = {}
+    for key, value in entries.items():
+        if key in ("lang", "pdfversion"):
+            found[key] = value
+        elif key == "pdfstandard":
+            found[key] = _parts(value)
+        elif key == "colorprofiles":
+            found[key] = {subtype: path for subtype, _, path in (part.partition("=") for part in _parts(value))}
+        else:
+            extra[key] = value
+    return found | ({"extra": extra} if extra else {})
+
+
+def _pdf(entries: dict[str, str]) -> dict[str, Any]:
+    """The `pdf` object of an old `PdfInfo` entry's keys: an Info key with a field is that field (`Title` is `title`,
+    `Keywords` a list), any other `extra`."""
+    found: dict[str, Any] = {}
+    extra: dict[str, str] = {}
+    for key, value in entries.items():
+        if key.lower() == "keywords":
+            found["keywords"] = _parts(value)
+        elif key.lower() in _INFO:
+            found[key.lower()] = value
+        else:
+            extra[key] = value
+    return found | ({"extra": extra} if extra else {})
+
+
+def document_metadata(*, to: int) -> Migration:
+    """The migration of a document saved with texmodel before 0.19, whose `RequireMetadata` and `PdfInfo` were preamble
+    entries: they become the document's `metadata` and `pdf`. A package lists it on each kind whose documents could
+    carry them, at the `data` version that first has `metadata` and `pdf`:
+    `Kind(migrations=[document_metadata(to=N)])`."""
+
+    def move(state: dict[str, Any]) -> Migrated:
+        extras: dict[str, Any] = state.get("$extras", {})
+        slots: dict[str, list[dict[str, Any]]] = extras.get("preamble", {})
+        for slot, entries in slots.items():
+            for entry in entries:
+                if entry.get("type") == "RequireMetadata":
+                    extras["metadata"] = _metadata(entry.get("entries", {}))
+                elif entry.get("type") == "PdfInfo":
+                    extras["pdf"] = _pdf(entry.get("entries", {}))
+            slots[slot] = [e for e in entries if e.get("type") not in ("RequireMetadata", "PdfInfo")]
+        if "preamble" in extras and not any(slots.values()):
+            del extras["preamble"]
+        return Migrated(state)
+
+    return Migration(to, move)

@@ -6,7 +6,7 @@ import pathlib
 # exported by its kinds).
 import acme_brand_tex  # pyright: ignore[reportMissingImports]
 from acme_brand_tex._declaration.model import FactGap, Ink  # pyright: ignore[reportMissingImports]
-from texmodel.preamble import PassOption, PreambleSlots, RequireMetadata
+from texmodel.preamble import PassOption, RequireMetadata
 from texmodel.types import CMYK, Length
 
 from texpkg import Asset, Distribution, Kind, Role, Variant
@@ -37,7 +37,7 @@ dist = Distribution(
             settable=(Ink,),
             defaults=(Ink(CMYK(0, 0, 0, 0.3)),),  # where a slide starts; a slide may set its own
             variants=(Variant("review", options=("draft",)),),
-            locked_preamble=PreambleSlots(before_class=(RequireMetadata(pdfversion="2.0"),)),  # every slide has it
+            metadata=RequireMetadata(pdfversion="2.0"),  # every slide has it
         ),
         Kind(
             "brief",

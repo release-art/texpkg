@@ -13,6 +13,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, cast
 
 from texmodel.components import Node
+from texmodel.document import Document as TexDocument
 from texmodel.history import problems, unplaced
 from texmodel.package import Package
 
@@ -26,7 +27,7 @@ from .state import Extras
 UNRESOLVED = (
     "$unresolved"  # in the state a migration gets: what the earlier ones left, as `{"path", "reason", "value"}`
 )
-EXTRAS = "$extras"  # in the state a migration gets: the document's `settings`, `options` and `preamble` (D10)
+EXTRAS = "$extras"  # in the state a migration gets: the document's `settings`, `options`, `metadata`, `pdf`, `preamble`
 
 
 def _policy(changes: DefaultChange | Mapping[str, DefaultChange], path: str, key: str) -> DefaultChange:
@@ -97,7 +98,9 @@ def _value_at(data: object, keys: list[str]) -> object:
     return data
 
 
-def _extras_problems(kind: Kind, package: Package, data: dict[str, Any]) -> tuple[Extras, list[dict[str, Any]]]:
+def _extras_problems(
+    kind: Kind, package: Package, data: dict[str, Any], fixed: TexDocument
+) -> tuple[Extras, list[dict[str, Any]]]:
     """The extras `data` describes and what stops them from being the kind's: texmodel's errors and what the kind
     does not allow, as unresolved items."""
     try:
@@ -108,7 +111,7 @@ def _extras_problems(kind: Kind, package: Package, data: dict[str, Any]) -> tupl
             keys = _data_path(str(getattr(e, "path", "")))
             found.append({"path": "/" + "/".join(keys), "reason": str(e), "value": _value_at(data, keys), "schema": {}})
         return Extras(), found
-    return extras, state.not_allowed(kind, extras)
+    return extras, state.not_allowed(kind, extras, fixed)
 
 
 def kind_default_changes(
@@ -148,6 +151,7 @@ def adopt(
     *,
     kind: Kind,
     package: Package,
+    fixed: TexDocument,
     envelope: Envelope,
     current: int,
     age: int,
@@ -175,7 +179,7 @@ def adopt(
                 extras_data = tree.pop(EXTRAS, {})
                 left = [*tree.pop(UNRESOLVED, []), *({**vars(u), "boundary": label} for u in result.unresolved)]
     schema = state.tree_schema(kind.model, "validation")
-    extras, found = _extras_problems(kind, package, extras_data)
+    extras, found = _extras_problems(kind, package, extras_data, fixed)
     left += [{**p, "boundary": "validation"} for p in found]
     if saved_kind_defaults is not None and not found:
         extras, asked = kind_default_changes(package, extras, saved_kind_defaults, kind_defaults or {}, policy)

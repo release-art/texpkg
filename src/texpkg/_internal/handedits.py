@@ -19,10 +19,12 @@ _SETTING = re.compile(r"settings\[(\d+)\]")
 _ENTRY = re.compile(r"preamble\.(before_class|before_package|after_package)\[(\d+)\]")
 
 
-def extra_path(plan_path: str, *, locked: int, leading: PreambleSlots) -> str:
-    """The data path of a line that a setting or a preamble entry of the document wrote (D10), or `""`: the kind's own
-    `locked` settings come first in the plan, then the document's, and the `leading` entries (the layout's and the
-    kind's locked ones) lead each preamble slot."""
+def extra_path(plan_path: str, *, locked: int, leading: PreambleSlots, fields: Sequence[str]) -> str:
+    """The data path of a line that a setting, a preamble entry, the `metadata` or the `pdf` of the document wrote
+    (D10), or `""`: the kind's own `locked` settings come first in the plan, then the document's, the `leading` entries
+    (the layout's and the kind's locked ones) lead each preamble slot, and the kind writes the `fields` it fixes."""
+    if plan_path in ("metadata", "pdf"):
+        return "" if plan_path in fields else f"/{plan_path}"
     if found := _SETTING.fullmatch(plan_path):
         return f"/settings/{int(found[1]) - locked}" if int(found[1]) >= locked else ""
     if found := _ENTRY.fullmatch(plan_path):
@@ -31,9 +33,11 @@ def extra_path(plan_path: str, *, locked: int, leading: PreambleSlots) -> str:
     return ""
 
 
-def is_locked(plan_path: str, *, locked: int, leading: PreambleSlots) -> bool:
-    """Whether the line is one the kind fixes: a setting among its `locked` ones, or an entry among the `leading` ones
-    of a preamble slot."""
+def is_locked(plan_path: str, *, locked: int, leading: PreambleSlots, fields: Sequence[str]) -> bool:
+    """Whether the line is one the kind fixes: a setting among its `locked` ones, an entry among the `leading` ones of
+    a preamble slot, or a document field it writes itself."""
+    if plan_path in fields:
+        return True
     if found := _SETTING.fullmatch(plan_path):
         return int(found[1]) < locked
     if found := _ENTRY.fullmatch(plan_path):

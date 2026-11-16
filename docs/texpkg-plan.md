@@ -223,13 +223,18 @@ The surface is specified in §4a; the requirements behind it follow.
   data path stays texpkg's: texmodel's `Edit.data_path` keeps the root step and does not know a kind's locked settings and
   preamble entries. A profile kind is refused (`TP-D008`): its tree is expanded before it is written.
 
-- D10 **A document carries its own settings, options and preamble entries, within what its kind allows** (**decided**).
-  texmodel 0.5 holds them in the tree (`Document(*content, options=, settings=, preamble=)`), so a document of a kind is
-  its root node (`doc.tree`) and `doc.settings`, `doc.options`, `doc.preamble`. A kind lists what a document may set:
-  `Kind(settable=(Ink,), options=("a4paper",), preamble=(PdfInfo,))`, none by default, and a document naming anything else
+- D10 **A document carries its own settings, options, metadata, PDF info and preamble entries, within what its kind
+  allows** (**decided**). texmodel holds them on its `Document(*content, options=, settings=, metadata=, pdf=, preamble=)`,
+  so a document of a kind is its root node (`doc.tree`) and `doc.settings`, `doc.options`, `doc.metadata`, `doc.pdf`,
+  `doc.preamble`, in texmodel's types and data shapes. `metadata` (a `RequireMetadata`) and `pdf` (a `PdfInfo`) are a
+  document's own unless the kind fixes them: `Kind(metadata=, pdf=)` (a profile's falls back to its base kind's) is
+  written into every document, is in no data, and a document that sets it is refused (`TP-D007`; unresolved at load). A
+  profile cannot fix what its base kind fixes (`TP-K024`), and `Kind(preamble=)` takes slot entries only (`TP-K023`). A
+  kind lists what else a document may set:
+  `Kind(settable=(Ink,), options=("a4paper",), preamble=(InputIfExists,))`, none by default, and a document naming anything else
   is refused whole (`NotAllowedError`, `TP-D007`, at `create` and `replace`; at `load` it is an unresolved item). A value
   is a preset or settable, not both (`TP-K017`): a preset (L8) stays written for every document and is in no data. Likewise
-  `Kind(locked_preamble=PreambleSlots(before_class=(RequireMetadata(lang="en"),)))` holds typed entries every document
+  `Kind(locked_preamble=PreambleSlots(before_class=(PassOption("xcolor", "table"),)))` holds typed entries every document
   is written with, in the slots given, after the layout's lines and the base kind's locked ones and before the document's
   own; they are in no data, and a document naming a locked class is refused (`NotAllowedError`, `TP-D007`; unresolved at
   load). An entry in a slot it does not fit, a `Raw`, a class locked twice or both locked and listed in `preamble`, and a
@@ -445,7 +450,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 |---|---|---|---|
 | the kind's classes | `expert.Deck`, `expert.Card`, … and the value types they use (`expert.Palette`, …) | decided; never the package's low-level components | P24 |
 | load | `expert.load(path: Path \| str, *, migrations: Sequence[Migration] = (), default_changes: DefaultChange \| Mapping[str, DefaultChange] = DefaultChange.FOLLOW) -> Document[Deck]` | decided: a directory, a `Path`; migrated atomically or raises; refuses a directory of another kind; writes nothing | P26, P27, V31, V32, D3 |
-| create | `expert.create(path: Path \| str, tree: Deck, *, settings=(), options=(), preamble=None) -> Document[Deck]`: refuses a directory that already holds a document; `settings` are typed as the kind's `settable` values, `options` as its `options` | decided: D10 | decided | P23 |
+| create | `expert.create(path: Path \| str, tree: Deck, *, settings=(), options=(), preamble=None, metadata=None, pdf=None) -> Document[Deck]`: refuses a directory that already holds a document; `settings` are typed as the kind's `settable` values, `options` as its `options` | decided: D10 | decided | P23 |
 | name | `expert.NAME: Final[str]` | decided | K1 |
 | schema | `expert.schema(mode: Literal["validation", "serialization"] = "validation") -> dict[str, Any]`: the data of a document, `{"tree": …}` and the `settings`, `options` and `preamble` the kind allows | decided | V26, D10 |
 | example | `expert.example() -> Deck` | decided | E1 |
@@ -457,7 +462,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | Name | Signature | Status | Ref |
 |---|---|---|---|
 | tree | `doc.tree: T` (frozen texmodel tree) | decided | P23, P28 |
-| settings, options, preamble | `doc.settings: tuple[Value, ...]`, `doc.options: tuple[str, ...]`, `doc.preamble: PreambleSlots`: what the document carries within what its kind allows | decided | D10 |
+| settings, options, metadata, pdf, preamble | `doc.settings: tuple[Value, ...]`, `doc.options: tuple[str, ...]`, `doc.metadata: RequireMetadata \| None`, `doc.pdf: PdfInfo \| None`, `doc.preamble: PreambleSlots`: what the document carries within what its kind allows | decided | D10 |
 | render | `doc.render(variant: str \| None = None) -> str` (pure: returns the `.tex`, writes nothing) | decided: a method, no module-level `render`; `variant=` decided (K6) | P28, K6 |
 | save | `doc.save(*, now: datetime \| None = None, stamp: str \| None = None, force: bool = False) -> None` (writes both states, history, the `.tex`, its plan and the payload; only what changed; `now` pins the provenance time, N4; raises `HandEditError` on a hand-edited `.tex` unless `force`) | decided | P29, D1–D3, D7, D8, N4 |
 | check | `doc.check(*, stamp: str \| None = None) -> Check` (never writes; reports hand edits too) | decided | P29, A4, D8 |
@@ -468,7 +473,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | stack | `doc.stack: Stack` | decided | V18 |
 | template changes | `doc.template_changes() -> tuple[TemplateChange, ...]`: what a new release changes for this document (a preset, a lock, a default, the `.sty`); `TemplateChange(setting, old, new)` | decided (field names proposed) | D4, D6 |
 | `.sty` files | `doc.sty: StyStack`: `acme_tex.STY` read for this directory, each `Sty` with its `overrides: tuple[Override, ...]`, and `StyStack.overrides`, all of them top first; `Override(path, kind, text, names, unknown, against, stale)`, `kind`: `LOCAL`, `SHADOW` | decided | O3, O4, O6, O7 |
-| new tree | `doc.replace(tree: T \| None = None, *, settings=None, options=None, preamble=None) -> Document[T]`: what is not given stays | decided | P23, D10 |
+| new tree | `doc.replace(tree: T \| None = None, *, settings=None, options=None, preamble=None, metadata=None, pdf=None) -> Document[T]`: what is not given stays | decided | P23, D10 |
 
 ### TeX side: provenance
 
@@ -498,6 +503,7 @@ package, `expert` for any of its kinds, `Deck` for that kind's root class.
 | Name | Signature | Status | Ref |
 |---|---|---|---|
 | decorator | `@migration(to: int)`: from `data` version `to - 1` to `to` | decided | V32 |
+| texmodel 0.19's move | `document_metadata(to: int) -> Migration`: moves a stored `RequireMetadata` or `PdfInfo` preamble entry to the document's `metadata` or `pdf`; a kind that allowed either lists it at the `data` version the move forces (the schema change is breaking) | decided | V32, D10 |
 | function | `(state: dict[str, Any]) -> Migrated`, plain data in, run before validation; the items earlier migrations left are in `state["$unresolved"]` (a list of `{path, reason, value, boundary}`), and the document's `settings`, `options` and `preamble` in `state["$extras"]`, which a migration may edit | decided; the `$unresolved` key proposed | V28, V32 |
 | result | `Migrated(state: dict[str, Any], unresolved: Sequence[Unresolved] = ())` | decided | V32 |
 | unresolved item | `Unresolved(path: str, reason: str, value: object)`; texpkg fills `.schema` (the new schema at that path) and `.boundary` | decided | V15, V32 |
@@ -524,7 +530,7 @@ Declaration types come from the run time (`texpkg`), never from `texpkg-build`: 
 | Name | Signature | Status | Ref |
 |---|---|---|---|
 | distribution | `Distribution(name, module, package, root=".", design=None, assets=(), kinds=(), base=None, expose=(), public="")`; `root` is the directory asset paths are relative to: a path relative to the module that calls `Distribution(...)` (default: its own directory) or absolute, inside the declaring package; its import name (`declared_in`) is read from the call. Symlinks are followed; outside the package: `TP-K013`, not a directory: `TP-K014`; `public`: a module of that package, `TP-K022` | proposed (fields, and the name `base=`); the base named by object, `expose=` explicit, none by default: decided | B1, P14, P20, P21 |
-| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="", settable=(), options=(), preamble=(), locked_preamble=PreambleSlots(), defaults=())`; `Variant(name, settings=(), options=())` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
+| kind | `Kind(name, model, presets, example, migrations=(), allow_raw=(), variants=(), expand=None, over=None, stem="", settable=(), options=(), preamble=(), locked_preamble=PreambleSlots(), defaults=(), metadata=None, pdf=None)`; `Variant(name, settings=(), options=())` | decided (`variants=` and `Variant` spelling proposed) | K1, V32, P25, K6 |
 | asset | `Asset(path, role: Role, why: str, kinds=())`; `Role`: `PACKAGE`, `GRAPHIC`, `FONT`, `BY_PATH`, `NOTE` | decided (`kinds=` spelling proposed) | A1, A6 |
 | embedded data | `Design(model: type[BaseModel], path: str)` | decided | L1 |
 | default policy | `DefaultChange.FOLLOW`, `.FREEZE`, `.ASK`: an `@enum.unique` enum (a `StrEnum`, so one package's value equals another's), passed by the consumer to `load(default_changes=...)`; the `FOLLOW` default and the per-path mapping are proposed | decided | V23 |
@@ -934,6 +940,7 @@ components today (`spec`), so each kind's state model is one of those, extended.
 | A hand edit is a line of the `.tex` against the plan saved with it, indentation included (texmodel 0.8 indents a body by depth): a document saved by an earlier release is not hand-edited, `check` lists its files as changed and `save` rewrites them | decided |
 | A package publishes JSON-like, dataclass or pydantic constants (`public=`, `acme_tex.public`, `TP-K022`, `TP-B014`): part of the `interface` snapshot, a removal breaks | decided |
 | A kind locks preamble entries every document is written with (`locked_preamble`, a `PreambleSlots`: the slot is written, not inferred); a document may not carry a locked class (`TP-K020`) | decided |
+| A document's `metadata` and `pdf` are texmodel's own fields; `Kind(metadata=, pdf=)` fixes them for every document, else a document sets its own; stored slot entries move with the shipped `document_metadata` migration | decided |
 | A derived package is `Package(base=)` (texmodel 0.7) and its distribution's `base` is that package's distribution (`TP-K019`); a settable value may be the base's, a profile kind's included | decided |
 | Kinds made from data are generated source: `[tool.texpkg] generate`, `texpkg-build generate`, committed and refused when stale by the build | decided |
 | A kind's document is a texmodel tree; a pydantic root with a render function is not supported, because `Plan`, hand edits, the defaults marks and the schemas need nodes | decided |

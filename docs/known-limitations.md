@@ -16,6 +16,8 @@ What texpkg does not do yet, and what it cannot do because of the layer below.
   imports it, and a texmodel release can move it (`tests/test_fieldkinds.py` shows what is relied on; N5).
 - **An override is seen where a document's directory holds it.** A `<name>-local.sty` or `<name>.sty` elsewhere on TeX's search
   path (`TEXINPUTS`) is not reported, and a root copy of a `.sty` does not mark the PDF (plan O4, O5).
+- **`doc.replace` cannot remove a document's `metadata` or `pdf`.** `None` keeps what is there, as for the other extras;
+  a document without them is created again.
 - **A lock holds at the Python API only** (L5): a hand-written document can still `\renewcommand` a locked value.
 - **Computed dynamic imports are not seen.** The build refuses `importlib.import_module("texmodel...")` with a literal, not
   one with a computed name.

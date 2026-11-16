@@ -16,9 +16,12 @@ from typing import Any
 
 import pydantic
 from texmodel.components import AnyValue, Command, Environment, Node, Passthrough, Value
-from texmodel.document import OPTION
+from texmodel.document import (
+    OPTION,
+    Document as TexDocument,
+)
 from texmodel.package import Package
-from texmodel.preamble import Entry, PreambleSlots
+from texmodel.preamble import Entry, PdfInfo, PreambleSlots, RequireMetadata
 
 from ._internal.fieldkinds import is_raw
 from .assets import Asset, Resolved
@@ -118,7 +121,9 @@ class Kind:
     or settable, not both. `defaults` are the kind's own start values for settable ones: written after the presets and
     the variant's settings and before the document's own, so a document that sets the value overrides them (V21).
     `locked_preamble` holds entries every document is written with, in the slots given, after
-    the layout's lines and before the document's own: a document may not carry an entry class that is locked."""
+    the layout's lines and before the document's own: a document may not carry an entry class that is locked.
+    `metadata` and `pdf` are texmodel's, written into every document of the kind; a document sets its own only where
+    the kind sets none."""
 
     name: str
     model: Model
@@ -135,6 +140,8 @@ class Kind:
     preamble: tuple[type[Entry], ...] = ()
     locked_preamble: PreambleSlots = dataclasses.field(default_factory=PreambleSlots)
     defaults: tuple[AnyValue, ...] = ()
+    metadata: RequireMetadata | None = None
+    pdf: PdfInfo | None = None
 
     def __post_init__(self) -> None:
         for field in ("presets", "migrations", "allow_raw", "variants", "settable", "options", "preamble", "defaults"):
@@ -188,6 +195,13 @@ class Kind:
         """What a document may carry (D10): no name twice, real class options, nothing both written and settable."""
         self._unique("settable value", [c.__name__ for c in self.settable])
         self._unique("preamble entry", [c.__name__ for c in self.preamble])
+        if loose := next((c for c in self.preamble if not getattr(c, "slots", ())), None):
+            raise DeclarationError(
+                f"kind {self.name}: {loose.__name__} is not a preamble entry",
+                code="TP-K023",
+                path=self.name,
+                hint="a document sets texmodel's metadata= and pdf= unless the kind fixes them: Kind(metadata=, pdf=)",
+            )
         self._check_locked()
         self._unique("option", list(self.options))
         if bad := next((o for o in self.options if not OPTION.fullmatch(o)), None):
@@ -421,6 +435,14 @@ class Distribution:
             raise kind.locked_error(
                 "is locked by the base kind", "a profile cannot allow what its base locks", clash.__name__
             )
+        both = [n for n in ("metadata", "pdf") if getattr(kind, n) is not None and getattr(base, n) is not None]
+        if both:
+            raise DeclarationError(
+                f"kind {kind.name}: {both[0]} is fixed by the base kind {base.name} too",
+                code="TP-K024",
+                path=kind.name,
+                hint="a profile fixes what its base leaves to the document, not what the base fixes",
+            )
 
     def expansion_problem(self, kind: Kind, tree: Node) -> str | None:
         """Why `tree` of a profile kind does not expand to a valid tree of the base kind (L3); `None` if it does."""
@@ -447,6 +469,14 @@ class Distribution:
     def base_kind(self, kind: Kind) -> Kind | None:
         """The base kind a profile kind expands to; `None` for any other."""
         return self.base.kind(kind.over) if self.base and kind.over else None
+
+    def fixed_document(self, kind: Kind) -> TexDocument:
+        """The `metadata` and `pdf` every document of `kind` is written with: its own, else its base kind's."""
+        base = self.base_kind(kind)
+        return TexDocument(
+            metadata=kind.metadata or (base.metadata if base else None),
+            pdf=kind.pdf or (base.pdf if base else None),
+        )
 
     @property
     def files(self) -> importlib.resources.abc.Traversable:

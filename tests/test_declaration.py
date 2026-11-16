@@ -10,7 +10,7 @@ import pytest
 from acme_brand import Card, Compact, Deck, Fact, FactGap, Glossary, Ink, Mark, Term, Title, dist, expert_example
 from texmodel.components import Command, Environment, Passthrough, Value
 from texmodel.package import Package
-from texmodel.preamble import PassOption, PdfInfo, PreambleSlots, RequireMetadata
+from texmodel.preamble import InputIfExists, PassOption, PdfInfo, PreambleSlots, RequireMetadata
 from texmodel.types import Length, Raw, Text
 
 from texpkg import Asset, DefaultChange, Distribution, Kind, Migrated, Role, Variant, migration
@@ -257,15 +257,17 @@ def test_a_distribution_declared_in_a_zipped_package_checks_its_root_through_the
     [
         ({"options": ("a4paper", "a4paper")}, "TP-K002"),
         ({"settable": (Ink, Ink)}, "TP-K002"),
-        ({"preamble": (PdfInfo, PdfInfo)}, "TP-K002"),
+        ({"preamble": (PassOption, PassOption)}, "TP-K002"),
+        ({"preamble": (PdfInfo,)}, "TP-K023"),  # a document's `pdf=`, not an entry
+        ({"preamble": (RequireMetadata,)}, "TP-K023"),
         ({"options": ("two words",)}, "TP-K016"),
         ({"options": ("!",)}, "TP-K016"),
         ({"settable": (FactGap,)}, "TP-K017"),  # a preset of the kind
         ({"settable": (Compact,)}, "TP-K017"),  # a variant's setting
         ({"locked_preamble": PreambleSlots(before_class=(Raw(r"\\x"),))}, "TP-K020"),  # not a typed entry
-        ({"locked_preamble": PreambleSlots(before_package=(RequireMetadata(lang="en"),))}, "TP-K020"),  # wrong slot
+        ({"locked_preamble": PreambleSlots(after_package=(PassOption("a", "b"),))}, "TP-K020"),  # wrong slot
         ({"locked_preamble": PreambleSlots(before_class=(PassOption("a", "b"), PassOption("c", "d")))}, "TP-K020"),
-        ({"locked_preamble": PreambleSlots(before_class=(RequireMetadata(lang="en"),))}, "TP-K020"),  # also allowed
+        ({"locked_preamble": PreambleSlots(after_package=(InputIfExists("a.tex"),))}, "TP-K020"),  # also allowed
     ],
 )
 def test_what_a_kind_lets_a_document_carry_is_checked(changes, code):

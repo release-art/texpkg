@@ -210,7 +210,6 @@ def test_a_profile_kind_is_declared_whole(deck):
 
 # -- locked preamble entries (K020) ----------------------------------------------------------------------------------
 
-LOCK = PreambleSlots(before_class=(RequireMetadata(lang="en"),))
 BASE_LOCK = PreambleSlots(before_class=(PassOption("graphicx", "draft"),))  # what a base kind locks
 OWN = PreambleSlots(before_class=(PassOption("xcolor", "table"),))
 
@@ -232,25 +231,41 @@ def test_a_variant_writes_its_class_options_into_its_own_tex(deck, tmp_path):
     assert "\\documentclass{" in (tmp_path / "slide.tex").read_text()
 
 
-def test_a_document_may_not_carry_an_entry_class_the_kind_locks(deck, tmp_path):
+def test_a_document_may_not_set_the_metadata_its_kind_fixes(deck, tmp_path):
     slide = deck.kinds.modules()["slide"]
     with pytest.raises(NotAllowedError) as raised:
-        slide.create(tmp_path, slide.example(), preamble=LOCK)
+        slide.create(tmp_path, slide.example(), metadata=RequireMetadata(lang="en"))
     (item,) = raised.value.items
-    assert item["path"] == "/preamble/before_class/0" and "locked by kind slide" in item["reason"]
+    assert item["path"] == "/metadata" and "fixed by kind slide" in item["reason"]
+    assert "metadata" not in slide.schema()["properties"] and "pdf" in slide.schema()["properties"]
 
 
-def test_locked_entries_are_in_no_documents_data_and_a_stored_one_is_unresolved(deck, tmp_path):
+def test_fixed_metadata_is_in_no_documents_data_and_a_stored_one_is_unresolved(deck, tmp_path):
     slide = deck.kinds.modules()["slide"]
     slide.create(tmp_path, slide.example(), preamble=OWN).save()
     path = tmp_path / "_texpkg/state.json"
     stored = json.loads(path.read_text())
-    assert [e["type"] for e in stored["preamble"]["before_class"]] == ["PassOption"]  # not the lock
-    stored["preamble"]["before_class"].append({"type": "RequireMetadata", "entries": {"lang": "en"}})
+    assert "metadata" not in stored and json.loads((tmp_path / "_texpkg/template.json").read_text())["metadata"] == {
+        "pdfversion": "2.0"
+    }
+    stored["metadata"] = {"lang": "en"}
     path.write_text(json.dumps(stored))
     with pytest.raises(MigrationError) as raised:
         slide.load(tmp_path)
-    assert raised.value.code == "TP-M003" and "locked by kind slide" in str(raised.value)
+    assert raised.value.code == "TP-M003" and "fixed by kind slide" in str(raised.value)
+
+
+def test_a_release_that_changes_the_fixed_metadata_shows_in_the_template_changes(deck, tmp_path):
+    from acme_deck import Slide  # noqa: PLC0415  # importable once the `deck` fixture has built the brand
+
+    slide = deck.kinds.modules()["slide"]
+    slide.create(tmp_path, slide.example()).save()
+    dist = deck._bound.RELEASE.dist  # noqa: SLF001
+    changed = dataclasses.replace(dist.kind("slide"), metadata=RequireMetadata(pdfversion="1.7"))
+    newer = dataclasses.replace(dist, kinds=(changed, *dist.kinds[1:]))
+    release = dataclasses.replace(deck._bound.RELEASE, dist=newer)  # noqa: SLF001
+    changes = {c.setting: (c.old, c.new) for c in release.kind("slide", Slide).load(tmp_path).template_changes()}
+    assert changes["metadata"] == ({"pdfversion": "2.0"}, {"pdfversion": "1.7"})
 
 
 def test_a_hand_edit_of_the_documents_own_entry_is_found_at_its_data_path(deck, tmp_path):
@@ -261,8 +276,7 @@ def test_a_hand_edit_of_the_documents_own_entry_is_found_at_its_data_path(deck, 
     tex.write_text(
         tex.read_text().replace("{table}{xcolor}", "{x11names}{xcolor}").replace("pdfversion=2.0", "pdfversion=1.7")
     )
-    paths = {e.path for e in doc.hand_edits()}
-    assert paths == {"/preamble/before_class/0", "preamble.before_class[0]"}  # the own entry, and the locked line
+    assert {e.path: e.locked for e in doc.hand_edits()} == {"/preamble/before_class/0": False, "metadata": True}
 
 
 @pytest.mark.tex
@@ -290,6 +304,21 @@ def test_a_profile_writes_the_locked_entries_of_its_base_kind(deck):
     brief = wide.kind("brief")
     text = release.plan(brief, brief.example(), None).text
     assert text.index("\\PassOptionsToPackage{draft}{graphicx}") < text.index("\\documentclass")
+
+
+def test_a_profile_writes_the_metadata_its_base_kind_fixes_and_may_not_fix_it_again(deck):
+    import acme_deck  # noqa: PLC0415  # importable once the `deck` fixture has built the brand
+
+    expert = dataclasses.replace(acme_brand.dist.kinds[0], metadata=RequireMetadata(lang="en"))
+    base = dataclasses.replace(acme_brand.dist, kinds=(expert, *acme_brand.dist.kinds[1:]))
+    wide = dataclasses.replace(acme_deck.dist, base=base)
+    release = dataclasses.replace(deck._bound.RELEASE, dist=wide)  # noqa: SLF001
+    brief = wide.kind("brief")
+    assert release.plan(brief, brief.example(), None).text.splitlines()[1] == "\\DocumentMetadata{lang=en}"
+    own = dataclasses.replace(brief, metadata=RequireMetadata(lang="de"))
+    with pytest.raises(DeclarationError) as raised:
+        dataclasses.replace(wide, kinds=(wide.kinds[0], own))
+    assert raised.value.code == "TP-K024"
 
 
 def test_a_profile_may_not_lock_or_allow_what_its_base_kind_locks(deck):

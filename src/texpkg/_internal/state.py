@@ -17,7 +17,7 @@ from texmodel.body import Comment
 from texmodel.components import AnyValue, Command, Environment, Node, Passthrough
 from texmodel.document import Document as TexDocument
 from texmodel.package import Package
-from texmodel.preamble import PreambleSlots
+from texmodel.preamble import PdfInfo, PreambleSlots, RequireMetadata
 
 from ..declaration import Kind, Model
 from ..errors import DeclarationError
@@ -59,16 +59,26 @@ def tree_schema(model: Model, mode: Mode) -> dict[str, Any]:
 @dataclasses.dataclass(frozen=True)
 class Extras:
     """What a document carries besides its tree, within what its kind allows: class `options`, `settings` (values set
-    after the package loads) and `preamble` entries."""
+    after the package loads), texmodel's `metadata` and `pdf`, and `preamble` entries."""
 
     options: tuple[str, ...] = ()
     settings: tuple[AnyValue, ...] = ()
     preamble: PreambleSlots = dataclasses.field(default_factory=PreambleSlots)
+    metadata: RequireMetadata | None = None
+    pdf: PdfInfo | None = None
 
 
 def extras_state(extras: Extras) -> dict[str, Any]:
     """The keys of a document's data besides `tree`, in texmodel's shapes; empty ones left out."""
-    data = spec.to_dict(TexDocument(options=extras.options, settings=extras.settings, preamble=extras.preamble))
+    data = spec.to_dict(
+        TexDocument(
+            options=extras.options,
+            settings=extras.settings,
+            metadata=extras.metadata,
+            pdf=extras.pdf,
+            preamble=extras.preamble,
+        )
+    )
     return {key: data[key] for key in EXTRA_KEYS if key in data}
 
 
@@ -76,11 +86,17 @@ def extras_from(package: Package, data: Mapping[str, Any]) -> Extras:
     """The extras `data` describes; raises an `ExceptionGroup` of texmodel `ValidationError` for data the package does
     not read."""
     found = spec.from_dict(package, {"type": "Document", **data, "content": []})
-    return Extras(found.options, found.settings, found.preamble)
+    return Extras(found.options, found.settings, found.preamble, found.metadata, found.pdf)
 
 
-def not_allowed(kind: Kind, extras: Extras) -> list[dict[str, Any]]:
-    """What `extras` holds that `kind` does not allow, as unresolved items (`path`, `reason`, `value`)."""
+def fixed_fields(fixed: TexDocument) -> tuple[str, ...]:
+    """The fields of a document a kind writes itself, of `metadata` and `pdf`: a document may not set them."""
+    return (*(("metadata",) if fixed.metadata else ()), *(("pdf",) if fixed.pdf else ()))
+
+
+def not_allowed(kind: Kind, extras: Extras, fixed: TexDocument) -> list[dict[str, Any]]:
+    """What `extras` holds that `kind` does not allow, as unresolved items (`path`, `reason`, `value`). `fixed` holds
+    the `metadata` and `pdf` the kind writes into every document."""
     data = extras_state(extras)
     settable = {c.__name__ for c in kind.settable}
     entries = {c.__name__ for c in kind.preamble}
@@ -94,6 +110,9 @@ def not_allowed(kind: Kind, extras: Extras) -> list[dict[str, Any]]:
         (f"/options/{i}", f"option {o!r} is not allowed in kind {kind.name}", o)
         for i, o in enumerate(extras.options)
         if o not in kind.options
+    ]
+    found += [
+        (f"/{name}", f"{name} is fixed by kind {kind.name}", data[name]) for name in fixed_fields(fixed) if name in data
     ]
     found += [
         (
@@ -133,9 +152,10 @@ def _refs(node: object) -> list[str]:
     return []
 
 
-def schema(kind: Kind, package: Package, mode: Mode) -> dict[str, Any]:
-    """The JSON Schema of the data of a document of `kind`: its `tree`, and the settings, options and preamble entries
-    the kind allows, read by `package`, the one that renders it."""
+def schema(kind: Kind, package: Package, mode: Mode, fixed: TexDocument) -> dict[str, Any]:
+    """The JSON Schema of the data of a document of `kind`: its `tree`, and the settings, options, `metadata`, `pdf`
+    and preamble entries the kind allows, read by `package`, the one that renders it. `fixed` holds what the kind
+    writes itself, which a document may not set."""
     tree = tree_schema(kind.model, mode)
     defs: dict[str, Any] = tree.pop("$defs", {})
     title = str(tree["title"])
@@ -148,6 +168,10 @@ def schema(kind: Kind, package: Package, mode: Mode) -> dict[str, Any]:
         properties["settings"] = {"type": "array", "items": {"oneOf": [{"$ref": f"#/$defs/{n}"} for n in names]}}
     if kind.options:
         properties["options"] = {"type": "array", "uniqueItems": True, "items": {"enum": list(kind.options)}}
+    for name, ref in (("metadata", "MetadataData"), ("pdf", "PdfInfoData")):
+        if name not in fixed_fields(fixed):
+            wanted.append(ref)
+            properties[name] = {"$ref": f"#/$defs/{ref}"}
     if kind.preamble:
         names = [f"{c.__name__}Entry" for c in kind.preamble]
         wanted += names

@@ -8,7 +8,7 @@ from typing import Any
 
 from ..errors import NotADocumentError
 
-EXTRA_KEYS = ("settings", "options", "preamble")
+EXTRA_KEYS = ("settings", "options", "metadata", "pdf", "preamble")
 
 
 def dumps(value: object) -> str:
@@ -22,7 +22,9 @@ class Envelope:
     kind: str
     data: int
     tree: dict[str, Any]
-    extras: dict[str, Any] = dataclasses.field(default_factory=dict[str, Any])  # `settings`, `options`, `preamble`
+    extras: dict[str, Any] = dataclasses.field(
+        default_factory=dict[str, Any]
+    )  # `settings`, `options`, `metadata`, `pdf`, `preamble`
 
     def to_text(self) -> str:
         head = {"package": self.package, "kind": self.kind, "data": self.data, "tree": self.tree}

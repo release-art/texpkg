@@ -100,7 +100,7 @@ def _kind_source(dist: Distribution, kind: Kind) -> str:
         from typing import Any, Final, Literal, Never
 
         from texmodel.plan import Edit as Edit, EditKind as EditKind, FieldEdit as FieldEdit
-        from texmodel.preamble import PreambleSlots
+        from texmodel.preamble import PdfInfo, PreambleSlots, RequireMetadata
         from texmodel.restore import Reason as Reason, Restored as Restored, Unapplied as Unapplied
 
         from texpkg.contracts import Changes
@@ -130,8 +130,12 @@ def _kind_source(dist: Distribution, kind: Kind) -> str:
             settings: Sequence[{settings}] = (),
             options: Sequence[{options}] = (),
             preamble: PreambleSlots | None = None,
+            metadata: RequireMetadata | None = None,
+            pdf: PdfInfo | None = None,
         ) -> Document[{root}]:
-            return _api.create(path, tree, settings=settings, options=options, preamble=preamble)
+            return _api.create(
+                path, tree, settings=settings, options=options, preamble=preamble, metadata=metadata, pdf=pdf
+            )
 
 
         def schema(mode: Literal["validation", "serialization"] = "validation") -> dict[str, Any]:
